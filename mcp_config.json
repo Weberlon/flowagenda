@@ -1,0 +1,20 @@
+{
+    "mcpServers": {
+        "supabase": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@supabase/mcp-server",
+                "--db-url",
+                "postgresql://postgres:[SUA_SENHA_DO_BANCO]@db.[SEU_PROJETO].supabase.co:5432/postgres"
+            ]
+        },
+        "fetch": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-fetch"
+            ]
+        }
+    }
+}
