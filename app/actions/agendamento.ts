@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 
 export async function buscarHorariosDisponiveisAction(lojistaId: string, servicoId: string, dataIso: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   
   // 1. Obter duração do serviço
   const { data: servico } = await supabase
@@ -46,7 +46,7 @@ export async function buscarHorariosDisponiveisAction(lojistaId: string, servico
     if (slotEnd > fechamento) break;
 
     // Verificar colisão
-    const isOcupado = ocupados?.some(ag => {
+    const isOcupado = ocupados?.some((ag: any) => {
       const agStart = new Date(ag.data_hora_inicio);
       const agEnd = new Date(ag.data_hora_fim);
       return (slotStart < agEnd && slotEnd > agStart);

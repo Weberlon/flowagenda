@@ -7,7 +7,7 @@ import { createAsaasCustomer } from '@/lib/asaas';
 import { addDomainToVercel } from '@/lib/vercel';
 
 export async function createTenantAction(formData: FormData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const supabaseAdmin = createAdminClient();
   
   // 1. Auth & Role Validation (via sessão do usuário atual)

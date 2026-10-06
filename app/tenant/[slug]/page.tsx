@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import AgendamentoClient from './agendamento-client';
 
 export default async function TenantPage({ params }: { params: { slug: string } }) {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // 1. Buscar dados do lojista
   const { data: lojista } = await supabase

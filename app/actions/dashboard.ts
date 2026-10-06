@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { fetchInstanceConnectionStatus } from '@/lib/evolution';
 
 export async function getDashboardData() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Unauthorized');
@@ -46,7 +46,7 @@ export async function getDashboardData() {
 }
 
 export async function getServicosData() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Unauthorized');
@@ -69,7 +69,7 @@ export async function getServicosData() {
 }
 
 export async function addServicoAction(formData: FormData) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
 

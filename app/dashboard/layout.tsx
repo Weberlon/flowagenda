@@ -7,7 +7,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -57,16 +57,16 @@ export default async function DashboardLayout({
         </div>
         
         <nav className="flex-1 space-y-2 p-4 text-sm font-medium">
-          <Link href="/app/dashboard" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
             Agenda
           </Link>
-          <Link href="/app/dashboard/servicos" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard/servicos" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
             Serviços
           </Link>
-          <Link href="/app/dashboard/clientes" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard/clientes" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
             Clientes
           </Link>
-          <Link href="/app/dashboard/configuracoes" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard/configuracoes" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
             Configurações
           </Link>
         </nav>

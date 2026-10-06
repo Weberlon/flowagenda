@@ -6,3 +6,8 @@ out/
 build/
 .DS_Store
 *.log
+
+.vercel
+
+Asaas.txt
+scratch_*.ts
