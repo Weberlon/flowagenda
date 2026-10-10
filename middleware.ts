@@ -47,6 +47,11 @@ export async function middleware(req: NextRequest) {
     });
   }
 
+  // Ignorar reescritas para rotas globais do sistema
+  if (path.startsWith('/superadmin') || path.startsWith('/dashboard') || path.startsWith('/login')) {
+    return response;
+  }
+
   // 2. Home institucional / Localhost -> /home
   if (
     domain === currentHost ||
