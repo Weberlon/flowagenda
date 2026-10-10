@@ -76,20 +76,36 @@ export async function addClienteAction(formData: FormData) {
     return { success: false, error: 'Informe um número de telefone/WhatsApp válido com DDD.' };
   }
 
-  const { error } = await supabase
+  // Checa se o cliente já existe para preservar seu histórico de agendamentos
+  const { data: clienteExistente } = await supabase
     .from('clientes')
-    .upsert({
-      lojista_id: lojista.id,
-      nome,
-      telefone,
-      total_agendamentos: 1,
-      ultimo_agendamento: new Date().toISOString(),
-    }, {
-      onConflict: 'lojista_id,telefone',
-    });
+    .select('id, total_agendamentos')
+    .eq('lojista_id', lojista.id)
+    .eq('telefone', telefone)
+    .single();
+
+  let error;
+  if (clienteExistente) {
+    const res = await supabase
+      .from('clientes')
+      .update({ nome })
+      .eq('id', clienteExistente.id);
+    error = res.error;
+  } else {
+    const res = await supabase
+      .from('clientes')
+      .insert({
+        lojista_id: lojista.id,
+        nome,
+        telefone,
+        total_agendamentos: 1,
+        ultimo_agendamento: new Date().toISOString(),
+      });
+    error = res.error;
+  }
 
   if (error) {
-    return { success: false, error: `Erro ao cadastrar cliente: ${error.message}` };
+    return { success: false, error: `Erro ao salvar cliente: ${error.message}` };
   }
 
   revalidatePath('/dashboard/clientes');

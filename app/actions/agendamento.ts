@@ -7,6 +7,13 @@ import { sendEvolutionTextMessage, maskPhoneNumber } from '@/lib/evolution';
 // Validação estrita de duração de acordo com a regra de engenharia do AGENTS.md
 const DURACOES_PERMITIDAS = [15, 30, 45, 60] as const;
 
+// Constrói objeto Date no fuso horário oficial de Brasília (America/Sao_Paulo = UTC-3)
+function createSaoPauloDate(dataIsoYmd: string, hour: number, minute: number = 0): Date {
+  const [year, month, day] = dataIsoYmd.split('-').map(Number);
+  // Horário de Brasília (UTC-3): somar 3 horas para obter o instante em UTC
+  return new Date(Date.UTC(year, month - 1, day, hour + 3, minute, 0));
+}
+
 export async function buscarHorariosDisponiveisAction(
   lojistaId: string, 
   servicoId: string, 
@@ -41,16 +48,14 @@ export async function buscarHorariosDisponiveisAction(
       .eq('lojista_id', lojistaId)
       .eq('status', 'pendente_pin')
       .lt('expira_em', agoraIso);
-  } catch (err) {
-    // Continua mesmo se bypass admin falhar
+  } catch {
+    // Continua mesmo se admin client não estiver disponível no escopo
   }
 
-  // 3. Buscar agendamentos que bloqueiam slots
-  // Considera 'confirmado' e 'pendente_pin' com lock ativo (expira_em > agora)
-  const startOfDay = new Date(dataIso);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(dataIso);
-  endOfDay.setHours(23, 59, 59, 999);
+  // 3. Delimitar o dia no Fuso Horário de Brasília (00:00 às 23:59:59 BRT)
+  const dataYmd = dataIso.split('T')[0];
+  const startOfDay = createSaoPauloDate(dataYmd, 0, 0);
+  const endOfDay = createSaoPauloDate(dataYmd, 23, 59);
 
   const { data: ocupados } = await supabase
     .from('agendamentos')
@@ -60,12 +65,10 @@ export async function buscarHorariosDisponiveisAction(
     .lte('data_hora_inicio', endOfDay.toISOString())
     .or(`status.eq.confirmado,and(status.eq.pendente_pin,expira_em.gt.${agoraIso})`);
 
-  // 4. Gerar grade de horários (08:00 às 19:00)
+  // 4. Grade comercial no horário de Brasília: 08:00 às 19:00 BRT
   const slots = [];
-  const currentTime = new Date(startOfDay);
-  currentTime.setHours(8, 0, 0, 0);
-  const fechamento = new Date(startOfDay);
-  fechamento.setHours(19, 0, 0, 0);
+  const currentTime = createSaoPauloDate(dataYmd, 8, 0);
+  const fechamento = createSaoPauloDate(dataYmd, 19, 0);
 
   const agora = new Date();
 
@@ -75,7 +78,7 @@ export async function buscarHorariosDisponiveisAction(
 
     if (slotEnd > fechamento) break;
 
-    // Não exibe horários do passado se a consulta for para hoje
+    // Não exibe horários do passado
     const isPassado = slotStart <= agora;
 
     // Verificar colisão de intervalo [slotStart, slotEnd] com agendamentos ocupados
@@ -86,10 +89,17 @@ export async function buscarHorariosDisponiveisAction(
     });
 
     if (!isPassado && !isColisao) {
+      // Exibe formato HH:mm no fuso de Brasília
+      const horaFormatada = slotStart.toLocaleTimeString('pt-BR', { 
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+
       slots.push({
         inicio: slotStart.toISOString(),
         fim: slotEnd.toISOString(),
-        horaFormatada: slotStart.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        horaFormatada,
       });
     }
 
@@ -141,46 +151,24 @@ export async function reservarHorarioComLockAction(
     throw new Error('Este horário acabou de ser selecionado por outro cliente. Por favor, escolha outro horário.');
   }
 
-  // 2. Gerar PIN de 6 dígitos
+  // 2. Gerar PIN de 6 dígitos numérico
   const pin = Math.floor(100000 + Math.random() * 900000).toString();
 
   // 3. Configurar Lock de exatos 10 minutos
   const expiraEm = new Date();
   expiraEm.setMinutes(expiraEm.getMinutes() + 10);
 
-  // 4. Criar ou vincular registro temporário do cliente
-  let clienteId: string | null = null;
-  const { data: clienteExistente } = await dbClient
-    .from('clientes')
-    .select('id')
-    .eq('lojista_id', lojistaId)
-    .eq('telefone', cleanPhone)
-    .single();
-
-  if (clienteExistente) {
-    clienteId = clienteExistente.id;
-  } else {
-    const { data: novoCliente } = await dbClient
-      .from('clientes')
-      .insert({
-        lojista_id: lojistaId,
-        nome: cleanNome,
-        telefone: cleanPhone,
-        total_agendamentos: 0,
-      })
-      .select('id')
-      .single();
-
-    if (novoCliente) clienteId = novoCliente.id;
-  }
-
-  // 5. Inserir agendamento com status 'pendente_pin'
+  // 4. Inserir agendamento com status 'pendente_pin' e dados temporários de contato
+  // OBS: NÃO cria cliente ainda para evitar contatos fantasmas em reservas abandonadas
   const { data: agendamento, error: insertError } = await dbClient
     .from('agendamentos')
     .insert({
       lojista_id: lojistaId,
       servico_id: servicoId,
-      cliente_id: clienteId,
+      cliente_id: null,
+      nome_contato: cleanNome,
+      telefone_contato: cleanPhone,
+      tentativas_pin: 0,
       data_hora_inicio: horarioInicioIso,
       data_hora_fim: horarioFimIso,
       status: 'pendente_pin',
@@ -191,10 +179,14 @@ export async function reservarHorarioComLockAction(
     .single();
 
   if (insertError || !agendamento) {
+    // Se colidir no índice único de banco, rejeita com clareza
+    if (insertError?.code === '23505') {
+      throw new Error('Este horário foi reservado simultaneamente por outro cliente. Por favor, escolha outro horário.');
+    }
     throw new Error(`Falha ao reservar horário: ${insertError?.message || 'Erro desconhecido'}`);
   }
 
-  // 6. Disparar PIN transacional via Evolution API
+  // 5. Disparar PIN transacional via Evolution API
   const { data: configRobo } = await dbClient
     .from('configuracoes_robo')
     .select('instance_name')
@@ -214,11 +206,14 @@ export async function reservarHorarioComLockAction(
 
   await sendEvolutionTextMessage(instanceName, cleanPhone, mensagemPin);
 
+  // 6. Segurança: pinSimulado NUNCA é exposto em produção ou se a Evolution API estiver ativa
+  const isMockDev = process.env.NODE_ENV !== 'production' && !process.env.EVOLUTION_API_KEY;
+
   return {
     reservaId: agendamento.id,
     expiracaoIso: expiraEm.toISOString(),
     telefoneMascarado: maskPhoneNumber(cleanPhone),
-    pinSimulado: pin, // Disponível para ambientes locais/mock de homologação
+    pinSimulado: isMockDev ? pin : null,
   };
 }
 
@@ -239,8 +234,8 @@ export async function validarPinEConfirmarAction(
     .from('agendamentos')
     .select(`
       id, pin_validacao, expira_em, status, data_hora_inicio,
-      cliente_id, servico_id,
-      cliente:clientes(nome, telefone),
+      nome_contato, telefone_contato, tentativas_pin,
+      servico_id,
       servico:servicos(nome_servico),
       lojista:lojistas(nome_estabelecimento, whatsapp_notificacao)
     `)
@@ -256,26 +251,97 @@ export async function validarPinEConfirmarAction(
     throw new Error('Este agendamento já foi confirmado.');
   }
 
+  if (reserva.status === 'cancelado') {
+    throw new Error('Esta reserva foi cancelada. Por favor, selecione outro horário.');
+  }
+
+  // 2. Checagem de expiração do lock (10 minutos)
   const agora = new Date();
   if (agora > new Date(reserva.expira_em)) {
-    // Lock expirado: cancela e libera
     await dbClient
       .from('agendamentos')
       .update({ status: 'cancelado' })
       .eq('id', reservaId);
 
-    throw new Error('O tempo limite de 10 minutos expirou. O horário foi liberado. Por favor, reinicie seu agendamento.');
+    throw new Error('O tempo limite de 10 minutos expirou. O horário foi liberado.');
+  }
+
+  // 3. Blindagem contra Brute Force (Máximo 3 tentativas)
+  const tentativasAtuais = reserva.tentativas_pin || 0;
+  if (tentativasAtuais >= 3) {
+    await dbClient
+      .from('agendamentos')
+      .update({ status: 'cancelado' })
+      .eq('id', reservaId);
+
+    throw new Error('Limite de tentativas excedido (3 tentativas incorretas). O horário foi cancelado por segurança.');
   }
 
   if (reserva.pin_validacao !== pin.trim()) {
-    throw new Error('Código PIN incorreto. Verifique o código recebido no seu WhatsApp.');
+    const novasTentativas = tentativasAtuais + 1;
+    const restantes = 3 - novasTentativas;
+
+    await dbClient
+      .from('agendamentos')
+      .update({ 
+        tentativas_pin: novasTentativas,
+        status: restantes <= 0 ? 'cancelado' : 'pendente_pin'
+      })
+      .eq('id', reservaId);
+
+    if (restantes <= 0) {
+      throw new Error('Código PIN incorreto. Limite de tentativas excedido. O horário foi cancelado.');
+    }
+
+    throw new Error(`Código PIN incorreto. Você tem mais ${restantes} tentativa(s).`);
   }
 
-  // 2. Confirmar o agendamento
+  // 4. Criação/Atualização do Cliente APENAS após confirmação real
+  const nomeCliente = reserva.nome_contato || 'Cliente';
+  const telefoneCliente = reserva.telefone_contato || '';
+
+  let clienteId: string | null = null;
+  if (telefoneCliente) {
+    const { data: clienteExistente } = await dbClient
+      .from('clientes')
+      .select('id, total_agendamentos')
+      .eq('lojista_id', lojistaId)
+      .eq('telefone', telefoneCliente)
+      .single();
+
+    if (clienteExistente) {
+      clienteId = clienteExistente.id;
+      await dbClient
+        .from('clientes')
+        .update({
+          nome: nomeCliente,
+          total_agendamentos: (clienteExistente.total_agendamentos || 0) + 1,
+          ultimo_agendamento: new Date().toISOString(),
+        })
+        .eq('id', clienteId);
+    } else {
+      const { data: novoCliente } = await dbClient
+        .from('clientes')
+        .insert({
+          lojista_id: lojistaId,
+          nome: nomeCliente,
+          telefone: telefoneCliente,
+          total_agendamentos: 1,
+          ultimo_agendamento: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (novoCliente) clienteId = novoCliente.id;
+    }
+  }
+
+  // 5. Confirmar o agendamento
   const { error: confirmError } = await dbClient
     .from('agendamentos')
     .update({
       status: 'confirmado',
+      cliente_id: clienteId,
     })
     .eq('id', reservaId);
 
@@ -283,28 +349,13 @@ export async function validarPinEConfirmarAction(
     throw new Error(`Erro ao confirmar: ${confirmError.message}`);
   }
 
-  // 3. Atualizar estatísticas do cliente
-  if (reserva.cliente_id) {
-    const { data: clienteAtual } = await dbClient
-      .from('clientes')
-      .select('total_agendamentos')
-      .eq('id', reserva.cliente_id)
-      .single();
-
-    const novoTotal = (clienteAtual?.total_agendamentos || 0) + 1;
-
-    await dbClient
-      .from('clientes')
-      .update({
-        total_agendamentos: novoTotal,
-        ultimo_agendamento: new Date().toISOString(),
-      })
-      .eq('id', reserva.cliente_id);
-  }
-
-  // 4. Enviar mensagem de confirmação no WhatsApp do cliente
-  const dataFormatada = new Date(reserva.data_hora_inicio).toLocaleDateString('pt-BR');
-  const horaFormatada = new Date(reserva.data_hora_inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  // 6. Mensagens transacionais pós-confirmação
+  const dataFormatada = new Date(reserva.data_hora_inicio).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const horaFormatada = new Date(reserva.data_hora_inicio).toLocaleTimeString('pt-BR', { 
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
 
   const { data: configRobo } = await dbClient
     .from('configuracoes_robo')
@@ -314,14 +365,15 @@ export async function validarPinEConfirmarAction(
 
   const instanceName = configRobo?.instance_name || `flowagenda_${lojistaId.slice(0, 8)}`;
 
-  if (reserva.cliente?.telefone) {
-    const msgConfirmacaoCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, *${reserva.cliente.nome}*!\nSeu horário no *${reserva.lojista?.nome_estabelecimento}* está 100% garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n💈 *Serviço:* ${reserva.servico?.nome_servico}\n\nTe esperamos! Caso precise reagendar, avise com antecedência.`;
-    await sendEvolutionTextMessage(instanceName, reserva.cliente.telefone, msgConfirmacaoCliente);
+  // Notificar cliente
+  if (telefoneCliente) {
+    const msgConfirmacaoCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, *${nomeCliente}*!\nSeu horário no *${reserva.lojista?.nome_estabelecimento}* está 100% garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n💈 *Serviço:* ${reserva.servico?.nome_servico}\n\nTe esperamos! Caso precise reagendar, avise com antecedência.`;
+    await sendEvolutionTextMessage(instanceName, telefoneCliente, msgConfirmacaoCliente);
   }
 
-  // 5. Notificar lojista (se tiver whatsapp cadastrado)
+  // Notificar lojista (se configurado)
   if (reserva.lojista?.whatsapp_notificacao) {
-    const msgNotificacaoLojista = `🔔 *Novo Agendamento Confirmado!*\n\n• Cliente: ${reserva.cliente?.nome} (${reserva.cliente?.telefone})\n• Data: ${dataFormatada} às ${horaFormatada}\n• Serviço: ${reserva.servico?.nome_servico}`;
+    const msgNotificacaoLojista = `🔔 *Novo Agendamento Confirmado!*\n\n• Cliente: ${nomeCliente} (${maskPhoneNumber(telefoneCliente)})\n• Data: ${dataFormatada} às ${horaFormatada}\n• Serviço: ${reserva.servico?.nome_servico}`;
     await sendEvolutionTextMessage(instanceName, reserva.lojista.whatsapp_notificacao, msgNotificacaoLojista);
   }
 
