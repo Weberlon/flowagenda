@@ -1,16 +1,20 @@
-export default function AppLayout({
+import './globals.css';
+
+export const metadata = {
+  title: 'FlowAgenda',
+  description: 'Sistema de Agendamento Inteligente',
+};
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
-      <nav className="border-b bg-white p-4 shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-800">FlowAgenda - Painel do Lojista</h2>
-      </nav>
-      <main className="flex-1 p-6">
+    <html lang="pt-BR">
+      <body className="min-h-screen bg-slate-50 antialiased font-sans text-slate-900">
         {children}
-      </main>
-    </div>
+      </body>
+    </html>
   );
 }
