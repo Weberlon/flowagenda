@@ -56,24 +56,23 @@ O isolamento e resolução de domínios operam sob o seguinte fluxo:
 | **Autenticação & Controle de Sessão** | 🟢 100% | Login funcional com separação por perfil (`super_admin` e `lojista`). |
 | **Painel Super Admin (`/superadmin`)** | 🟢 100% | Cadastro de novos lojistas homologado e testado com sucesso. |
 | **Página Pública do Tenant (`/tenant/[slug]`)** | 🟢 90% | Renderiza o estabelecimento, paleta de cores e interface de agendamento. |
-| **Painel do Lojista (`/dashboard`)** | 🟡 60% | Layout base, rota de serviços e bloqueio de inadimplência prontos. Faltam configurações e clientes. |
-| **Conexão WhatsApp (Evolution API)** | 🟡 50% | Rotas e integração preparadas. Falta a interface do QR Code no dashboard. |
+| **Painel do Lojista (`/dashboard`)** | 🟢 85% | Layout base, agenda, serviços e configurações prontos. Falta módulo de clientes. |
+| **Conexão WhatsApp (Evolution API)** | 🟢 100% | Conexão, exibição de QR Code em tempo real, sincronização, restart e logout operacionais no dashboard. |
 | **Gestão de Clientes (`/dashboard/clientes`)** | 🔴 0% | Página ainda não criada. |
 
 ---
 
 ## 4. Desafios e Roadmap por Etapas
 
-### Etapa 1: Tela de Configurações e Pareamento de WhatsApp (Imediato)
-- **Objetivo:** Criar a página `app/dashboard/configuracoes/page.tsx`.
-- **Funcionalidades:**
-  - Exibir status da conexão do robô (`desconectado`, `conectando`, `conectado`).
-  - Renderizar o QR Code gerado pela Evolution API para o lojista escanear com o celular.
-  - Botão para desconectar/reiniciar a instância do WhatsApp.
-  - Edição de mensagens de saudação e personalização visual (cor primária, logo).
-- **Desafios Técnicos:**
-  - Lidar com atualização em tempo real ou polling suave do estado de conexão sem esgotar limites de requisição da VPS.
-  - Tratamento seguro de credenciais da Evolution API.
+### Etapa 1: Tela de Configurações e Pareamento de WhatsApp (Concluído 🟢)
+- **Status:** 100% implementado em `app/dashboard/configuracoes/page.tsx` e `configuracoes-client.tsx`.
+- **Entregas:**
+  - Status em tempo real (`Conectado`, `Aguardando Pareamento`, `Conectando`).
+  - Renderização do QR Code com guia passo a passo em 4 etapas.
+  - Ações para Sincronizar status, Reiniciar instância e Desconectar WhatsApp.
+  - Editor com preview ao vivo da mensagem de boas-vindas do robô (`mensagem_boas_vindas`) com inserção de variáveis (`{nome_estabelecimento}`, `{link_agendamento}`).
+  - Gerenciamento do número de WhatsApp de notificações do estabelecimento.
+  - Exibição de link público e subdomínio do lojista com cópia rápida para área de transferência.
 
 ### Etapa 2: Módulo de Clientes (`/dashboard/clientes`)
 - **Objetivo:** Criar a página `app/dashboard/clientes/page.tsx`.

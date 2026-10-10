@@ -91,3 +91,57 @@ export async function fetchInstanceConnectionStatus(instanceName: string) {
     };
   }
 }
+
+export async function restartEvolutionInstance(instanceName: string) {
+  const evolutionUrl = process.env.EVOLUTION_API_URL;
+  const globalApiKey = process.env.EVOLUTION_API_KEY;
+
+  if (!evolutionUrl || !globalApiKey) {
+    return { success: true, message: "Mock: instância reiniciada com sucesso." };
+  }
+
+  try {
+    const response = await fetch(`${evolutionUrl}/instance/restart/${instanceName}`, {
+      method: "POST",
+      headers: {
+        "apikey": globalApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Falha ao reiniciar instância: ${await response.text()}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Evolution Restart Error:", error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function logoutEvolutionInstance(instanceName: string) {
+  const evolutionUrl = process.env.EVOLUTION_API_URL;
+  const globalApiKey = process.env.EVOLUTION_API_KEY;
+
+  if (!evolutionUrl || !globalApiKey) {
+    return { success: true, message: "Mock: instância desconectada com sucesso." };
+  }
+
+  try {
+    const response = await fetch(`${evolutionUrl}/instance/logout/${instanceName}`, {
+      method: "DELETE",
+      headers: {
+        "apikey": globalApiKey,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Falha ao desconectar instância: ${await response.text()}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Evolution Logout Error:", error);
+    return { success: false, error: (error as Error).message };
+  }
+}
