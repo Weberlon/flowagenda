@@ -56,9 +56,9 @@ O isolamento e resolução de domínios operam sob o seguinte fluxo:
 | **Autenticação & Controle de Sessão** | 🟢 100% | Login funcional com separação por perfil (`super_admin` e `lojista`). |
 | **Painel Super Admin (`/superadmin`)** | 🟢 100% | Cadastro de novos lojistas homologado e testado com sucesso. |
 | **Página Pública do Tenant (`/tenant/[slug]`)** | 🟢 90% | Renderiza o estabelecimento, paleta de cores e interface de agendamento. |
-| **Painel do Lojista (`/dashboard`)** | 🟢 85% | Layout base, agenda, serviços e configurações prontos. Falta módulo de clientes. |
+| **Painel do Lojista (`/dashboard`)** | 🟢 100% | Layout base, agenda, serviços, configurações e clientes 100% operacionais. |
 | **Conexão WhatsApp (Evolution API)** | 🟢 100% | Conexão, exibição de QR Code em tempo real, sincronização, restart e logout operacionais no dashboard. |
-| **Gestão de Clientes (`/dashboard/clientes`)** | 🔴 0% | Página ainda não criada. |
+| **Gestão de Clientes (`/dashboard/clientes`)** | 🟢 100% | Listagem com RLS estrito, KPIs de retenção, busca em tempo real, cadastro manual e atalho WhatsApp. |
 
 ---
 
@@ -74,14 +74,15 @@ O isolamento e resolução de domínios operam sob o seguinte fluxo:
   - Gerenciamento do número de WhatsApp de notificações do estabelecimento.
   - Exibição de link público e subdomínio do lojista com cópia rápida para área de transferência.
 
-### Etapa 2: Módulo de Clientes (`/dashboard/clientes`)
-- **Objetivo:** Criar a página `app/dashboard/clientes/page.tsx`.
-- **Funcionalidades:**
-  - Tabela com lista de clientes que já agendaram.
-  - Métricas de retenção (total de agendamentos, data do último agendamento).
-  - Ação rápida para disparar conversa no WhatsApp com o cliente.
-- **Desafios Técnicos:**
-  - Respeitar o RLS do Supabase: garantir que queries filtrem estritamente pelo `lojista_id` da sessão ativa.
+### Etapa 2: Módulo de Clientes (`/dashboard/clientes`) (Concluído 🟢)
+- **Status:** 100% implementado em `app/dashboard/clientes/page.tsx`, `clientes-client.tsx` e `app/actions/clientes.ts`.
+- **Entregas:**
+  - Isolamento estrito de tenant (`lojista_id`) garantido por consultas tipadas e RLS do Supabase.
+  - 3 KPIs em destaque: Total de Clientes, Clientes Recorrentes (frequência > 1) e Volume Total de Atendimentos.
+  - Busca instantânea e filtragem por Nome ou WhatsApp com DDD.
+  - Tabela com avatares de iniciais, status de fidelidade (`VIP`, `Fiel`, `Novo`), data da última visita formatada.
+  - Ação rápida para disparar mensagem direta no WhatsApp via link `wa.me` contextualizado com o nome do lojista e do cliente.
+  - Modal para adição manual de novos clientes com validação e atualização otimista.
 
 ### Etapa 3: Homologação do Fluxo de Agendamento Transacional com PIN
 - **Objetivo:** Validar a experiência de ponta a ponta do cliente final:
