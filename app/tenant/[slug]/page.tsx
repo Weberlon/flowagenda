@@ -2,15 +2,23 @@ import { createClient } from '@/utils/supabase/server';
 import { notFound } from 'next/navigation';
 import AgendamentoClient from './agendamento-client';
 
-export default async function TenantPage({ params }: { params: { slug: string } }) {
+export default async function TenantPage({ params }: { params: Promise<{ slug: string }> | { slug: string } }) {
   const supabase = await createClient();
+  const resolvedParams = await Promise.resolve(params);
+  const slug = resolvedParams.slug;
 
-  // 1. Buscar dados do lojista
-  const { data: lojista } = await supabase
+  // 1. Buscar dados do lojista (por subdomínio ou domínio customizado)
+  let query = supabase
     .from('lojistas')
-    .select('id, nome_estabelecimento, whatsapp_notificacao, cor_primaria, logo_url, tipo_site')
-    .eq('slug_subdominio', params.slug)
-    .single();
+    .select('id, nome_estabelecimento, whatsapp_notificacao, cor_primaria, logo_url, tipo_site');
+
+  if (slug.startsWith('custom_')) {
+    query = query.eq('dominio_proprio', slug.replace('custom_', ''));
+  } else {
+    query = query.eq('slug_subdominio', slug);
+  }
+
+  const { data: lojista } = await query.single();
 
   if (!lojista) {
     notFound();

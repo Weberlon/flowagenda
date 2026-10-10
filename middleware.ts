@@ -47,17 +47,23 @@ export async function middleware(req: NextRequest) {
     });
   }
 
-  // Ignorar reescritas para rotas globais do sistema
-  if (path.startsWith('/superadmin') || path.startsWith('/dashboard') || path.startsWith('/login')) {
+  // Ignorar reescritas para rotas globais do sistema e rotas diretas de tenant
+  if (
+    path.startsWith('/superadmin') ||
+    path.startsWith('/dashboard') ||
+    path.startsWith('/login') ||
+    path.startsWith('/tenant')
+  ) {
     return response;
   }
 
-  // 2. Home institucional / Localhost -> /home
+  // 2. Home institucional / Localhost / Vercel Preview -> /home
   if (
     domain === currentHost ||
     domain === `www.${currentHost}` ||
     domain === 'localhost' ||
-    domain === '127.0.0.1'
+    domain === '127.0.0.1' ||
+    domain.endsWith('.vercel.app')
   ) {
     return NextResponse.rewrite(new URL(`/home${path}`, req.url), {
       headers: response.headers,
