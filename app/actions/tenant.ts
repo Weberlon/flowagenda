@@ -33,6 +33,7 @@ export async function createTenantAction(formData: FormData) {
     const tier = formData.get('tier') as string;
     const tipo_site = formData.get('tipo_site') as string;
     const whatsapp_notificacao = (formData.get('whatsapp_notificacao') as string) || null;
+    const google_review_url = (formData.get('google_review_url') as string) || null;
 
     if (!nome_estabelecimento || !slug_subdominio || !tier || !tipo_site) {
       return { success: false, error: 'Preencha todos os campos obrigatórios.' };
@@ -83,6 +84,7 @@ export async function createTenantAction(formData: FormData) {
         tier,
         tipo_site,
         whatsapp_notificacao,
+        google_review_url,
         asaas_customer_id: asaasCustomerId,
       })
       .select()

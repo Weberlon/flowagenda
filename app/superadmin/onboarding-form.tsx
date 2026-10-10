@@ -88,6 +88,19 @@ export function OnboardingForm() {
         </div>
 
         <div className="space-y-2">
+          <label htmlFor="google_review_url" className="text-sm font-medium text-slate-900">
+            Link Avaliação Google Meu Negócio (Opcional)
+          </label>
+          <input
+            id="google_review_url"
+            name="google_review_url"
+            placeholder="https://g.page/r/.../review"
+            className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          />
+          <p className="text-[11px] text-slate-500">O robô enviará este link no WhatsApp do cliente 2h após o atendimento para avaliações 5 estrelas.</p>
+        </div>
+
+        <div className="space-y-2">
           <label htmlFor="tier" className="text-sm font-medium text-slate-900">
             Plano (Tier)
           </label>

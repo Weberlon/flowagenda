@@ -136,3 +136,23 @@ Abra o terminal e execute:
 Resolve-DnsName flowagenda.online -Type NS
 ```
 Se o resultado listar `ns1.vercel-dns.com`, o seu computador local já enxerga o domínio apontando para a Vercel.
+
+---
+
+## 6. Etapa 5: Implementação do Compêndio Estratégico SwaS (Concluído 🟢)
+
+- **Status:** 100% implementado e homologado no build de produção.
+- **Entregas:**
+  1. **Robô de Avaliação 5 Estrelas no Google Meu Negócio pós-atendimento (`app/api/cron/reviews/route.ts`):**
+     - Disparo automatizado via WhatsApp (Evolution API) exatamente 2 horas após a conclusão do agendamento.
+     - Travas anti-spam: apenas envia se o lojista tiver `google_review_url` preenchido e apenas nas duas primeiras consultas do cliente (`total_agendamentos <= 2`), preservando a relação com clientes frequentes.
+  2. **Configuração Done-For-You do Google Reviews:**
+     - Campo `google_review_url` integrado no Onboarding do Super Admin (`app/superadmin/onboarding-form.tsx` e `app/actions/tenant.ts`).
+     - Card de gestão de autoridade com status "Otimizado SwaS" no painel do Lojista (`app/dashboard/configuracoes/configuracoes-client.tsx` e `app/actions/configuracoes.ts`).
+  3. **Motor de Templates de Alta Conversão com Prova Social e Galeria Nichada (`app/tenant/[slug]/page.tsx`):**
+     - Suporte dinâmico para `tipo_site = 'institucional_completo'`.
+     - Biblioteca de fotos profissionais curadas e responsivas com detecção de nicho (Barbearia/Salão vs Clínica/Dentista), badge de 5.0 estrelas e link direto do Google Maps sem exigir uploads pesados.
+  4. **Alinhamento da Tabela de Preços e Tiers na Landing Page Oficial (`app/home/page.tsx`):**
+     - **Tier 1 (Barbearias e Salões):** R$ 59,90/mês — Setup simbólico/grátis, subdomínio ágil e robô de agendamento autônomo.
+     - **Tier 2 (Clínicas e Consultórios - Mais Escolhido):** R$ 179,90/mês + Setup Done-For-You de R$ 350,00 — Domínio próprio, Ficha do Google Meu Negócio otimizada, Robô de avaliação 5★ pós-consulta e landing page institucional.
+     - **Tier 3 (Redes & Franquias):** R$ 349,90/mês — Suporte multi-unidade, múltiplas agendas e SLA prioritário.

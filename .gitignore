@@ -11,3 +11,4 @@ build/
 
 Asaas.txt
 scratch_*.ts
+*.tsbuildinfo

@@ -4,7 +4,7 @@ import { OnboardingForm } from './onboarding-form';
 
 export default async function SuperAdminPage() {
   const supabase = await createClient();
-  
+
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -35,7 +35,7 @@ export default async function SuperAdminPage() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Painel Super Admin</h1>
         <p className="mt-2 text-slate-600">Gestão global de Lojistas e Configurações do FlowAgenda.</p>
       </div>
-      
+
       <OnboardingForm />
     </main>
   );

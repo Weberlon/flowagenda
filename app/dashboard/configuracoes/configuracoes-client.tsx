@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { 
   updateMensagemBoasVindasAction, 
   updateWhatsAppNotificacaoAction,
+  updateGoogleReviewUrlAction,
   refreshWhatsAppStatusAction,
   restartWhatsAppAction,
   disconnectWhatsAppAction 
@@ -18,6 +19,7 @@ interface ConfiguracoesClientProps {
     whatsapp_notificacao: string | null;
     tier: string;
     cor_primaria: string | null;
+    google_review_url?: string | null;
   };
   configRobo: {
     instance_name: string;
@@ -44,6 +46,11 @@ export function ConfiguracoesClient({
   const [whatsappNotificacao, setWhatsappNotificacao] = useState(
     lojista.whatsapp_notificacao || ''
   );
+  const [googleReviewUrl, setGoogleReviewUrl] = useState(
+    lojista.google_review_url || ''
+  );
+  const [googleFeedback, setGoogleFeedback] = useState<string | null>(null);
+  const [isPendingGoogle, startTransitionGoogle] = useTransition();
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
@@ -109,6 +116,19 @@ export function ConfiguracoesClient({
         setZapFeedback(res.error || 'Erro ao atualizar telefone.');
       }
       setTimeout(() => setZapFeedback(null), 4000);
+    });
+  };
+
+  const handleSalvarGoogleReview = () => {
+    setGoogleFeedback(null);
+    startTransitionGoogle(async () => {
+      const res = await updateGoogleReviewUrlAction(googleReviewUrl);
+      if (res.success) {
+        setGoogleFeedback('Link do Google Meu Negócio atualizado!');
+      } else {
+        setGoogleFeedback(res.error || 'Erro ao atualizar link.');
+      }
+      setTimeout(() => setGoogleFeedback(null), 4000);
     });
   };
 
@@ -462,6 +482,62 @@ export function ConfiguracoesClient({
               className="w-full rounded-lg bg-slate-900 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm"
             >
               {isPendingZap ? 'Salvando...' : 'Salvar Telefone'}
+            </button>
+          </div>
+
+          {/* Card Google Meu Negócio & Avaliações 5 Estrelas */}
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Google Meu Negócio</h3>
+              {googleReviewUrl ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Otimizado SwaS
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                  Pendente
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-500">
+              O robô envia este link para o WhatsApp do cliente 2 horas após o atendimento solicitando uma avaliação de 5 estrelas.
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700">Link Direto de Avaliação</label>
+              <input
+                type="url"
+                value={googleReviewUrl}
+                onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                placeholder="https://g.page/r/.../review"
+                className="w-full rounded-lg border border-slate-300 p-2.5 text-xs font-mono text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
+            </div>
+
+            {googleReviewUrl && (
+              <div className="rounded-lg bg-amber-50/60 border border-amber-200 p-3 text-[11px] text-amber-800 space-y-1">
+                <span className="font-semibold block">⭐ Prévia da Mensagem Automática:</span>
+                <p className="italic text-slate-600">
+                  "Olá! Muito obrigado pela visita ao {lojista.nome_estabelecimento} hoje! Poderia nos avaliar com 5 estrelas no Google? Leva menos de 30s: {googleReviewUrl}"
+                </p>
+              </div>
+            )}
+
+            {googleFeedback && (
+              <div className={`rounded-lg p-2.5 text-xs font-medium ${googleFeedback.includes('atualizado') ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                {googleFeedback}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSalvarGoogleReview}
+              disabled={isPendingGoogle}
+              className="w-full rounded-lg bg-slate-900 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm"
+            >
+              {isPendingGoogle ? 'Salvando...' : 'Salvar Link do Google'}
             </button>
           </div>
 

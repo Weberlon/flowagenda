@@ -190,22 +190,26 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-            {/* Tier 1 */}
+            {/* Tier 1 - Low Ticket (Barbearias e Salões) */}
             <div className="rounded-2xl border border-slate-800 bg-[#0B132B]/40 p-8 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Tier 1</span>
-                <h3 className="text-xl font-bold text-white">Essencial</h3>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-white">R$ 97</span>
+                <div className="inline-block rounded-md bg-slate-800/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                  Barbearias & Salões
+                </div>
+                <h3 className="text-xl font-bold text-white">Tier 1 • Essencial Ágil</h3>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-black text-white">R$ 59,90</span>
                   <span className="text-xs text-slate-400">/mês</span>
                 </div>
-                <p className="text-xs text-slate-400">Para profissionais autônomos que estão começando a organizar a agenda online.</p>
+                <p className="text-[11px] text-emerald-400 font-medium">Setup Inicial: Simbólico / Isento</p>
+                <p className="text-xs text-slate-400">Para barbeiros e cabeleireiros que não podem parar o atendimento para ficar respondendo WhatsApp.</p>
 
                 <ul className="space-y-2.5 text-xs text-slate-300 pt-4 border-t border-slate-800">
-                  <li className="flex items-center gap-2">✓ Subdomínio exclusivo (`slug.flowagenda.online`)</li>
-                  <li className="flex items-center gap-2">✓ Agenda Online & Gestão de Serviços</li>
-                  <li className="flex items-center gap-2">✓ Base de Clientes Integrada</li>
-                  <li className="flex items-center gap-2">✓ Lock de agendamento de 10 min</li>
+                  <li className="flex items-center gap-2">✓ Subdomínio rápido (`suamarca.flowagenda.online`)</li>
+                  <li className="flex items-center gap-2">✓ Robô de Agendamento autônomo no WhatsApp</li>
+                  <li className="flex items-center gap-2">✓ Lock de 10 minutos anti-duplicidade</li>
+                  <li className="flex items-center gap-2">✓ Painel simplificado no celular</li>
+                  <li className="flex items-center gap-2">✓ Agendamentos ilimitados</li>
                 </ul>
               </div>
 
@@ -215,32 +219,37 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="block w-full rounded-xl border border-slate-700 bg-slate-900 py-3 text-center text-xs font-bold text-white hover:bg-slate-800 transition"
               >
-                Assinar Tier 1
+                Ativar Barbearia / Salão
               </a>
             </div>
 
-            {/* Tier 2 (Destaque Pro) */}
+            {/* Tier 2 - High Ticket (Clínicas e Consultórios - Destaque SwaS) */}
             <div className="relative rounded-2xl border-2 border-emerald-500 bg-[#0B1A28] p-8 flex flex-col justify-between space-y-6 shadow-2xl shadow-emerald-500/10">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-4 py-1 text-[11px] font-bold text-slate-950 uppercase tracking-wide">
-                Mais Escolhido (SwaS)
+                Mais Escolhido • Solução Completa SwaS
               </div>
 
               <div className="space-y-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Tier 2</span>
-                <h3 className="text-xl font-bold text-white">Pro & Robô WhatsApp</h3>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-white">R$ 197</span>
+                <div className="inline-block rounded-md bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">
+                  Clínicas, Consultórios & Estética
+                </div>
+                <h3 className="text-xl font-bold text-white">Tier 2 • Clínica & Google 5★</h3>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl font-black text-white">R$ 179,90</span>
                   <span className="text-xs text-slate-400">/mês</span>
                 </div>
-                <p className="text-xs text-slate-400">A solução completa com o robô de atendimento automático no WhatsApp do seu estabelecimento.</p>
+                <div className="rounded-lg bg-emerald-950/60 border border-emerald-500/30 px-3 py-1.5 text-[11px] text-emerald-300 font-semibold">
+                  Setup Done-For-You: R$ 350,00 (única vez)
+                </div>
+                <p className="text-xs text-slate-400">Para clínicas odontológicas e biomédicas com ticket médio alto que buscam autoridade e novos pacientes no Google.</p>
 
                 <ul className="space-y-2.5 text-xs text-slate-200 pt-4 border-t border-slate-800 font-medium">
-                  <li className="flex items-center gap-2 text-emerald-300">✓ <strong>Robô de WhatsApp na VPS dedicado</strong></li>
-                  <li className="flex items-center gap-2 text-emerald-300">✓ <strong>Disparo de PIN transacional (Zero Faltas)</strong></li>
-                  <li className="flex items-center gap-2">✓ Mensagens automáticas de confirmação</li>
-                  <li className="flex items-center gap-2">✓ Agendamentos e clientes ilimitados</li>
-                  <li className="flex items-center gap-2">✓ Painel de métricas de retenção (VIP/Fiel)</li>
-                  <li className="flex items-center gap-2">✓ Suporte prioritário no WhatsApp</li>
+                  <li className="flex items-center gap-2 text-emerald-300">✓ <strong>Ficha do Google Meu Negócio 100% Otimizada</strong></li>
+                  <li className="flex items-center gap-2 text-emerald-300">✓ <strong>Robô de Avaliação 5★ no Google pós-consulta</strong></li>
+                  <li className="flex items-center gap-2 text-emerald-300">✓ <strong>Landing Page Institucional Completa com Portfólio</strong></li>
+                  <li className="flex items-center gap-2">✓ Domínio próprio exclusivo (`clinicadoutor.com.br`)</li>
+                  <li className="flex items-center gap-2">✓ Robô WhatsApp com PIN transacional (Zero No-Show)</li>
+                  <li className="flex items-center gap-2">✓ Gestão de pacientes e métricas de retorno</li>
                 </ul>
               </div>
 
@@ -250,27 +259,30 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="block w-full rounded-xl bg-emerald-500 py-3.5 text-center text-xs font-bold text-slate-950 hover:bg-emerald-400 transition shadow-lg shadow-emerald-500/20"
               >
-                Quero o Plano Pro com Robô
+                Contratar Pacote Completo SwaS
               </a>
             </div>
 
-            {/* Tier 3 */}
+            {/* Tier 3 - Redes & Franquias */}
             <div className="rounded-2xl border border-slate-800 bg-[#0B132B]/40 p-8 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Tier 3</span>
-                <h3 className="text-xl font-bold text-white">Institucional & Marca Própria</h3>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-white">R$ 397</span>
+                <div className="inline-block rounded-md bg-slate-800/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                  Redes & Franquias
+                </div>
+                <h3 className="text-xl font-bold text-white">Tier 3 • Multi-Unidade</h3>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-3xl font-black text-white">R$ 349,90</span>
                   <span className="text-xs text-slate-400">/mês</span>
                 </div>
-                <p className="text-xs text-slate-400">Para clínicas e barbearias de alto padrão que exigem domínio próprio e site institucional.</p>
+                <p className="text-[11px] text-slate-400 font-medium">Setup sob medida por unidade</p>
+                <p className="text-xs text-slate-400">Para redes com múltiplos consultórios, cadeiras ou profissionais compartilhados sob a mesma marca.</p>
 
                 <ul className="space-y-2.5 text-xs text-slate-300 pt-4 border-t border-slate-800">
-                  <li className="flex items-center gap-2">✓ <strong>Tudo incluído no Tier 2 Pro</strong></li>
-                  <li className="flex items-center gap-2">✓ <strong>Domínio Próprio (`seunegocio.com.br`)</strong></li>
-                  <li className="flex items-center gap-2">✓ Site Institucional Completo com Portfólio</li>
-                  <li className="flex items-center gap-2">✓ Provisionamento automático via Vercel API</li>
-                  <li className="flex items-center gap-2">✓ Selo White-label exclusivo</li>
+                  <li className="flex items-center gap-2">✓ <strong>Tudo incluído no Tier 2 Clínica</strong></li>
+                  <li className="flex items-center gap-2">✓ Múltiplos profissionais e agendas simultâneas</li>
+                  <li className="flex items-center gap-2">✓ Fichas do Google Meu Negócio por filial</li>
+                  <li className="flex items-center gap-2">✓ SLA de suporte prioritário dedicado</li>
+                  <li className="flex items-center gap-2">✓ Relatórios avançados de retenção e faturamento</li>
                 </ul>
               </div>
 
@@ -280,7 +292,7 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="block w-full rounded-xl border border-slate-700 bg-slate-900 py-3 text-center text-xs font-bold text-white hover:bg-slate-800 transition"
               >
-                Assinar Tier 3 Institucional
+                Falar com Especialista Multi-Unidade
               </a>
             </div>
           </div>

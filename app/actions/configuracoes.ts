@@ -16,7 +16,7 @@ export async function getConfiguracoesData() {
 
   const { data: lojista, error: lojistaErr } = await supabase
     .from('lojistas')
-    .select('id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria')
+    .select('id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url')
     .eq('user_id', user.id)
     .single();
 
@@ -209,4 +209,30 @@ export async function disconnectWhatsAppAction() {
 
   revalidatePath('/dashboard/configuracoes');
   return res;
+}
+
+export async function updateGoogleReviewUrlAction(reviewUrl: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Não autorizado' };
+
+  const { data: lojista } = await supabase
+    .from('lojistas')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+  const cleanUrl = reviewUrl.trim();
+
+  const { error } = await supabase
+    .from('lojistas')
+    .update({ google_review_url: cleanUrl || null })
+    .eq('id', lojista.id);
+
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath('/dashboard/configuracoes');
+  return { success: true };
 }
