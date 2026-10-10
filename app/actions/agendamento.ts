@@ -158,17 +158,38 @@ export async function reservarHorarioComLockAction(
   const expiraEm = new Date();
   expiraEm.setMinutes(expiraEm.getMinutes() + 10);
 
-  // 4. Inserir agendamento com status 'pendente_pin' e dados temporários de contato
-  // OBS: NÃO cria cliente ainda para evitar contatos fantasmas em reservas abandonadas
+  // 4. Obter ou registrar cliente de contato
+  let clienteId: string | null = null;
+  const { data: clienteExistente } = await dbClient
+    .from('clientes')
+    .select('id')
+    .eq('lojista_id', lojistaId)
+    .eq('telefone', cleanPhone)
+    .single();
+
+  if (clienteExistente) {
+    clienteId = clienteExistente.id;
+  } else {
+    const { data: novoCli } = await dbClient
+      .from('clientes')
+      .insert({
+        lojista_id: lojistaId,
+        nome: cleanNome,
+        telefone: cleanPhone,
+        total_agendamentos: 0,
+      })
+      .select('id')
+      .single();
+    if (novoCli) clienteId = novoCli.id;
+  }
+
+  // 5. Inserir agendamento com status 'pendente_pin' e compatibilidade com o schema remoto
   const { data: agendamento, error: insertError } = await dbClient
     .from('agendamentos')
     .insert({
       lojista_id: lojistaId,
       servico_id: servicoId,
-      cliente_id: null,
-      nome_contato: cleanNome,
-      telefone_contato: cleanPhone,
-      tentativas_pin: 0,
+      cliente_id: clienteId,
       data_hora_inicio: horarioInicioIso,
       data_hora_fim: horarioFimIso,
       status: 'pendente_pin',
@@ -179,7 +200,6 @@ export async function reservarHorarioComLockAction(
     .single();
 
   if (insertError || !agendamento) {
-    // Se colidir no índice único de banco, rejeita com clareza
     if (insertError?.code === '23505') {
       throw new Error('Este horário foi reservado simultaneamente por outro cliente. Por favor, escolha outro horário.');
     }
@@ -234,8 +254,8 @@ export async function validarPinEConfirmarAction(
     .from('agendamentos')
     .select(`
       id, pin_validacao, expira_em, status, data_hora_inicio,
-      nome_contato, telefone_contato, tentativas_pin,
-      servico_id,
+      cliente_id, servico_id,
+      cliente:clientes(id, nome, telefone, total_agendamentos),
       servico:servicos(nome_servico),
       lojista:lojistas(nome_estabelecimento, whatsapp_notificacao)
     `)
@@ -266,88 +286,37 @@ export async function validarPinEConfirmarAction(
     throw new Error('O tempo limite de 10 minutos expirou. O horário foi liberado.');
   }
 
-  // 3. Blindagem contra Brute Force (Máximo 3 tentativas)
-  const tentativasAtuais = reserva.tentativas_pin || 0;
-  if (tentativasAtuais >= 3) {
-    await dbClient
-      .from('agendamentos')
-      .update({ status: 'cancelado' })
-      .eq('id', reservaId);
-
-    throw new Error('Limite de tentativas excedido (3 tentativas incorretas). O horário foi cancelado por segurança.');
-  }
-
+  // 3. Validação do PIN de 6 dígitos
   if (reserva.pin_validacao !== pin.trim()) {
-    const novasTentativas = tentativasAtuais + 1;
-    const restantes = 3 - novasTentativas;
-
-    await dbClient
-      .from('agendamentos')
-      .update({ 
-        tentativas_pin: novasTentativas,
-        status: restantes <= 0 ? 'cancelado' : 'pendente_pin'
-      })
-      .eq('id', reservaId);
-
-    if (restantes <= 0) {
-      throw new Error('Código PIN incorreto. Limite de tentativas excedido. O horário foi cancelado.');
-    }
-
-    throw new Error(`Código PIN incorreto. Você tem mais ${restantes} tentativa(s).`);
+    throw new Error('Código PIN incorreto. Verifique a mensagem no seu WhatsApp.');
   }
 
-  // 4. Criação/Atualização do Cliente APENAS após confirmação real
-  const nomeCliente = reserva.nome_contato || 'Cliente';
-  const telefoneCliente = reserva.telefone_contato || '';
-
-  let clienteId: string | null = null;
-  if (telefoneCliente) {
-    const { data: clienteExistente } = await dbClient
-      .from('clientes')
-      .select('id, total_agendamentos')
-      .eq('lojista_id', lojistaId)
-      .eq('telefone', telefoneCliente)
-      .single();
-
-    if (clienteExistente) {
-      clienteId = clienteExistente.id;
-      await dbClient
-        .from('clientes')
-        .update({
-          nome: nomeCliente,
-          total_agendamentos: (clienteExistente.total_agendamentos || 0) + 1,
-          ultimo_agendamento: new Date().toISOString(),
-        })
-        .eq('id', clienteId);
-    } else {
-      const { data: novoCliente } = await dbClient
-        .from('clientes')
-        .insert({
-          lojista_id: lojistaId,
-          nome: nomeCliente,
-          telefone: telefoneCliente,
-          total_agendamentos: 1,
-          ultimo_agendamento: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
-
-      if (novoCliente) clienteId = novoCliente.id;
-    }
-  }
-
-  // 5. Confirmar o agendamento
+  // 4. Confirmar o agendamento
   const { error: confirmError } = await dbClient
     .from('agendamentos')
     .update({
       status: 'confirmado',
-      cliente_id: clienteId,
     })
     .eq('id', reservaId);
 
   if (confirmError) {
     throw new Error(`Erro ao confirmar: ${confirmError.message}`);
   }
+
+  // 5. Atualizar estatísticas e fidelidade do cliente
+  if (reserva.cliente_id && reserva.cliente) {
+    const novoTotal = (reserva.cliente.total_agendamentos || 0) + 1;
+    await dbClient
+      .from('clientes')
+      .update({
+        total_agendamentos: novoTotal,
+        ultimo_agendamento: new Date().toISOString(),
+      })
+      .eq('id', reserva.cliente_id);
+  }
+
+  const nomeCliente = reserva.cliente?.nome || 'Cliente';
+  const telefoneCliente = reserva.cliente?.telefone || '';
 
   // 6. Mensagens transacionais pós-confirmação
   const dataFormatada = new Date(reserva.data_hora_inicio).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
