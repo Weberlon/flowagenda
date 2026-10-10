@@ -84,17 +84,15 @@ O isolamento e resolução de domínios operam sob o seguinte fluxo:
   - Ação rápida para disparar mensagem direta no WhatsApp via link `wa.me` contextualizado com o nome do lojista e do cliente.
   - Modal para adição manual de novos clientes com validação e atualização otimista.
 
-### Etapa 3: Homologação do Fluxo de Agendamento Transacional com PIN
-- **Objetivo:** Validar a experiência de ponta a ponta do cliente final:
-  1. Cliente acessa `[subdominio].flowagenda.online`.
-  2. Escolhe serviço e horário livre.
-  3. Sistema aplica lock de 10 minutos (`status = 'pendente_pin'`).
-  4. Robô dispara PIN de 6 dígitos no WhatsApp do cliente via Evolution API.
-  5. Cliente digita o PIN na tela para confirmar.
-  6. Agendamento passa para `status = 'confirmado'` e reflete instantaneamente na agenda do lojista.
-- **Desafios Técnicos:**
-  - Concorrência de horários (dois clientes tentando o mesmo horário simultaneamente).
-  - Job/Cron para liberar horários cujo PIN expirou após 10 minutos.
+### Etapa 3: Homologação do Fluxo de Agendamento Transacional com PIN (Concluído 🟢)
+- **Status:** 100% implementado em `app/actions/agendamento.ts`, `app/tenant/[slug]/agendamento-client.tsx` e `lib/evolution.ts`.
+- **Entregas:**
+  - Validação estrita de duração de serviços restrita a `[15, 30, 45, 60]` minutos conforme `AGENTS.md`.
+  - Tratamento atômico de colisão de horários para impedir concorrência de múltiplos clientes no mesmo slot.
+  - Limpeza proativa de locks expirados no banco (`expira_em < NOW()` passam para `cancelado`).
+  - Lock de exatamente 10 minutos (`status = 'pendente_pin'`) com cronômetro regressivo visível na interface.
+  - Geração de PIN de 6 dígitos numérico criptográfico e disparo de mensagem transacional via Evolution API no WhatsApp do cliente com mascaramento LGPD (`+55 11 9****-1234`).
+  - Confirmação do agendamento, atualização da recorrência do cliente e disparo de mensagens automáticas de confirmação para o cliente e notificação para o lojista (`whatsapp_notificacao`).
 
 ### Etapa 4: Integração de Faturamento e Cobrança Recorrente (Asaas)
 - **Objetivo:** Validar o ciclo financeiro do SaaS:

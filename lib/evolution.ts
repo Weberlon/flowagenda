@@ -145,3 +145,59 @@ export async function logoutEvolutionInstance(instanceName: string) {
     return { success: false, error: (error as Error).message };
   }
 }
+
+export function maskPhoneNumber(phone: string): string {
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length >= 10) {
+    const ddd = clean.slice(-11, -9);
+    const start = clean.slice(-9, -8);
+    const end = clean.slice(-4);
+    return `+55 (${ddd}) ${start}****-${end}`;
+  }
+  return 'Telefone Mascarado';
+}
+
+export async function sendEvolutionTextMessage(
+  instanceName: string,
+  toPhone: string,
+  message: string
+) {
+  const cleanPhone = toPhone.replace(/\D/g, '');
+  const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+  const masked = maskPhoneNumber(formattedPhone);
+
+  const evolutionUrl = process.env.EVOLUTION_API_URL;
+  const globalApiKey = process.env.EVOLUTION_API_KEY;
+
+  if (!evolutionUrl || !globalApiKey) {
+    console.log(`[EVOLUTION API MOCK] Disparo transacional para ${masked}:`);
+    console.log(`[CONTEÚDO]:\n${message}\n`);
+    return { success: true, mock: true };
+  }
+
+  try {
+    const response = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": globalApiKey,
+      },
+      body: JSON.stringify({
+        number: formattedPhone,
+        text: message,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn(`[EVOLUTION API] Falha no disparo para ${masked}:`, errText);
+      return { success: false, error: errText };
+    }
+
+    console.log(`[EVOLUTION API] Mensagem transacional entregue com sucesso para ${masked}.`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[EVOLUTION API] Erro ao enviar mensagem para ${masked}:`, error);
+    return { success: false, error: (error as Error).message };
+  }
+}
