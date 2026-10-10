@@ -58,10 +58,12 @@ O isolamento e resolução de domínios operam sob o seguinte fluxo:
 | **Estilização Global (Tailwind v4)** | 🟢 100% | Design System Nord Dark/Light funcional, CSS compilado corretamente. |
 | **Autenticação & Controle de Sessão** | 🟢 100% | Login funcional com separação por perfil (`super_admin` e `lojista`). |
 | **Painel Super Admin (`/superadmin`)** | 🟢 100% | Cadastro de novos lojistas homologado e testado com sucesso. |
-| **Página Pública do Tenant (`/tenant/[slug]`)** | 🟢 90% | Renderiza o estabelecimento, paleta de cores e interface de agendamento. |
+| **Landing Page Comercial Oficial (`/home`)** | 🟢 100% | Vitrine de alta conversão, simulação do robô, tabela de preços Tiers 1-3, FAQ e CTA WhatsApp. |
+| **Página Pública do Tenant (`/tenant/[slug]`)** | 🟢 100% | Agendamento atômico, lock de 10 min, validação de PIN e suspensão por inadimplência. |
 | **Painel do Lojista (`/dashboard`)** | 🟢 100% | Layout base, agenda, serviços, configurações e clientes 100% operacionais. |
 | **Conexão WhatsApp (Evolution API)** | 🟢 100% | Conexão, exibição de QR Code em tempo real, sincronização, restart e logout operacionais no dashboard. |
 | **Gestão de Clientes (`/dashboard/clientes`)** | 🟢 100% | Listagem com RLS estrito, KPIs de retenção, busca em tempo real, cadastro manual e atalho WhatsApp. |
+| **Integração Asaas & Cobrança** | 🟢 100% | Webhooks com `timingSafeEqual`, idempotência, bloqueio e suspensão automática de inadimplentes. |
 
 ---
 
