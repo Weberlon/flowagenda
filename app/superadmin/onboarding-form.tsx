@@ -5,16 +5,20 @@ import { createTenantAction } from '@/app/actions/tenant';
 
 export function OnboardingForm() {
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [feedback, setFeedback] = useState<{ text: string; isError: boolean } | null>(null);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
-    setMessage('');
+    setFeedback(null);
     try {
       const result = await createTenantAction(formData);
-      setMessage(result.message);
+      if (result.success) {
+        setFeedback({ text: result.message || 'Lojista cadastrado com sucesso!', isError: false });
+      } else {
+        setFeedback({ text: result.error || 'Ocorreu um erro ao cadastrar.', isError: true });
+      }
     } catch (error: any) {
-      setMessage(error.message || 'Ocorreu um erro.');
+      setFeedback({ text: error.message || 'Falha de comunicação com o servidor.', isError: true });
     } finally {
       setLoading(false);
     }
@@ -123,9 +127,13 @@ export function OnboardingForm() {
         {loading ? 'Cadastrando...' : 'Cadastrar Lojista'}
       </button>
 
-      {message && (
-        <div className={`mt-4 rounded-md p-3 text-sm ${message.includes('sucesso') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-          {message}
+      {feedback && (
+        <div className={`mt-4 rounded-md p-4 text-sm border ${
+          feedback.isError 
+            ? 'bg-red-50 text-red-700 border-red-200' 
+            : 'bg-green-50 text-green-700 border-green-200 font-medium'
+        }`}>
+          {feedback.text}
         </div>
       )}
     </form>
