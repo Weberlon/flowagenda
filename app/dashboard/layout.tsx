@@ -14,6 +14,17 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
+  // Validação de Role: Se for Super Admin, redireciona para a central de gestão
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profile?.role === 'super_admin') {
+    redirect('/superadmin');
+  }
+
   // Buscar lojista associado ao user_id
   const { data: lojista } = await supabase
     .from('lojistas')
@@ -37,9 +48,22 @@ export default async function DashboardLayout({
               Se você é um novo lojista, conclua o processo de ativação com o nosso suporte ou aguarde a aprovação.
             </p>
           </div>
-          <button className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-            Falar com Suporte
-          </button>
+          <div className="space-y-3">
+            <a
+              href="https://wa.me/5500000000000?text=Ol%C3%A1,%20gostaria%20de%20ativar%20meu%20estabelecimento%20no%20FlowAgenda"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full rounded-md bg-blue-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            >
+              Falar com Suporte no WhatsApp
+            </a>
+            <Link
+              href="/login"
+              className="block w-full text-center text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              Trocar de conta / Voltar ao Login
+            </Link>
+          </div>
         </div>
       </div>
     );
