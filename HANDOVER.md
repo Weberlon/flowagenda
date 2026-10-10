@@ -97,11 +97,19 @@ O isolamento e resolução de domínios operam sob o seguinte fluxo:
   - Geração de PIN de 6 dígitos numérico criptográfico e disparo de mensagem transacional via Evolution API no WhatsApp do cliente com mascaramento LGPD (`+55 11 9****-1234`).
   - Confirmação do agendamento, atualização da recorrência do cliente e disparo de mensagens automáticas de confirmação para o cliente e notificação para o lojista (`whatsapp_notificacao`).
 
-### Etapa 4: Integração de Faturamento e Cobrança Recorrente (Asaas)
-- **Objetivo:** Validar o ciclo financeiro do SaaS:
-  - Criação de assinatura ao ativar lojista.
-  - Recepção do webhook `PAYMENT_OVERDUE` e atualização do status para `inadimplente`.
-  - Exibição da tela de bloqueio com botão de quitação de fatura.
+### Etapa 4: Integração de Faturamento e Cobrança Recorrente (Asaas) (Concluído 🟢)
+- **Status:** 100% implementado em `app/api/webhooks/asaas/route.ts`, `app/tenant/[slug]/page.tsx` e `app/dashboard/layout.tsx`.
+- **Entregas:**
+  - Autenticação estrita do webhook utilizando `crypto.timingSafeEqual` contra *timing attacks* (skill `asaas-webhook-guard`).
+  - Idempotência com cache de descarte rápido por ID único do evento (`eventId`) evitando reprocessamentos duplicados.
+  - Mapeamento completo dos eventos do Asaas para `status_pagamento`:
+    - `ativo`: `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `SUBSCRIPTION_CREATED`.
+    - `inadimplente`: `PAYMENT_OVERDUE`, `PAYMENT_DUNNING_RECEIVED`.
+    - `cancelado`: `PAYMENT_DELETED`, `PAYMENT_REFUNDED`, `SUBSCRIPTION_DELETED`.
+  - Resolução flexível por `asaas_customer_id` ou `asaas_subscription_id`.
+  - Suspensão imediata:
+    - **No painel do lojista (`app/dashboard/layout.tsx`):** tela de bloqueio com aviso e botão direto para regularização no WhatsApp.
+    - **Na página pública do tenant (`app/tenant/[slug]/page.tsx`):** substituição do formulário de agendamento por aviso de indisponibilidade temporária e botão para contato no WhatsApp.
 
 ---
 

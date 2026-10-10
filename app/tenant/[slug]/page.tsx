@@ -10,7 +10,7 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
   // 1. Buscar dados do lojista (por subdomínio ou domínio customizado)
   let query = supabase
     .from('lojistas')
-    .select('id, nome_estabelecimento, whatsapp_notificacao, cor_primaria, logo_url, tipo_site');
+    .select('id, nome_estabelecimento, whatsapp_notificacao, cor_primaria, logo_url, tipo_site, status_pagamento');
 
   if (slug.startsWith('custom_')) {
     query = query.eq('dominio_proprio', slug.replace('custom_', ''));
@@ -23,6 +23,8 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
   if (!lojista) {
     notFound();
   }
+
+  const isSuspenso = lojista.status_pagamento === 'inadimplente' || lojista.status_pagamento === 'cancelado';
 
   // 2. Buscar serviços ativos
   const { data: servicos } = await supabase
@@ -100,10 +102,36 @@ export default async function TenantPage({ params }: { params: Promise<{ slug: s
 
       {/* Container Principal */}
       <div className="mx-auto max-w-4xl px-4 py-8" id="agendamento">
-        <AgendamentoClient 
-          lojista={lojista} 
-          servicos={servicos || []} 
-        />
+        {isSuspenso ? (
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">Agendamentos Online Temporariamente Indisponíveis</h2>
+            <p className="text-sm text-slate-500 max-w-md mx-auto">
+              O sistema de agendamento online deste estabelecimento está passando por ajustes. Entre em contato diretamente pelo WhatsApp para marcar seu horário.
+            </p>
+            {lojista.whatsapp_notificacao && (
+              <div className="pt-2">
+                <a
+                  href={`https://wa.me/${lojista.whatsapp_notificacao}?text=${encodeURIComponent('Olá, gostaria de agendar um horário diretamente pelo WhatsApp.')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-xs font-bold text-white hover:bg-slate-800 transition shadow-sm"
+                >
+                  Agendar pelo WhatsApp
+                </a>
+              </div>
+            )}
+          </div>
+        ) : (
+          <AgendamentoClient 
+            lojista={lojista} 
+            servicos={servicos || []} 
+          />
+        )}
       </div>
     </main>
   );

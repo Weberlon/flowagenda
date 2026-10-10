@@ -120,10 +120,32 @@ export default async function DashboardLayout({
         {/* Scrollable Main */}
         <main className="flex-1 overflow-y-auto p-6">
           {isInadimplente ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Acesso Bloqueado</h3>
-                <p className="text-slate-600">Resolva suas pendências financeiras no painel de cobrança.</p>
+            <div className="flex h-full items-center justify-center p-6">
+              <div className="max-w-md text-center bg-white p-8 rounded-2xl border border-red-200 shadow-sm space-y-5">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+                  <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Assinatura Suspensa</h3>
+                  <p className="text-slate-600 text-sm">
+                    Identificamos uma pendência financeira na sua conta FlowAgenda. Seus agendamentos online foram temporariamente pausados.
+                  </p>
+                </div>
+                <div className="space-y-3 pt-2">
+                  <a
+                    href="https://wa.me/5500000000000?text=Ol%C3%A1,%20gostaria%20de%20regularizar%20a%20assinatura%20do%20meu%20estabelecimento%20no%20FlowAgenda"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full rounded-xl bg-slate-900 px-4 py-3 text-center text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-sm"
+                  >
+                    Falar com o Financeiro no WhatsApp
+                  </a>
+                  <p className="text-[11px] text-slate-400">
+                    Assim que o pagamento for identificado pelo Asaas, seu painel e os agendamentos online serão reativados automaticamente em segundos.
+                  </p>
+                </div>
               </div>
             </div>
           ) : (
