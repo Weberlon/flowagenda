@@ -156,3 +156,19 @@ Se o resultado listar `ns1.vercel-dns.com`, o seu computador local já enxerga o
      - **Tier 1 (Barbearias e Salões):** R$ 59,90/mês — Setup simbólico/grátis, subdomínio ágil e robô de agendamento autônomo.
      - **Tier 2 (Clínicas e Consultórios - Mais Escolhido):** R$ 179,90/mês + Setup Done-For-You de R$ 350,00 — Domínio próprio, Ficha do Google Meu Negócio otimizada, Robô de avaliação 5★ pós-consulta e landing page institucional.
      - **Tier 3 (Redes & Franquias):** R$ 349,90/mês — Suporte multi-unidade, múltiplas agendas e SLA prioritário.
+
+---
+
+## 7. Etapa 6: Conexão Real do Webhook Receptivo da Evolution API (Concluído 🟢)
+
+- **Status:** 100% implementado, testado e homologado no build de produção.
+- **Entregas:**
+  1. **Envio Real via `sendEvolutionTextMessage` (`app/api/webhooks/evolution/route.ts`):**
+     - Substituição dos mocks/console.log por disparos reais usando o serviço transacional e isolado da Evolution API.
+     - Proteção contra loops: ignora mensagens enviadas pelo próprio bot (`fromMe: true`), grupos do WhatsApp (`@g.us`) e publicações/broadcasts (`@broadcast`).
+  2. **Personalização e Resolução Dinâmica de Domínio:**
+     - Carrega a mensagem de boas-vindas customizada pelo lojista (`mensagem_boas_vindas`) substituindo `{nome_estabelecimento}` e `{link_agendamento}` dinamicamente (com suporte a domínio próprio ou subdomínio).
+  3. **Transbordo Humano com Pausa Automática do Robô:**
+     - Identificação de intenção humana (dúvidas, recepcionista, atendimento).
+     - Atualização atômica de `bot_pausado_ate` em `configuracoes_robo` pausando o bot por 2 horas para conversação humana desimpedida.
+     - Mensagem empática ao cliente e notificação com prévia da mensagem para o WhatsApp do profissional (`whatsapp_notificacao`).
