@@ -189,3 +189,107 @@ Se o resultado listar `ns1.vercel-dns.com`, o seu computador local já enxerga o
      - Marcação idempotente no banco com `pin_validacao = 'LEMBR'`, garantindo zero mensagens duplicadas sem exigir alterações manuais no schema remoto.
   3. **Avaliação 5★ do Google e Fechamento (Fase 2 do Cron):**
      - Agendamentos finalizados há mais de 2 horas recebem o link do Google Meu Negócio caso o cliente esteja na 1ª ou 2ª visita, e o agendamento transiciona automaticamente para `concluido`.
+
+---
+
+## 9. Etapa 8: Componentes Interativos Nord Dark & Precificação Estratégica (Concluído 🟢)
+
+- **Status:** 100% implementado, homologado e integrado na Landing Page Oficial (`app/home/page.tsx`).
+- **Entregas:**
+  1. **Hero Interativo Multi-Nicho (`components/landing/HeroInteractiveMockup.tsx`):**
+     - Alternador dinâmico de segmentos com micro-interações:
+       - **⚡ Agendamento Ágil (Barbearias & Salões):** Card do Google com 5.0 estrelas (+158 avaliações), grade semanal interativa de horários destacados em ciano (`#88C0D0`) e balão flutuante WhatsApp simulando travamento de PIN e timer regressivo de 10 min.
+       - **🛡️ Consultórios & Clínicas (Saúde & Estética):** Card do Google Maps com pino pulsante (+420 buscas por rotas/mês), depoimento de autoridade médica e card de confirmação com badge **"✓ Presença Confirmada (Anti No-Show)"**.
+     - Proteção de layout com `overflow-hidden` em containers pais para eliminar qualquer rolagem lateral em dispositivos móveis.
+  2. **Grid de Preços com Ancoragem de Setup (`components/landing/PricingTiers.tsx`):**
+     - Alinhamento da nova estratégia comercial com 3 tiers em layout responsivo:
+       - **Tier 1 (Operação Ágil):** R$ 79,90/mês | Implantação: de ~~R$ 197,00~~ por R$ 97,00 à vista (ou grátis no plano anual).
+       - **Tier 2 (Saúde & Liberais):** R$ 139,90/mês | Implantação: de ~~R$ 397,00~~ por R$ 197,00 à vista (ou grátis no anual).
+       - **Tier 3 (Alto Padrão & Clínicas):** R$ 249,90/mês | Implantação: de ~~R$ 797,00~~ por R$ 497,00 à vista. Borda `#88C0D0`, badge de máxima autoridade, domínio próprio `.com.br` e robô Google Reviews 5★.
+     - Alternador dinâmico de faturamento (Mensal vs Anual com Setup Grátis).
+  3. **Integração na Landing Page Oficial (`app/home/page.tsx`):**
+     - Substituição do mockup estático e da tabela de planos anterior. Build de produção da Next.js compilado com 0 erros.
+
+---
+
+## 10. Etapa 9: Suporte a White Label e Metadados Dinâmicos (Concluído 🟢)
+
+- **Status:** 100% implementado, testado e validado no build de produção.
+- **Entregas:**
+  1. **Schema & Migration (`supabase/migrations/20261011120000_white_label_config.sql`):**
+     - Adicionada coluna `configuracoes` JSONB em `lojistas` com suporte a `mostrar_badge_plataforma`, `cor_primaria`, `cor_secundaria` e `favicon_url`.
+     - Atualização populacional: Tier 1 recebe `mostrar_badge_plataforma = true`; Tiers 2 e 3 recebem `mostrar_badge_plataforma = false` (White Label total).
+  2. **Metadados Dinâmicos (`app/tenant/[slug]/page.tsx`):**
+     - Função oficial `generateMetadata` implementada:
+       - `title`: `${lojista.nome_estabelecimento} | Agendamento Online`
+       - `description`: `Agende seu horário online em ${lojista.nome_estabelecimento}. Rápido, prático e sem filas.`
+       - `icons`: Favicon dinâmico (`favicon_url || logo_url || '/favicon.ico'`), eliminando qualquer vazamento da marca FlowAgenda na aba do navegador.
+  3. **Controle Condicional do Selo no Rodapé:**
+     - Exibição de `⚡ Agendamento seguro via FlowAgenda` estritamente condicionada a `mostrar_badge_plataforma !== false`.
+     - Para lojistas dos Tiers 2 e 3, rodapé exibe exclusivamente: `© 2026 [Nome da Loja]. Todos os direitos reservados.`.
+  4. **Configuração de Imagens Segura (`next.config.mjs`):**
+     - `remotePatterns` adicionados para Supabase Storage (`*.supabase.co`) e Unsplash sem quebrar o build.
+  5. **Diretrizes de Segurança Preservadas:**
+     - `middleware.ts` mantido intacto.
+     - Isolamento multi-tenant e RLS 100% preservados com tolerância e fallback ativo a bancos remotos em migração.
+
+---
+
+## 11. Etapa 10: Nova Vitrine Pública Institucional, Hero com Toggle e Pricing com 3 Ciclos (Concluído 🟢)
+
+- **Status:** 100% implementado, testado e validado no build de produção.
+- **Entregas:**
+  1. **Landing Page Institucional na Rota Raiz (`app/page.tsx`):**
+     - Mantido estritamente como **Server Component** (sem `'use client'`), garantindo máxima pontuação em Core Web Vitals e SEO estático de alto impacto.
+     - Posicionamento de "Máquina de Tração para Comércio Local".
+     - **Hero Section:** Headline de alto impacto ("Sua agenda cheia e seu negócio no topo do Google. Sem você perder horas no WhatsApp."), botões de ação e integração lado a lado com o mockup.
+     - **O Motor de 3 Engrenagens:** Explicação didática da Atração no Google Meu Negócio, Presença Digital e Atendimento com PIN no WhatsApp.
+     - **Destaque de Marca Própria (White Label):** Enfatiza a valorização da identidade do lojista (cores, logo, domínio próprio).
+     - **FAQ Completo e Rodapé Minimalista.**
+  2. **Hero Interativo (`components/landing/HeroInteractiveMockup.tsx` - Client Component):**
+     - Toggle de 2 segmentos em pílula ("⚡ Agendamento Ágil" vs "🛡️ Consultórios & Clínicas").
+     - Simulação de PIN via WhatsApp, Google 5★, slots em ciano e badge Anti No-Show.
+  3. **Tabela de Preços com 3 Ciclos (`components/landing/PricingTiers.tsx` - Client Component):**
+     - Seletor de Ciclos: **Mensal**, **Semestral (-15% OFF)** e **Anual (-25% OFF + Setup GRÁTIS)**.
+     - Tiers 1, 2 e 3 com ancoragem psicológica da taxa de implantação/setup e botões de adesão direta no WhatsApp.
+  4. **Conformidade de Build & Não-Regressão:**
+     - `middleware.ts`, `app/tenant/[slug]/`, `app/dashboard/` e `app/superadmin/` 100% preservados.
+     - `npm run build` compilou 11/11 rotas estáticas e dinâmicas com 0 erros.
+
+---
+
+## 12. Etapa 11: Módulo CRM de Clientes Blindado com Kanban & LTV (`/dashboard/clientes`) (Concluído 🟢)
+
+- **Status:** 100% implementado, testado e validado no build de produção.
+- **Entregas:**
+  1. **Schema & Migration (`supabase/migrations/20261011130000_crm_clientes.sql`):**
+     - Tabela `clientes` atualizada com suporte completo a CRM: `etapa_kanban` (`lead`, `agendado`, `atendido`, `no_show`, `fidelizado`), `total_gasto` (LTV), `total_agendamentos`, `observacoes`, `tags` e `updated_at`.
+     - Constraint única `(lojista_id, telefone)`.
+     - RLS ativado com política `USING` e `WITH CHECK` vinculada ao `user_id` autenticado.
+  2. **Server Actions Blindadas (`app/actions/clientes.ts`):**
+     - Todas as actions extraem o usuário via `supabase.auth.getUser()` e resolvem o `lojista_id` no servidor, rejeitando inputs externos não autorizados.
+     - Higienização obrigatória de telefone removendo caracteres não numéricos (`\D`) ao salvar e ao gerar URLs `https://wa.me/55...`.
+     - Funções implementadas: `getClientes()`, `upsertCliente()`, `updateClienteEtapa()`, `updateClienteNotas()` e `deleteClienteAction()`.
+  3. **Interface CRM de Alta Performance (`app/dashboard/clientes/clientes-client.tsx`):**
+     - **Modo Kanban Responsivo:** 5 colunas com drag-and-drop nativo no desktop + seletor rápido no rodapé para tablets/iPads.
+     - **Badges Automáticos:** `VIP` (LTV >= R$ 500,00) e `Recorrente` (visitas >= 3).
+     - **Modo Lista Inteligente:** Busca em tempo real por nome/WhatsApp e filtros em pílulas.
+     - **Drawer Lateral de Detalhes:** Slide-over para anotações internas de atendimento e tags personalizadas.
+     - **Estilização Nord Dark:** Telas `#242933`, cards `#2E3440`, bordas `#4C566A/40`, acentos ciano `#88C0D0`, verde `#A3BE8C`, amarelo `#EBCB8B` e vermelho `#BF616A`.
+
+---
+
+## 13. Checklist de Lançamento em Produção & Lembretes Críticos ⚠️
+
+> [!IMPORTANT]
+> **LEMBRETE ATIVO — EVOLUTION API NA VPS:**
+> As variáveis `EVOLUTION_API_URL` e `EVOLUTION_API_KEY` estão temporariamente com valores de simulação no `.env.local`. Assim que a VPS for contratada e configurada com a Evolution API, você deve atualizar:
+> 1. `EVOLUTION_API_URL` (ex: `https://evolution.seudominio.com`)
+> 2. `EVOLUTION_API_KEY` (Chave global gerada no `.env` da Evolution API)
+> 3. Configurar as mesmas variáveis nas **Environment Variables** da Vercel.
+
+### Itens para Virada de Chave (Produção):
+- [ ] **Evolution API (VPS):** Preencher URL e API Key reais no `.env.local` e Vercel para liberar disparo de WhatsApp em produção.
+- [ ] **Asaas Produção:** Migrar chave de homologação (`$aact_hmlg_...`) para a chave de produção oficial e mudar `ASAAS_API_URL` para `https://api.asaas.com/v3`.
+- [ ] **Vercel Domains (Tier 3):** Adicionar `VERCEL_PROJECT_ID` e `VERCEL_API_TOKEN` caso for ativar provisionamento automático de domínios `.com.br`.
+- [ ] **Propagação DNS:** Confirmar ativação de `flowagenda.online` na Vercel após atualização dos nameservers na Hostinger.

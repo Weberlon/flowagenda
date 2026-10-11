@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { addClienteAction, deleteClienteAction } from '@/app/actions/clientes';
-
-interface Cliente {
-  id: string;
-  nome: string;
-  telefone: string;
-  total_agendamentos: number;
-  ultimo_agendamento: string | null;
-  created_at: string;
-}
+import React, { useState, useTransition, useMemo } from 'react';
+import { 
+  ClienteCRM, 
+  upsertCliente, 
+  updateClienteEtapa, 
+  updateClienteNotas, 
+  deleteClienteAction 
+} from '@/app/actions/clientes';
 
 interface ClientesClientProps {
   lojista: {
@@ -18,390 +15,866 @@ interface ClientesClientProps {
     nome_estabelecimento: string;
     slug_subdominio: string;
   };
-  initialClientes: Cliente[];
+  initialClientes: ClienteCRM[];
   kpis: {
     totalClientes: number;
+    ltvTotal: number;
     clientesRecorrentes: number;
     totalAgendamentosGeral: number;
   };
 }
 
-export function ClientesClient({
-  lojista,
-  initialClientes,
-  kpis,
-}: ClientesClientProps) {
-  const [clientes, setClientes] = useState<Cliente[]>(initialClientes);
+const ETAPAS_CONFIG = [
+  { id: 'lead', label: 'Novos Contatos', cor: 'border-slate-500/50 text-slate-300', dot: 'bg-slate-400' },
+  { id: 'agendado', label: 'Agendados', cor: 'border-[#88C0D0]/60 text-[#88C0D0]', dot: 'bg-[#88C0D0]' },
+  { id: 'atendido', label: 'Atendidos', cor: 'border-[#A3BE8C]/60 text-[#A3BE8C]', dot: 'bg-[#A3BE8C]' },
+  { id: 'no_show', label: 'Faltas / No-Show', cor: 'border-[#BF616A]/60 text-[#BF616A]', dot: 'bg-[#BF616A]' },
+  { id: 'fidelizado', label: 'Fidelizados', cor: 'border-[#EBCB8B]/60 text-[#EBCB8B]', dot: 'bg-[#EBCB8B]' },
+];
+
+const TAGS_SUGERIDAS = [
+  'VIP',
+  'Barba Terapia',
+  'Corte Degradê',
+  'Sensível',
+  'Pontual',
+  'Loiro',
+  'Limpeza de Pele',
+  'Laser',
+];
+
+export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClientProps) {
+  const [clientes, setClientes] = useState<ClienteCRM[]>(initialClientes);
+  const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
   const [search, setSearch] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedEtapaFilter, setSelectedEtapaFilter] = useState<string>('todos');
+
+  // Drawer Lateral de Detalhes
+  const [activeCliente, setActiveCliente] = useState<ClienteCRM | null>(null);
+  const [drawerNotas, setDrawerNotas] = useState('');
+  const [drawerTags, setDrawerTags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState('');
+
+  // Modal Novo Cliente
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [novoNome, setNovoNome] = useState('');
   const [novoTelefone, setNovoTelefone] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [novaEtapa, setNovaEtapa] = useState('lead');
+  const [novoValor, setNovoValor] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const [isPendingAdd, startTransitionAdd] = useTransition();
-  const [isPendingDelete, startTransitionDelete] = useTransition();
+  const [isPending, startTransition] = useTransition();
 
-  // Filtragem instantânea
-  const filteredClientes = clientes.filter((c) => {
-    const term = search.toLowerCase().trim();
-    if (!term) return true;
-    return (
-      c.nome.toLowerCase().includes(term) ||
-      c.telefone.includes(term.replace(/\D/g, ''))
+  // Filtragem de Clientes
+  const clientesFiltrados = useMemo(() => {
+    return clientes.filter((c) => {
+      const matchSearch =
+        c.nome.toLowerCase().includes(search.toLowerCase()) ||
+        c.telefone.includes(search.replace(/\D/g, ''));
+      const matchEtapa = selectedEtapaFilter === 'todos' || c.etapa_kanban === selectedEtapaFilter;
+      return matchSearch && matchEtapa;
+    });
+  }, [clientes, search, selectedEtapaFilter]);
+
+  // Agrupamento para Kanban
+  const colunasKanban = useMemo(() => {
+    const map: Record<string, ClienteCRM[]> = {
+      lead: [],
+      agendado: [],
+      atendido: [],
+      no_show: [],
+      fidelizado: [],
+    };
+    clientesFiltrados.forEach((c) => {
+      const etapa = map[c.etapa_kanban] ? c.etapa_kanban : 'lead';
+      map[etapa].push(c);
+    });
+    return map;
+  }, [clientesFiltrados]);
+
+  // Métricas Dinâmicas
+  const totalLTV = useMemo(() => {
+    return clientes.reduce((acc, c) => acc + (c.total_gasto || 0), 0);
+  }, [clientes]);
+
+  // Handlers de Mudança de Etapa
+  const handleMudarEtapa = (clienteId: string, novaEtapaId: string) => {
+    setClientes((prev) =>
+      prev.map((c) => (c.id === clienteId ? { ...c, etapa_kanban: novaEtapaId } : c))
     );
-  });
 
-  const formatTelefone = (phone: string) => {
-    const clean = phone.replace(/\D/g, '');
-    if (clean.length === 11) {
-      return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`;
+    if (activeCliente && activeCliente.id === clienteId) {
+      setActiveCliente((prev) => (prev ? { ...prev, etapa_kanban: novaEtapaId } : null));
     }
-    if (clean.length === 10) {
-      return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
-    }
-    return phone;
-  };
 
-  const formatData = (dateStr: string | null) => {
-    if (!dateStr) return 'Nenhum agendamento';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    startTransition(async () => {
+      const res = await updateClienteEtapa(clienteId, novaEtapaId);
+      if (!res.success) {
+        console.error('Erro ao atualizar etapa:', res.error);
+      }
     });
   };
 
-  const getIniciais = (nome: string) => {
-    const parts = nome.trim().split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    }
-    return nome.slice(0, 2).toUpperCase();
+  // Drag & Drop no Desktop
+  const handleDragStart = (e: React.DragEvent, clienteId: string) => {
+    e.dataTransfer.setData('text/plain', clienteId);
   };
 
-  const handleAddCliente = (e: React.FormEvent) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setFeedback(null);
+  };
 
-    const formData = new FormData();
-    formData.append('nome', novoNome);
-    formData.append('telefone', novoTelefone);
+  const handleDrop = (e: React.DragEvent, targetEtapa: string) => {
+    e.preventDefault();
+    const clienteId = e.dataTransfer.getData('text/plain');
+    if (clienteId) {
+      handleMudarEtapa(clienteId, targetEtapa);
+    }
+  };
 
-    startTransitionAdd(async () => {
-      const res = await addClienteAction(formData);
+  // Abrir Drawer de Detalhes
+  const handleAbrirDrawer = (c: ClienteCRM) => {
+    setActiveCliente(c);
+    setDrawerNotas(c.observacoes || '');
+    setDrawerTags(c.tags || []);
+  };
+
+  // Salvar Notas & Tags do Drawer
+  const handleSalvarNotas = () => {
+    if (!activeCliente) return;
+
+    const clienteId = activeCliente.id;
+    const notas = drawerNotas;
+    const tags = drawerTags;
+
+    setClientes((prev) =>
+      prev.map((c) => (c.id === clienteId ? { ...c, observacoes: notas, tags } : c))
+    );
+    setActiveCliente((prev) => (prev ? { ...prev, observacoes: notas, tags } : null));
+
+    startTransition(async () => {
+      await updateClienteNotas(clienteId, notas, tags);
+    });
+  };
+
+  // Adicionar Tag
+  const handleAddTag = (tag: string) => {
+    const cleanTag = tag.trim();
+    if (cleanTag && !drawerTags.includes(cleanTag)) {
+      setDrawerTags([...drawerTags, cleanTag]);
+    }
+    setNewTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setDrawerTags(drawerTags.filter((t) => t !== tagToRemove));
+  };
+
+  // Submeter Novo Cliente
+  const handleSubmitNovoCliente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+
+    const cleanTelefone = novoTelefone.replace(/\D/g, '');
+    if (!novoNome.trim() || novoNome.trim().length < 2) {
+      setFormError('Nome deve ter pelo menos 2 caracteres.');
+      return;
+    }
+    if (cleanTelefone.length < 10) {
+      setFormError('Informe o telefone com DDD (apenas números).');
+      return;
+    }
+
+    const valorAdicional = parseFloat(novoValor.replace(',', '.')) || 0;
+
+    startTransition(async () => {
+      const res = await upsertCliente({
+        nome: novoNome.trim(),
+        telefone: cleanTelefone,
+        etapa_kanban: novaEtapa,
+        valor_adicional: valorAdicional,
+      });
+
       if (res.success) {
-        setFeedback('Cliente adicionado com sucesso!');
-        setShowAddModal(false);
+        setIsModalOpen(false);
         setNovoNome('');
         setNovoTelefone('');
-        // Adiciona localmente de forma otimista
-        const cleanZap = novoTelefone.replace(/\D/g, '');
-        const newEntry: Cliente = {
-          id: `temp-${Date.now()}`,
-          nome: novoNome,
-          telefone: cleanZap,
-          total_agendamentos: 1,
-          ultimo_agendamento: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-        };
-        setClientes((prev) => [newEntry, ...prev.filter(c => c.telefone !== cleanZap)]);
+        setNovoValor('');
+        setNovaEtapa('lead');
+        window.location.reload();
       } else {
-        setFeedback(res.error || 'Erro ao cadastrar cliente.');
+        setFormError(res.error || 'Erro ao cadastrar cliente.');
       }
-      setTimeout(() => setFeedback(null), 4000);
     });
   };
 
-  const handleDelete = (clienteId: string, nome: string) => {
-    if (!confirm(`Deseja realmente remover o cliente "${nome}" da sua base?`)) return;
-
-    startTransitionDelete(async () => {
-      const res = await deleteClienteAction(clienteId);
-      if (res.success) {
-        setClientes((prev) => prev.filter((c) => c.id !== clienteId));
-      } else {
-        alert(res.error || 'Erro ao remover cliente.');
-      }
-    });
+  // Formatação de Dinheiro
+  const formatMoney = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Base de Clientes
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Gerencie todos os clientes cadastrados automaticamente pelos agendamentos ou adicionados manualmente.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm shrink-0"
-        >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Novo Cliente
-        </button>
-      </div>
-
-      {feedback && (
-        <div className={`rounded-lg p-3 text-xs font-medium border ${feedback.includes('sucesso') ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'}`}>
-          {feedback}
-        </div>
-      )}
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total de Clientes</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+    <div className="min-h-screen bg-[#242933] text-[#ECEFF4] font-sans pb-16 overflow-x-hidden">
+      {/* 1. Top Header com Métricas de LTV & Controles */}
+      <div className="border-b border-[#4C566A]/30 bg-[#2E3440] px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">👥</span>
+              <h1 className="text-xl sm:text-2xl font-black text-[#ECEFF4] tracking-tight">
+                Gestão de Clientes & CRM
+              </h1>
             </div>
-          </div>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{kpis.totalClientes}</p>
-          <p className="mt-1 text-xs text-slate-500">Contatos ativos no seu sistema</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Clientes Recorrentes</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{kpis.clientesRecorrentes}</p>
-          <p className="mt-1 text-xs text-slate-500">Agendaram 2 ou mais vezes</p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total de Atendimentos</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-          </div>
-          <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{kpis.totalAgendamentosGeral}</p>
-          <p className="mt-1 text-xs text-slate-500">Horários realizados acumulados</p>
-        </div>
-      </div>
-
-      {/* Tabela e Busca */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        {/* Barra de Pesquisa */}
-        <div className="border-b border-slate-200 p-4 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome ou WhatsApp..."
-              className="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-xs"
-            />
-            <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-
-          <span className="text-xs text-slate-500 font-medium">
-            Exibindo {filteredClientes.length} de {clientes.length} contatos
-          </span>
-        </div>
-
-        {/* Lista / Tabela */}
-        {filteredClientes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">Nenhum cliente encontrado</h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm">
-              {search 
-                ? 'Tente buscar com outros termos ou limpe o campo de busca.'
-                : 'Os clientes serão listados aqui automaticamente assim que realizarem o primeiro agendamento pelo seu link.'}
+            <p className="text-xs text-[#D8DEE9]/60 mt-1">
+              Kanban de relacionamento, histórico de atendimento e métricas de LTV para {lojista.nome_estabelecimento}.
             </p>
           </div>
+
+          {/* Cards de Métricas Rápidas */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-xl border border-[#4C566A]/40 bg-[#3B4252]/60 px-3.5 py-2">
+              <span className="text-[10px] text-[#D8DEE9]/60 uppercase tracking-wider block font-bold">
+                Total de Clientes
+              </span>
+              <span className="text-base sm:text-lg font-black text-[#ECEFF4]">
+                {clientes.length}
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-[#88C0D0]/30 bg-[#88C0D0]/10 px-3.5 py-2">
+              <span className="text-[10px] text-[#88C0D0] uppercase tracking-wider block font-bold">
+                LTV Total (Receita)
+              </span>
+              <span className="text-base sm:text-lg font-black text-[#88C0D0]">
+                {formatMoney(totalLTV)}
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-[#A3BE8C]/30 bg-[#A3BE8C]/10 px-3.5 py-2">
+              <span className="text-[10px] text-[#A3BE8C] uppercase tracking-wider block font-bold">
+                Recorrentes
+              </span>
+              <span className="text-base sm:text-lg font-black text-[#A3BE8C]">
+                {clientes.filter((c) => c.total_agendamentos >= 2).length}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Barra de Ações: Busca, Alternador de Visão e Botão Novo */}
+        <div className="max-w-7xl mx-auto pt-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex flex-1 items-center gap-2 max-w-md">
+            <div className="relative w-full">
+              <input
+                type="text"
+                placeholder="Buscar por nome ou WhatsApp..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] px-3.5 py-2 text-xs sm:text-sm text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#D8DEE9]/60 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 justify-between sm:justify-end">
+            {/* Alternador de Visão: Kanban vs Lista */}
+            <div className="inline-flex rounded-xl bg-[#3B4252] p-1 border border-[#4C566A]/40 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setViewMode('kanban')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  viewMode === 'kanban'
+                    ? 'bg-[#2E3440] text-[#88C0D0] shadow-sm'
+                    : 'text-[#D8DEE9]/60 hover:text-[#ECEFF4]'
+                }`}
+              >
+                <span>📊</span>
+                <span>Kanban</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('lista')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                  viewMode === 'lista'
+                    ? 'bg-[#2E3440] text-[#88C0D0] shadow-sm'
+                    : 'text-[#D8DEE9]/60 hover:text-[#ECEFF4]'
+                }`}
+              >
+                <span>📋</span>
+                <span>Lista</span>
+              </button>
+            </div>
+
+            {/* Botão Novo Cliente */}
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#88C0D0] px-4 py-2 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition"
+            >
+              <span>+</span>
+              <span>Novo Cliente</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Área de Conteúdo Principal */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        {viewMode === 'kanban' ? (
+          /* ==================================================== */
+          /* MODO KANBAN (5 COLUNAS RESPONSIVAS)                  */
+          /* ==================================================== */
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start overflow-x-auto pb-6">
+            {ETAPAS_CONFIG.map((etapa) => {
+              const itensColuna = colunasKanban[etapa.id] || [];
+
+              return (
+                <div
+                  key={etapa.id}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, etapa.id)}
+                  className="rounded-2xl border border-[#4C566A]/40 bg-[#2E3440] p-3 shadow-lg flex flex-col min-h-[460px] transition-colors"
+                >
+                  {/* Cabeçalho da Coluna */}
+                  <div className="flex items-center justify-between pb-3 border-b border-[#4C566A]/30 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2.5 w-2.5 rounded-full ${etapa.dot}`} />
+                      <h3 className="text-xs font-black uppercase tracking-wider text-[#ECEFF4]">
+                        {etapa.label}
+                      </h3>
+                    </div>
+                    <span className="rounded-full bg-[#3B4252] px-2 py-0.5 text-[11px] font-mono font-bold text-[#D8DEE9]">
+                      {itensColuna.length}
+                    </span>
+                  </div>
+
+                  {/* Cards da Coluna */}
+                  <div className="space-y-3 flex-1 overflow-y-auto max-h-[680px] pr-1">
+                    {itensColuna.length === 0 ? (
+                      <div className="h-32 flex items-center justify-center rounded-xl border border-dashed border-[#4C566A]/30 text-center p-3">
+                        <span className="text-[11px] text-[#D8DEE9]/40 italic">
+                          Arraste clientes para esta etapa
+                        </span>
+                      </div>
+                    ) : (
+                      itensColuna.map((cliente) => {
+                        const isVip = cliente.total_gasto >= 500;
+                        const isRecorrente = cliente.total_agendamentos >= 3;
+                        const zapUrl = `https://wa.me/55${cliente.telefone}?text=${encodeURIComponent(
+                          `Olá, ${cliente.nome}! Tudo bem? Falamos do(a) ${lojista.nome_estabelecimento}.`
+                        )}`;
+
+                        return (
+                          <div
+                            key={cliente.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, cliente.id)}
+                            className="group relative rounded-xl border border-[#4C566A]/40 bg-[#242933] p-3.5 shadow-md hover:border-[#88C0D0]/60 transition-all cursor-grab active:cursor-grabbing space-y-2.5"
+                          >
+                            {/* Nome e Badges */}
+                            <div className="flex items-start justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleAbrirDrawer(cliente)}
+                                className="text-left font-bold text-xs sm:text-sm text-[#ECEFF4] hover:text-[#88C0D0] transition line-clamp-1"
+                              >
+                                {cliente.nome}
+                              </button>
+
+                              {/* Badges Automáticos */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                {isVip && (
+                                  <span className="rounded bg-[#88C0D0]/20 text-[#88C0D0] px-1.5 py-0.5 text-[9px] font-black border border-[#88C0D0]/40">
+                                    VIP
+                                  </span>
+                                )}
+                                {isRecorrente && (
+                                  <span className="rounded bg-[#A3BE8C]/20 text-[#A3BE8C] px-1.5 py-0.5 text-[9px] font-black border border-[#A3BE8C]/40">
+                                    Recorrente
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Tags do Cliente */}
+                            {cliente.tags && cliente.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {cliente.tags.slice(0, 3).map((tag, tIdx) => (
+                                  <span
+                                    key={tIdx}
+                                    className="rounded bg-[#3B4252] text-[#D8DEE9] px-1.5 py-0.5 text-[9px] font-mono"
+                                  >
+                                    #{tag}
+                                  </span>
+                                ))}
+                                {cliente.tags.length > 3 && (
+                                  <span className="text-[9px] text-[#D8DEE9]/50">
+                                    +{cliente.tags.length - 3}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Métricas: LTV & Agendamentos */}
+                            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[#4C566A]/20 text-[#D8DEE9]/70">
+                              <span>
+                                {cliente.total_agendamentos} {cliente.total_agendamentos === 1 ? 'visita' : 'visitas'}
+                              </span>
+                              <span className="font-mono font-bold text-[#88C0D0]">
+                                {formatMoney(cliente.total_gasto)}
+                              </span>
+                            </div>
+
+                            {/* Rodapé do Card: WhatsApp & Seletor de Etapa Rápido (Tablet/iPad) */}
+                            <div className="pt-2 flex items-center justify-between gap-2 border-t border-[#4C566A]/20">
+                              <a
+                                href={zapUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#A3BE8C] hover:text-[#A3BE8C]/80 transition"
+                              >
+                                <span>💬</span>
+                                <span>WhatsApp</span>
+                              </a>
+
+                              {/* Menu Rápido de 1 Clique */}
+                              <select
+                                value={cliente.etapa_kanban}
+                                onChange={(e) => handleMudarEtapa(cliente.id, e.target.value)}
+                                className="rounded bg-[#3B4252] border border-[#4C566A]/40 px-1.5 py-0.5 text-[10px] text-[#D8DEE9] focus:outline-none"
+                              >
+                                {ETAPAS_CONFIG.map((et) => (
+                                  <option key={et.id} value={et.id}>
+                                    &rarr; {et.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="px-6 py-3.5">Cliente</th>
-                  <th className="px-6 py-3.5">WhatsApp</th>
-                  <th className="px-6 py-3.5">Fidelidade</th>
-                  <th className="px-6 py-3.5">Último Atendimento</th>
-                  <th className="px-6 py-3.5 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredClientes.map((cliente) => {
-                  const zapLink = `https://wa.me/55${cliente.telefone}?text=${encodeURIComponent(
-                    `Olá ${cliente.nome}, tudo bem? Aqui é do(a) ${lojista.nome_estabelecimento}!`
-                  )}`;
+          /* ==================================================== */
+          /* MODO LISTA INTELIGENTE (MOBILE & COMPACTO)           */
+          /* ==================================================== */
+          <div className="space-y-4">
+            {/* Filtro Rápido por Etapa em Pílula */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2">
+              <button
+                type="button"
+                onClick={() => setSelectedEtapaFilter('todos')}
+                className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                  selectedEtapaFilter === 'todos'
+                    ? 'bg-[#88C0D0] text-[#242933]'
+                    : 'bg-[#2E3440] text-[#D8DEE9]/70 hover:text-white border border-[#4C566A]/40'
+                }`}
+              >
+                Todos ({clientes.length})
+              </button>
+              {ETAPAS_CONFIG.map((et) => (
+                <button
+                  key={et.id}
+                  type="button"
+                  onClick={() => setSelectedEtapaFilter(et.id)}
+                  className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+                    selectedEtapaFilter === et.id
+                      ? 'bg-[#88C0D0] text-[#242933]'
+                      : 'bg-[#2E3440] text-[#D8DEE9]/70 hover:text-white border border-[#4C566A]/40'
+                  }`}
+                >
+                  {et.label} ({(colunasKanban[et.id] || []).length})
+                </button>
+              ))}
+            </div>
 
-                  const isFiel = cliente.total_agendamentos > 2;
-                  const isRecorrente = cliente.total_agendamentos === 2;
-
-                  return (
-                    <tr key={cliente.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Cliente */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white shadow-xs">
-                            {getIniciais(cliente.nome)}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-slate-900 text-sm">{cliente.nome}</p>
-                            <p className="text-[11px] text-slate-400">Cadastrado em {new Date(cliente.created_at).toLocaleDateString('pt-BR')}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* WhatsApp */}
-                      <td className="px-6 py-4 whitespace-nowrap font-mono text-slate-700">
-                        {formatTelefone(cliente.telefone)}
-                      </td>
-
-                      {/* Fidelidade */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 tabular-nums">{cliente.total_agendamentos}</span>
-                          <span className="text-slate-400">visitas</span>
-                          {isFiel ? (
-                            <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                              VIP
-                            </span>
-                          ) : isRecorrente ? (
-                            <span className="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
-                              Fiel
-                            </span>
-                          ) : (
-                            <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                              Novo
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Último Atendimento */}
-                      <td className="px-6 py-4 whitespace-nowrap text-slate-600">
-                        {formatData(cliente.ultimo_agendamento)}
-                      </td>
-
-                      {/* Ações */}
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <a
-                            href={zapLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors shadow-2xs"
-                            title="Conversar no WhatsApp"
-                          >
-                            <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
-                              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.353.101.173.45 0.742.965 1.201.662.591 1.221.774 1.394.86.173.086.275.072.376-.043.101-.116.433-.506.549-.679.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.043.073.043.419-.101.824z" />
-                            </svg>
-                            WhatsApp
-                          </a>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(cliente.id, cliente.nome)}
-                            disabled={isPendingDelete}
-                            className="rounded-md p-1.5 text-slate-400 hover:text-red-600 hover:bg-slate-100 transition-colors"
-                            title="Remover Cliente"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
+            {/* Tabela de Clientes */}
+            <div className="rounded-2xl border border-[#4C566A]/40 bg-[#2E3440] overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="bg-[#242933] border-b border-[#4C566A]/30 text-[11px] font-bold text-[#D8DEE9]/60 uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3.5 px-4">Cliente</th>
+                      <th className="py-3.5 px-4">WhatsApp</th>
+                      <th className="py-3.5 px-4">Etapa</th>
+                      <th className="py-3.5 px-4">Visitas</th>
+                      <th className="py-3.5 px-4">LTV (Gasto)</th>
+                      <th className="py-3.5 px-4 text-right">Ações</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-[#4C566A]/20">
+                    {clientesFiltrados.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-xs text-[#D8DEE9]/40 italic">
+                          Nenhum cliente encontrado com os filtros atuais.
+                        </td>
+                      </tr>
+                    ) : (
+                      clientesFiltrados.map((cliente) => {
+                        const zapUrl = `https://wa.me/55${cliente.telefone}?text=${encodeURIComponent(
+                          `Olá, ${cliente.nome}! Tudo bem?`
+                        )}`;
+
+                        return (
+                          <tr key={cliente.id} className="hover:bg-[#3B4252]/30 transition">
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-[#ECEFF4] hover:text-[#88C0D0] cursor-pointer" onClick={() => handleAbrirDrawer(cliente)}>
+                                  {cliente.nome}
+                                </span>
+                                {cliente.total_gasto >= 500 && (
+                                  <span className="rounded bg-[#88C0D0]/20 text-[#88C0D0] px-1.5 py-0.2 text-[9px] font-black border border-[#88C0D0]/30">
+                                    VIP
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-xs text-[#D8DEE9]/80">
+                              {cliente.telefone}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <select
+                                value={cliente.etapa_kanban}
+                                onChange={(e) => handleMudarEtapa(cliente.id, e.target.value)}
+                                className="rounded-lg bg-[#3B4252] border border-[#4C566A]/40 px-2 py-1 text-xs text-[#ECEFF4] focus:outline-none"
+                              >
+                                {ETAPAS_CONFIG.map((et) => (
+                                  <option key={et.id} value={et.id}>
+                                    {et.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono">
+                              {cliente.total_agendamentos}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-[#88C0D0]">
+                              {formatMoney(cliente.total_gasto)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <a
+                                  href={zapUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded-lg bg-[#A3BE8C]/20 border border-[#A3BE8C]/40 px-2.5 py-1 text-xs font-bold text-[#A3BE8C] hover:bg-[#A3BE8C] hover:text-[#242933] transition"
+                                >
+                                  WhatsApp
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAbrirDrawer(cliente)}
+                                  className="rounded-lg bg-[#3B4252] px-2.5 py-1 text-xs font-semibold text-[#ECEFF4] hover:bg-[#4C566A] transition"
+                                >
+                                  Ver Ficha
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Modal / Dialog Novo Cliente */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Cadastrar Novo Cliente</h3>
+      {/* ==================================================== */}
+      {/* 3. DRAWER LATERAL DE DETALHES DO CLIENTE             */}
+      {/* ==================================================== */}
+      {activeCliente && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity">
+          <div className="w-full max-w-md h-full bg-[#2E3440] border-l border-[#4C566A]/50 p-6 shadow-2xl flex flex-col justify-between overflow-y-auto">
+            {/* Topo do Drawer */}
+            <div className="space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-[#4C566A]/30">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-10 w-10 rounded-full bg-[#88C0D0] text-[#242933] flex items-center justify-center font-black text-sm">
+                    {activeCliente.nome.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-[#ECEFF4]">{activeCliente.nome}</h3>
+                    <p className="text-xs font-mono text-[#D8DEE9]/60">{activeCliente.telefone}</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveCliente(null)}
+                  className="rounded-lg p-1.5 text-[#D8DEE9]/60 hover:text-white hover:bg-[#3B4252] transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Botão Direto WhatsApp */}
+              <a
+                href={`https://wa.me/55${activeCliente.telefone}?text=${encodeURIComponent(
+                  `Olá, ${activeCliente.nome}! Como posso ajudar?`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#A3BE8C] py-2.5 text-xs font-bold text-[#242933] hover:bg-[#A3BE8C]/90 shadow-sm transition"
+              >
+                <span>💬 Abrir Conversa no WhatsApp</span>
+              </a>
+
+              {/* Métricas de Fidelidade */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="rounded-xl border border-[#4C566A]/30 bg-[#242933] p-3 text-center">
+                  <span className="text-[10px] text-[#D8DEE9]/60 uppercase tracking-wider block">
+                    LTV Acumulado
+                  </span>
+                  <span className="text-base font-black text-[#88C0D0] font-mono">
+                    {formatMoney(activeCliente.total_gasto)}
+                  </span>
+                </div>
+
+                <div className="rounded-xl border border-[#4C566A]/30 bg-[#242933] p-3 text-center">
+                  <span className="text-[10px] text-[#D8DEE9]/60 uppercase tracking-wider block">
+                    Agendamentos
+                  </span>
+                  <span className="text-base font-black text-[#ECEFF4] font-mono">
+                    {activeCliente.total_agendamentos} visitas
+                  </span>
+                </div>
+              </div>
+
+              {/* Etapa Atual no Funil */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]/70">
+                  Etapa no Funil / Kanban
+                </label>
+                <select
+                  value={activeCliente.etapa_kanban}
+                  onChange={(e) => handleMudarEtapa(activeCliente.id, e.target.value)}
+                  className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] font-semibold focus:outline-none"
+                >
+                  {ETAPAS_CONFIG.map((et) => (
+                    <option key={et.id} value={et.id}>
+                      {et.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Seletor de Tags do Cliente */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]/70">
+                  Tags & Preferências
+                </label>
+
+                {/* Tags Atuais */}
+                <div className="flex flex-wrap gap-1.5 min-h-[30px]">
+                  {drawerTags.map((tag, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 rounded-lg bg-[#3B4252] border border-[#4C566A]/50 px-2 py-1 text-xs text-[#ECEFF4]"
+                    >
+                      <span>#{tag}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="text-[10px] text-[#D8DEE9]/60 hover:text-[#BF616A]"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Input Nova Tag */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Adicionar tag..."
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag(newTagInput);
+                      }
+                    }}
+                    className="flex-1 rounded-xl border border-[#4C566A]/40 bg-[#242933] px-3 py-1.5 text-xs text-[#ECEFF4] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddTag(newTagInput)}
+                    className="rounded-xl bg-[#3B4252] px-3 py-1.5 text-xs font-bold text-[#88C0D0] hover:bg-[#4C566A]"
+                  >
+                    + Tag
+                  </button>
+                </div>
+
+                {/* Sugestões Rápidas */}
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {TAGS_SUGERIDAS.map((sugestao) => (
+                    <button
+                      key={sugestao}
+                      type="button"
+                      onClick={() => handleAddTag(sugestao)}
+                      className="rounded bg-[#242933] hover:bg-[#3B4252] px-2 py-0.5 text-[10px] text-[#D8DEE9]/60 border border-[#4C566A]/20 transition"
+                    >
+                      +{sugestao}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Anotações Internas de Atendimento */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]/70">
+                  Anotações Internas de Atendimento
+                </label>
+                <textarea
+                  rows={4}
+                  value={drawerNotas}
+                  onChange={(e) => setDrawerNotas(e.target.value)}
+                  placeholder="Ex: Prefere corte na tesoura, sensibilidade a lâmina, cafezinho sem açúcar..."
+                  className="w-full rounded-xl border border-[#4C566A]/40 bg-[#242933] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Rodapé do Drawer */}
+            <div className="pt-6 border-t border-[#4C566A]/30 flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setShowAddModal(false)}
-                className="rounded-md p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                onClick={handleSalvarNotas}
+                disabled={isPending}
+                className="flex-1 rounded-xl bg-[#88C0D0] py-2.5 text-xs font-black text-[#242933] hover:bg-[#88C0D0]/90 transition"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                {isPending ? 'Salvando...' : 'Salvar Anotações'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveCliente(null)}
+                className="rounded-xl border border-[#4C566A]/40 bg-[#3B4252] px-4 py-2.5 text-xs font-bold text-[#ECEFF4] hover:bg-[#4C566A]"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* 4. MODAL MANUAL: NOVO CLIENTE                        */}
+      {/* ==================================================== */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#4C566A]/50 bg-[#2E3440] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#4C566A]/30">
+              <h3 className="text-base font-bold text-[#ECEFF4]">Cadastrar Novo Cliente</h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-[#D8DEE9]/60 hover:text-white"
+              >
+                ✕
               </button>
             </div>
 
-            <form onSubmit={handleAddCliente} className="space-y-4 pt-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Nome Completo</label>
+            {formError && (
+              <div className="rounded-xl bg-[#BF616A]/20 border border-[#BF616A]/40 p-2.5 text-xs text-[#BF616A]">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitNovoCliente} className="space-y-3">
+              <div>
+                <label className="text-xs font-bold text-[#D8DEE9] block mb-1">
+                  Nome Completo *
+                </label>
                 <input
                   type="text"
                   required
+                  placeholder="Ex: João da Silva"
                   value={novoNome}
                   onChange={(e) => setNovoNome(e.target.value)}
-                  placeholder="Ex: Carlos Silva"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] focus:outline-none"
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Telefone / WhatsApp com DDD</label>
+              <div>
+                <label className="text-xs font-bold text-[#D8DEE9] block mb-1">
+                  WhatsApp com DDD (apenas dígitos) *
+                </label>
                 <input
-                  type="text"
+                  type="tel"
                   required
-                  value={novoTelefone}
-                  onChange={(e) => setNovoTelefone(e.target.value)}
                   placeholder="Ex: 11999998888"
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  value={novoTelefone}
+                  onChange={(e) => setNovoTelefone(e.target.value.replace(/\D/g, ''))}
+                  className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] font-mono focus:outline-none"
                 />
-                <span className="text-[11px] text-slate-400 block">
-                  Apenas dígitos com DDD (ex: 11988887777).
-                </span>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-[#D8DEE9] block mb-1">
+                    Etapa Inicial
+                  </label>
+                  <select
+                    value={novaEtapa}
+                    onChange={(e) => setNovaEtapa(e.target.value)}
+                    className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] focus:outline-none"
+                  >
+                    {ETAPAS_CONFIG.map((et) => (
+                      <option key={et.id} value={et.id}>
+                        {et.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[#D8DEE9] block mb-1">
+                    Valor Gasto Inicial (R$)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={novoValor}
+                    onChange={(e) => setNovoValor(e.target.value)}
+                    className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] font-mono focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-xl border border-[#4C566A]/40 bg-[#3B4252] px-4 py-2 text-xs font-bold text-[#D8DEE9] hover:bg-[#4C566A]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={isPendingAdd}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  disabled={isPending}
+                  className="rounded-xl bg-[#88C0D0] px-5 py-2 text-xs font-black text-[#242933] hover:bg-[#88C0D0]/90 transition"
                 >
-                  {isPendingAdd ? 'Salvando...' : 'Cadastrar Cliente'}
+                  {isPending ? 'Salvando...' : 'Cadastrar'}
                 </button>
               </div>
             </form>

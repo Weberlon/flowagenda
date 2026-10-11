@@ -74,21 +74,41 @@ export async function createTenantAction(formData: FormData) {
       }
     }
 
-    const { data: lojista, error: lojistaError } = await dbClient
+    const insertData: Record<string, any> = {
+      user_id: user.id,
+      nome_estabelecimento,
+      slug_subdominio,
+      dominio_proprio,
+      tier,
+      tipo_site,
+      whatsapp_notificacao,
+      google_review_url,
+      asaas_customer_id: asaasCustomerId,
+      configuracoes: {
+        mostrar_badge_plataforma: tier === 'tier_1',
+        cor_primaria: '#0F172A',
+        cor_secundaria: '#38BDF8',
+        favicon_url: null,
+      },
+    };
+
+    let { data: lojista, error: lojistaError } = await dbClient
       .from('lojistas')
-      .insert({
-        user_id: user.id,
-        nome_estabelecimento,
-        slug_subdominio,
-        dominio_proprio,
-        tier,
-        tipo_site,
-        whatsapp_notificacao,
-        google_review_url,
-        asaas_customer_id: asaasCustomerId,
-      })
+      .insert(insertData)
       .select()
       .single();
+
+    // Fallback caso a migration de configuracoes ainda não tenha sido rodada no Supabase
+    if (lojistaError && lojistaError.message?.includes('configuracoes')) {
+      delete insertData.configuracoes;
+      const retry = await dbClient
+        .from('lojistas')
+        .insert(insertData)
+        .select()
+        .single();
+      lojista = retry.data;
+      lojistaError = retry.error;
+    }
 
     if (lojistaError) {
       return { success: false, error: `Erro no banco ao criar lojista: ${lojistaError.message}` };
