@@ -172,3 +172,20 @@ Se o resultado listar `ns1.vercel-dns.com`, o seu computador local já enxerga o
      - Identificação de intenção humana (dúvidas, recepcionista, atendimento).
      - Atualização atômica de `bot_pausado_ate` em `configuracoes_robo` pausando o bot por 2 horas para conversação humana desimpedida.
      - Mensagem empática ao cliente e notificação com prévia da mensagem para o WhatsApp do profissional (`whatsapp_notificacao`).
+
+---
+
+## 8. Etapa 7: Lembretes Preventivos Anti No-Show & Cron Otimizado (Concluído 🟢)
+
+- **Status:** 100% implementado, testado e homologado no build de produção.
+- **Entregas:**
+  1. **Otimização do Cron na Vercel (`vercel.json`):**
+     - Periodicidade atualizada de diária (`0 0 * * *`) para horária comercial (`0 * * * *`).
+     - Garante que a esteira de atendimento processe os lembretes prévios e avaliações pós-atendimento continuamente durante o horário de expediente.
+  2. **Lembrete Preventivo Anti No-Show (Fase 1 do Cron em `app/api/cron/reviews/route.ts`):**
+     - Busca automática de agendamentos confirmados com início previsto para as próximas 2h a 2h30.
+     - Formatação de horário oficial no fuso `America/Sao_Paulo` (ex: "às 14:30") e identificação do procedimento.
+     - Disparo amigável no WhatsApp do cliente reforçando compromisso, preparação do atendimento e canal de cancelamento rápido.
+     - Marcação idempotente no banco com `pin_validacao = 'LEMBR'`, garantindo zero mensagens duplicadas sem exigir alterações manuais no schema remoto.
+  3. **Avaliação 5★ do Google e Fechamento (Fase 2 do Cron):**
+     - Agendamentos finalizados há mais de 2 horas recebem o link do Google Meu Negócio caso o cliente esteja na 1ª ou 2ª visita, e o agendamento transiciona automaticamente para `concluido`.
