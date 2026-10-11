@@ -137,7 +137,9 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 
 ### A. Vitrine Institucional Pública (`app/page.tsx` e `app/home/page.tsx`)
 - Mantido como **Server Component puro** (sem `'use client'`), garantindo Core Web Vitals e SEO estático.
-- **Mockup Interativo do Hero (`components/landing/HeroInteractiveMockup.tsx`):** Client Component com alternador de pílulas entre *Agendamento Ágil* (slots em ciano, PIN e Google 5★) e *Consultórios & Clínicas* (Google Maps escuro e badge Anti No-Show).
+- **HeroSection (`components/landing/HeroSection.tsx`):** Client Component com Framer Motion, headline com gradiente Nord, status badge ativo da Evolution API v2 e integração perfeita ao `HeroInteractiveMockup.tsx`.
+- **Bento Grid Showcase (`components/landing/BentoFeatures.tsx`):** Grade assimétrica de 4 cards (WhatsApp com PIN 10 min, Google Reviews 5★, Anti No-Show e White Label Total) com microinterações fluidas (`whileHover`).
+- **Design Tokens Nord Dark (`app/globals.css`):** Declaração no bloco `@theme` do Tailwind v4 (`--color-nord-bg`, `--color-nord-surface`, `--color-nord-border`, `--color-nord-accent`, `--color-nord-text`, etc.) e utilitários de glassmorphism.
 - **Tabela de Preços por Ciclos (`components/landing/PricingTiers.tsx`):**
   - **Mensal:** Tier 1 R$ 79,90 | Tier 2 R$ 139,90 | Tier 3 R$ 249,90.
   - **Semestral:** -15% OFF + 50% de desconto na taxa de setup.
@@ -229,7 +231,9 @@ git log -n 5 --oneline
 
 ## 8. Histórico de Commits Recentes de Alta Relevância
 
-- `1279a79` — `feat: landing page institucional com hero mockup e pricing por ciclos, white label dinamico e crm kanban com ltv` (Commit Atual).
+- `feat: bento grid showcase, framer motion hero section, and tailwind v4 nord dark theme tokens` (Commit Atual).
+- `c4dbf7b` — `feat: whatsapp instances multi-tenant schema, evolution api v2 integration and server actions`.
+- `1279a79` — `feat: landing page institucional com hero mockup e pricing por ciclos, white label dinamico e crm kanban com ltv`.
 - `0e08df6` — `feat: hourly vercel cron and automated anti no-show appointment reminders via whatsapp`.
 - `8699638` — `feat: connect real evolution webhook with automated greeting, human handoff, and bot pause isolation`.
 - `e990783` — `feat: align swas strategic compendium (google reviews 5-star robot, tenant high-conversion templates and updated tier pricing)`.

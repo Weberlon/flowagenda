@@ -1,1 +1,36 @@
 @import "tailwindcss";
+
+@theme {
+  --color-nord-bg: #242933;
+  --color-nord-surface: #2E3440;
+  --color-nord-border: #3B4252;
+  --color-nord-glow: #434C5E;
+  --color-nord-accent: #88C0D0;
+  --color-nord-accent-dark: #81A1C1;
+  --color-nord-success: #A3BE8C;
+  --color-nord-warning: #EBCB8B;
+  --color-nord-danger: #BF616A;
+  --color-nord-text: #ECEFF4;
+  --color-nord-muted: #D8DEE9;
+  --color-nord-subtle: #4C566A;
+}
+
+@layer utilities {
+  .glass-nord {
+    background-color: rgba(46, 52, 64, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(59, 66, 82, 0.6);
+  }
+
+  .glass-nord-header {
+    background-color: rgba(36, 41, 51, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(59, 66, 82, 0.7);
+  }
+
+  .glow-nord-accent {
+    box-shadow: 0 0 25px -5px rgba(136, 192, 208, 0.25);
+  }
+}
