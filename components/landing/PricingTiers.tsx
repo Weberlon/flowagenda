@@ -12,15 +12,15 @@ export default function PricingTiers() {
   const tiers = [
     {
       id: 'tier-1',
-      name: 'Operação Ágil',
-      niche: 'Barbearias, Salões, Tatuadores e Pet Care',
+      name: 'Essencial',
+      subtitle: 'Para profissionais autônomos que precisam eliminar faltas e automatizar o atendimento no WhatsApp.',
       pricing: {
         mensal: { price: '79,90', setup: '197,00', setupNote: 'Taxa única' },
         semestral: { price: '69,90', setup: '97,00', setupNote: '50% OFF no setup' },
         anual: { price: '59,90', setup: 'GRÁTIS', setupNote: 'Economia máxima' },
       },
       isHighlight: false,
-      ctaText: 'Ativar Operação Ágil',
+      ctaText: 'Ativar Plano Essencial',
       features: [
         'Subdomínio exclusivo (seunome.flowagenda.online)',
         'Robô de WhatsApp com validação de PIN de 6 dígitos',
@@ -32,15 +32,15 @@ export default function PricingTiers() {
     },
     {
       id: 'tier-2',
-      name: 'Saúde & Liberais',
-      niche: 'Estética, Odontologia, Médicos e Fisioterapia',
+      name: 'Profissional',
+      subtitle: 'Para negócios em expansão que exigem gestão de clientes, controle de intervalos e rotina organizada.',
       pricing: {
         mensal: { price: '139,90', setup: '397,00', setupNote: 'Taxa única' },
         semestral: { price: '119,90', setup: '197,00', setupNote: '50% OFF no setup' },
         anual: { price: '99,90', setup: 'GRÁTIS', setupNote: 'Economia máxima' },
       },
       isHighlight: false,
-      ctaText: 'Escolher Saúde & Liberais',
+      ctaText: 'Escolher Plano Profissional',
       features: [
         'Tudo incluído no Tier 1',
         'Layout institucional focado em autoridade médica',
@@ -52,8 +52,8 @@ export default function PricingTiers() {
     },
     {
       id: 'tier-3',
-      name: 'Alto Padrão & Clínicas',
-      niche: 'Clínicas Especializadas, Harmonização e Renomados',
+      name: 'Autoridade',
+      subtitle: 'Para marcas consolidadas que exigem domínio próprio, equipe sincronizada e máxima reputação.',
       pricing: {
         mensal: { price: '249,90', setup: '797,00', setupNote: 'Taxa única' },
         semestral: { price: '219,90', setup: '397,00', setupNote: '50% OFF no setup' },
@@ -61,7 +61,7 @@ export default function PricingTiers() {
       },
       isHighlight: true,
       badge: 'MAIS ESCOLHIDO • MÁXIMA AUTORIDADE',
-      ctaText: 'Ativar com Domínio Próprio',
+      ctaText: 'Ativar Máxima Autoridade',
       features: [
         'Tudo incluído no Tier 2',
         'Marca Própria Exclusiva (domínio .com.br próprio)',
@@ -167,7 +167,7 @@ export default function PricingTiers() {
               <div className={`space-y-4 ${tier.isHighlight ? 'pt-3' : ''}`}>
                 <div>
                   <h3 className="text-xl sm:text-2xl font-black text-[#ECEFF4]">{tier.name}</h3>
-                  <p className="text-xs text-[#88C0D0] font-medium mt-1">{tier.niche}</p>
+                  <p className="text-xs text-[#88C0D0] font-medium mt-1 leading-relaxed">{tier.subtitle}</p>
                 </div>
 
                 {/* Bloco de Preço */}

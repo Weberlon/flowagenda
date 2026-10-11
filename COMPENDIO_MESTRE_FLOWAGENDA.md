@@ -138,13 +138,12 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 ### A. Vitrine Institucional Pública (`app/page.tsx` e `app/home/page.tsx`)
 - Mantido como **Server Component puro** (sem `'use client'`), garantindo Core Web Vitals e SEO estático.
 - **HeroSection (`components/landing/HeroSection.tsx`):** Client Component com Framer Motion, headline com gradiente Nord, status badge ativo da Evolution API v2 e integração perfeita ao `HeroInteractiveMockup.tsx`.
-- **Bento Grid Showcase (`components/landing/BentoFeatures.tsx`):** Grade assimétrica de 4 cards (WhatsApp com PIN 10 min, Google Reviews 5★, Anti No-Show e White Label Total) com microinterações fluidas (`whileHover`).
+- **Bento Grid Interativo — "A Máquina de Faturamento" (`components/landing/BentoShowcase.tsx`):** Grade assimétrica de 4 cards (Agenda Automatizada com blocos deslizantes e badge WhatsApp 14h, Reputação Google 5★ com contador interpolado 4.2->4.9 e ticker vertical, Trava Anti-Falta com microfechamento e Pix 20%, e Atendimento 24h Autônomo com gráfico de barras noturnas destacadas em `#88C0D0`) com disparos únicos `viewport: { once: true, amount: 0.25 }` a 60 FPS.
 - **Design Tokens Nord Dark (`app/globals.css`):** Declaração no bloco `@theme` do Tailwind v4 (`--color-nord-bg`, `--color-nord-surface`, `--color-nord-border`, `--color-nord-accent`, `--color-nord-text`, etc.) e utilitários de glassmorphism.
-- **Tabela de Preços por Ciclos (`components/landing/PricingTiers.tsx`):**
-  - **Mensal:** Tier 1 R$ 79,90 | Tier 2 R$ 139,90 | Tier 3 R$ 249,90.
-  - **Semestral:** -15% OFF + 50% de desconto na taxa de setup.
-  - **Anual:** -25% OFF + **Setup 100% GRÁTIS**.
-  - Ancoragem visível da taxa única de implantação/setup para alta conversão.
+- **Tabela de Preços por Ciclos com Nomenclatura Oficial (`components/landing/PricingTiers.tsx`):**
+  - **Essencial (Tier 1):** R$ 59,90/mês (no anual) ou R$ 79,90 (mensal).
+  - **Profissional (Tier 2):** R$ 99,90/mês (no anual) ou R$ 139,90 (mensal).
+  - **Autoridade (Tier 3 - Mais Escolhido):** R$ 189,90/mês (no anual) ou R$ 249,90 (mensal) com setup grátis e domínio .com.br próprio.
 
 ### B. Gestão de Clientes & CRM Kanban (`app/dashboard/clientes/`)
 - **Server Actions Blindadas (`app/actions/clientes.ts`):** Extraem a sessão pelo servidor via `supabase.auth.getUser()`, higienizam telefones (`\D`) e gerenciam LTV, etapas e notas.

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import HeroSection from '@/components/landing/HeroSection';
-import BentoFeatures from '@/components/landing/BentoFeatures';
+import BentoShowcase from '@/components/landing/BentoShowcase';
 import PricingTiers from '@/components/landing/PricingTiers';
 
 export const metadata = {
@@ -76,8 +76,8 @@ export default function AppPage() {
       {/* 2. Hero Section com Framer Motion e Mockup Interativo */}
       <HeroSection whatsappConsultorUrl={whatsappConsultor} />
 
-      {/* 3. Bento Grid Showcase (As 4 Engrenagens Principais) */}
-      <BentoFeatures />
+      {/* 3. Bento Grid Showcase (A Máquina de Faturamento) */}
+      <BentoShowcase />
 
       {/* 4. Seção de Destaque "Sua Marca em Primeiro Lugar" (White Label) */}
       <section id="marca-propria" className="py-20 sm:py-28 bg-nord-bg/70 overflow-hidden border-t border-nord-border/50">
