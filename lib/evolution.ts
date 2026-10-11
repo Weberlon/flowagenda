@@ -1,151 +1,102 @@
-export async function createEvolutionInstance(instanceName: string) {
-  const evolutionUrl = process.env.EVOLUTION_API_URL;
-  const globalApiKey = process.env.EVOLUTION_API_KEY;
+// ==============================================================================
+// Evolution API v2 Service (WhatsApp Baileys Integration)
+// Arquivo: lib/evolution.ts
+// ==============================================================================
 
-  if (!evolutionUrl || !globalApiKey) {
-    console.warn("Evolution API credentials not found. Skipping instance creation (Mock mode).");
-    return { token: "mock_evolution_token_123" };
-  }
+/**
+ * Estados padronizados de conexão do gateway Evolution API / Baileys
+ */
+export type ConnectionState = 'disconnected' | 'connecting' | 'open' | 'close';
 
-  try {
-    const response = await fetch(`${evolutionUrl}/instance/create`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": globalApiKey,
-      },
-      body: JSON.stringify({
-        instanceName,
-        token: instanceName,
-        qrcode: true,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create Evolution instance: ${await response.text()}`);
-    }
-
-    const data = await response.json();
-    return {
-      token: data.hash?.apikey || data.instance?.token || "token_not_returned",
-    };
-  } catch (error) {
-    console.error("Evolution API Error:", error);
-    throw error;
-  }
+export interface EvolutionApiResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
-export async function fetchInstanceConnectionStatus(instanceName: string) {
-  const evolutionUrl = process.env.EVOLUTION_API_URL;
-  const globalApiKey = process.env.EVOLUTION_API_KEY;
-
-  if (!evolutionUrl || !globalApiKey) {
-    // Mock Response
-    return {
-      instanceName,
-      state: "close", // 'open', 'close', 'connecting'
-      statusReason: 401,
-      qrcode: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==", // 1x1 transparent base64 for mock
-    };
-  }
-
-  try {
-    const response = await fetch(`${evolutionUrl}/instance/connectionState/${instanceName}`, {
-      method: "GET",
-      headers: {
-        "apikey": globalApiKey,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch instance state`);
-    }
-
-    const data = await response.json();
-    
-    // Get QR Code if disconnected
-    let qrcode = null;
-    if (data.instance?.state !== 'open') {
-      const qrResponse = await fetch(`${evolutionUrl}/instance/connect/${instanceName}`, {
-        method: "GET",
-        headers: { "apikey": globalApiKey },
-      });
-      if (qrResponse.ok) {
-        const qrData = await qrResponse.json();
-        qrcode = qrData.base64;
-      }
-    }
-
-    return {
-      instanceName,
-      state: data.instance?.state || 'close',
-      qrcode,
-    };
-  } catch (error) {
-    console.error("Evolution API Error:", error);
-    // Return mock on network failure for dev environments
-    return {
-      instanceName,
-      state: "close",
-      qrcode: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==",
-    };
-  }
+export interface CreateInstanceResponse {
+  instance: {
+    instanceName: string;
+    instanceId?: string;
+    status: string;
+  };
+  hash?: {
+    apikey?: string;
+  };
+  qrcode?: {
+    base64?: string;
+    code?: string;
+  };
 }
 
-export async function restartEvolutionInstance(instanceName: string) {
-  const evolutionUrl = process.env.EVOLUTION_API_URL;
-  const globalApiKey = process.env.EVOLUTION_API_KEY;
-
-  if (!evolutionUrl || !globalApiKey) {
-    return { success: true, message: "Mock: instância reiniciada com sucesso." };
-  }
-
-  try {
-    const response = await fetch(`${evolutionUrl}/instance/restart/${instanceName}`, {
-      method: "POST",
-      headers: {
-        "apikey": globalApiKey,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Falha ao reiniciar instância: ${await response.text()}`);
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Evolution Restart Error:", error);
-    return { success: false, error: (error as Error).message };
-  }
+export interface QrCodeResult {
+  base64: string | null;
+  code?: string | null;
+  pairingCode?: string | null;
 }
 
-export async function logoutEvolutionInstance(instanceName: string) {
-  const evolutionUrl = process.env.EVOLUTION_API_URL;
-  const globalApiKey = process.env.EVOLUTION_API_KEY;
-
-  if (!evolutionUrl || !globalApiKey) {
-    return { success: true, message: "Mock: instância desconectada com sucesso." };
-  }
-
-  try {
-    const response = await fetch(`${evolutionUrl}/instance/logout/${instanceName}`, {
-      method: "DELETE",
-      headers: {
-        "apikey": globalApiKey,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Falha ao desconectar instância: ${await response.text()}`);
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Evolution Logout Error:", error);
-    return { success: false, error: (error as Error).message };
-  }
+export interface ConnectionStateResult {
+  instanceName: string;
+  state: ConnectionState;
 }
 
+export interface SendTextMessageParams {
+  instanceName: string;
+  number: string;
+  text: string;
+}
+
+export interface SendTextMessageResponse {
+  key?: {
+    remoteJid?: string;
+    fromMe?: boolean;
+    id?: string;
+  };
+  message?: any;
+  messageTimestamp?: string | number;
+  status?: string;
+}
+
+/**
+ * Utilitário interno para carregar e validar as credenciais server-side
+ */
+function getEvolutionConfig(): { apiUrl: string; apiKey: string } {
+  const apiUrl = process.env.EVOLUTION_API_URL?.replace(/\/$/, '') || '';
+  const apiKey = process.env.EVOLUTION_API_KEY || '';
+
+  if (!apiUrl || !apiKey) {
+    throw new Error(
+      'Configuração da Evolution API ausente: certifique-se de que EVOLUTION_API_URL e EVOLUTION_API_KEY estão definidos no ambiente.'
+    );
+  }
+
+  return { apiUrl, apiKey };
+}
+
+/**
+ * Formata um número de telefone para o padrão internacional (DDI + DDD + Número)
+ * Removendo quaisquer caracteres não-numéricos (espaços, traços, parênteses).
+ */
+export function formatToInternationalPhone(rawPhone: string): string {
+  const clean = rawPhone.replace(/\D/g, '');
+  if (!clean) return '';
+
+  // Se já possui DDI 55 (Brasil) com 12 ou 13 dígitos
+  if (clean.startsWith('55') && clean.length >= 12) {
+    return clean;
+  }
+
+  // Se possui DDD brasileiro (10 ou 11 dígitos), prefixa com 55
+  if (clean.length === 10 || clean.length === 11) {
+    return `55${clean}`;
+  }
+
+  return clean;
+}
+
+/**
+ * Mascara número de telefone para privacidade LGPD
+ */
 export function maskPhoneNumber(phone: string): string {
   const clean = phone.replace(/\D/g, '');
   if (clean.length >= 10) {
@@ -157,47 +108,429 @@ export function maskPhoneNumber(phone: string): string {
   return 'Telefone Mascarado';
 }
 
-export async function sendEvolutionTextMessage(
-  instanceName: string,
-  toPhone: string,
-  message: string
-) {
-  const cleanPhone = toPhone.replace(/\D/g, '');
-  const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-  const masked = maskPhoneNumber(formattedPhone);
-
-  const evolutionUrl = process.env.EVOLUTION_API_URL;
-  const globalApiKey = process.env.EVOLUTION_API_KEY;
-
-  if (!evolutionUrl || !globalApiKey) {
-    console.log(`[EVOLUTION API MOCK] Disparo transacional para ${masked}:`);
-    console.log(`[CONTEÚDO]:\n${message}\n`);
-    return { success: true, mock: true };
-  }
-
+/**
+ * 1. Cria uma nova instância Baileys no Evolution API v2 para a organização
+ * POST /instance/create
+ */
+export async function createInstance(
+  organizationId: string
+): Promise<EvolutionApiResult<{ instanceName: string; instanceId?: string; token?: string; qrcode?: string | null }>> {
   try {
-    const response = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
-      method: "POST",
+    const { apiUrl, apiKey } = getEvolutionConfig();
+    const instanceName = `flow_${organizationId}`;
+
+    const response = await fetch(`${apiUrl}/instance/create`, {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "apikey": globalApiKey,
+        'Content-Type': 'application/json',
+        apikey: apiKey,
       },
       body: JSON.stringify({
-        number: formattedPhone,
-        text: message,
+        instanceName,
+        token: instanceName,
+        qrcode: true,
+        integration: 'WHATSAPP-BAILEYS',
+        rejectCall: false,
+        msgCall: '',
+        groupsIgnore: true,
+        alwaysOnline: false,
+        readMessages: false,
+        readStatus: false,
+        syncFullHistory: false,
       }),
+    });
+
+    const resText = await response.text();
+    let data: any = {};
+    try {
+      data = JSON.parse(resText);
+    } catch {
+      data = { raw: resText };
+    }
+
+    if (!response.ok) {
+      // Se a instância já existe, trata com tolerância e recupera o status atual
+      if (
+        response.status === 403 ||
+        data?.response?.message?.includes('already exists') ||
+        resText.includes('already exists')
+      ) {
+        return {
+          success: true,
+          data: {
+            instanceName,
+            instanceId: data?.instance?.instanceId || undefined,
+            token: instanceName,
+            qrcode: null,
+          },
+        };
+      }
+
+      return {
+        success: false,
+        error: data?.response?.message || data?.message || `Falha ao criar instância (HTTP ${response.status}): ${resText}`,
+      };
+    }
+
+    const qrcodeBase64 = data?.qrcode?.base64 || data?.base64 || null;
+    const instanceId = data?.instance?.instanceId || data?.instance?.id || undefined;
+    const token = data?.hash?.apikey || data?.instance?.token || instanceName;
+
+    return {
+      success: true,
+      data: {
+        instanceName,
+        instanceId,
+        token,
+        qrcode: qrcodeBase64,
+      },
+    };
+  } catch (error: any) {
+    console.error('[Evolution API] createInstance Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro inesperado ao conectar à Evolution API.',
+    };
+  }
+}
+
+/**
+ * 2. Obtém o QR Code em Base64 para leitura no WhatsApp
+ * GET /instance/connect/{instanceName}
+ */
+export async function fetchQrCode(
+  instanceName: string
+): Promise<EvolutionApiResult<QrCodeResult>> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+
+    const response = await fetch(`${apiUrl}/instance/connect/${encodeURIComponent(instanceName)}`, {
+      method: 'GET',
+      headers: {
+        apikey: apiKey,
+      },
+      cache: 'no-store',
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.warn(`[EVOLUTION API] Falha no disparo para ${masked}:`, errText);
-      return { success: false, error: errText };
+      return {
+        success: false,
+        error: `Falha ao obter QR Code (HTTP ${response.status}): ${errText}`,
+      };
     }
 
-    console.log(`[EVOLUTION API] Mensagem transacional entregue com sucesso para ${masked}.`);
-    return { success: true };
-  } catch (error) {
-    console.error(`[EVOLUTION API] Erro ao enviar mensagem para ${masked}:`, error);
-    return { success: false, error: (error as Error).message };
+    const data = await response.json();
+
+    // A Evolution API v2 pode retornar o base64 diretamente ou aninhado
+    const base64 = data?.base64 || data?.qrcode?.base64 || null;
+    const code = data?.code || data?.qrcode?.code || null;
+    const pairingCode = data?.pairingCode || null;
+
+    return {
+      success: true,
+      data: {
+        base64,
+        code,
+        pairingCode,
+      },
+    };
+  } catch (error: any) {
+    console.error('[Evolution API] fetchQrCode Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro ao obter QR Code do gateway WhatsApp.',
+    };
   }
+}
+
+/**
+ * 3. Consulta o status de conexão da instância
+ * GET /instance/connectionState/{instanceName}
+ */
+export async function getConnectionState(
+  instanceName: string
+): Promise<EvolutionApiResult<ConnectionStateResult>> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+
+    const response = await fetch(
+      `${apiUrl}/instance/connectionState/${encodeURIComponent(instanceName)}`,
+      {
+        method: 'GET',
+        headers: {
+          apikey: apiKey,
+        },
+        cache: 'no-store',
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          success: true,
+          data: {
+            instanceName,
+            state: 'disconnected',
+          },
+        };
+      }
+      const errText = await response.text();
+      return {
+        success: false,
+        error: `Falha ao checar status (HTTP ${response.status}): ${errText}`,
+      };
+    }
+
+    const data = await response.json();
+    const rawState = (data?.instance?.state || data?.state || 'disconnected').toLowerCase();
+
+    let state: ConnectionState = 'disconnected';
+    if (rawState === 'open') state = 'open';
+    else if (rawState === 'connecting') state = 'connecting';
+    else if (rawState === 'close') state = 'close';
+    else state = 'disconnected';
+
+    return {
+      success: true,
+      data: {
+        instanceName,
+        state,
+      },
+    };
+  } catch (error: any) {
+    console.error('[Evolution API] getConnectionState Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro ao consultar status da conexão WhatsApp.',
+    };
+  }
+}
+
+/**
+ * 4. Envia mensagem de texto formatando o número para o padrão internacional DDI+DDD+Número
+ * POST /message/sendText/{instanceName}
+ */
+export async function sendTextMessage(
+  params: SendTextMessageParams
+): Promise<EvolutionApiResult<SendTextMessageResponse>> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+    const formattedPhone = formatToInternationalPhone(params.number);
+
+    if (!formattedPhone || formattedPhone.length < 10) {
+      return {
+        success: false,
+        error: `Número de telefone inválido para envio: ${params.number}`,
+      };
+    }
+
+    const response = await fetch(
+      `${apiUrl}/message/sendText/${encodeURIComponent(params.instanceName)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: apiKey,
+        },
+        body: JSON.stringify({
+          number: formattedPhone,
+          text: params.text,
+        }),
+      }
+    );
+
+    const resText = await response.text();
+    let data: any = {};
+    try {
+      data = JSON.parse(resText);
+    } catch {
+      data = { raw: resText };
+    }
+
+    if (!response.ok) {
+      const masked = maskPhoneNumber(formattedPhone);
+      console.warn(`[Evolution API] Falha no disparo para ${masked}:`, resText);
+      return {
+        success: false,
+        error: data?.response?.message || data?.message || `Falha no envio da mensagem (HTTP ${response.status})`,
+      };
+    }
+
+    return {
+      success: true,
+      data,
+    };
+  } catch (error: any) {
+    console.error('[Evolution API] sendTextMessage Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro inesperado ao enviar mensagem WhatsApp.',
+    };
+  }
+}
+
+/**
+ * 5. Remove e desvincula a instância do gateway Evolution API
+ * DELETE /instance/delete/{instanceName}
+ */
+export async function deleteInstance(
+  instanceName: string
+): Promise<EvolutionApiResult<{ message?: string }>> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+
+    const response = await fetch(
+      `${apiUrl}/instance/delete/${encodeURIComponent(instanceName)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          apikey: apiKey,
+        },
+      }
+    );
+
+    if (!response.ok && response.status !== 404) {
+      const errText = await response.text();
+      return {
+        success: false,
+        error: `Falha ao remover instância (HTTP ${response.status}): ${errText}`,
+      };
+    }
+
+    return {
+      success: true,
+      data: { message: 'Instância removida com sucesso.' },
+    };
+  } catch (error: any) {
+    console.error('[Evolution API] deleteInstance Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro ao remover instância na Evolution API.',
+    };
+  }
+}
+
+// ==============================================================================
+// Métodos de Compatibilidade com Código Legado do Projeto FlowAgenda
+// ==============================================================================
+
+/**
+ * Wrapper de compatibilidade para criação de instância com nome arbitrário
+ */
+export async function createEvolutionInstance(instanceName: string) {
+  try {
+    const orgId = instanceName.replace(/^flow_/, '').replace(/^flowagenda_/, '');
+    const result = await createInstance(orgId);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return { token: result.data?.token || instanceName };
+  } catch (error: any) {
+    console.error('createEvolutionInstance error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Wrapper de compatibilidade para consultar status e QR Code em um único método
+ */
+export async function fetchInstanceConnectionStatus(instanceName: string) {
+  const stateResult = await getConnectionState(instanceName);
+  const state = stateResult.success && stateResult.data ? stateResult.data.state : 'close';
+
+  let qrcode: string | null = null;
+  if (state !== 'open') {
+    const qrResult = await fetchQrCode(instanceName);
+    if (qrResult.success && qrResult.data?.base64) {
+      qrcode = qrResult.data.base64;
+    }
+  }
+
+  return {
+    instanceName,
+    state,
+    qrcode,
+  };
+}
+
+/**
+ * Reinicia a instância na Evolution API
+ * POST /instance/restart/{instanceName}
+ */
+export async function restartEvolutionInstance(instanceName: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+
+    const response = await fetch(
+      `${apiUrl}/instance/restart/${encodeURIComponent(instanceName)}`,
+      {
+        method: 'POST',
+        headers: {
+          apikey: apiKey,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return { success: false, error: `Falha ao reiniciar instância: ${errText}` };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Evolution API] restartEvolutionInstance Error:', error);
+    return { success: false, error: error?.message || 'Erro ao reiniciar instância.' };
+  }
+}
+
+/**
+ * Desconecta a sessão Baileys na Evolution API
+ * DELETE /instance/logout/{instanceName}
+ */
+export async function logoutEvolutionInstance(instanceName: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+
+    const response = await fetch(
+      `${apiUrl}/instance/logout/${encodeURIComponent(instanceName)}`,
+      {
+        method: 'DELETE',
+        headers: {
+          apikey: apiKey,
+        },
+      }
+    );
+
+    if (!response.ok && response.status !== 404) {
+      const errText = await response.text();
+      return { success: false, error: `Falha ao desconectar instância: ${errText}` };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[Evolution API] logoutEvolutionInstance Error:', error);
+    return { success: false, error: error?.message || 'Erro ao desconectar instância.' };
+  }
+}
+
+/**
+ * Wrapper de envio de texto transacional mantendo compatibilidade com rotas e cron jobs existentes
+ */
+export async function sendEvolutionTextMessage(
+  instanceName: string,
+  toPhone: string,
+  message: string
+): Promise<{ success: boolean; error?: string; mock?: boolean }> {
+  const result = await sendTextMessage({
+    instanceName,
+    number: toPhone,
+    text: message,
+  });
+
+  if (!result.success) {
+    return { success: false, error: result.error };
+  }
+
+  return { success: true };
 }

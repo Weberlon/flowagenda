@@ -94,14 +94,25 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 - `mensagem_boas_vindas` (TEXT com variáveis `{nome_estabelecimento}`, `{link_agendamento}`)
 - `bot_pausado_ate` (TIMESTAMPTZ, usado para transbordo de atendimento humano)
 
-### 4. `servicos`
+### 4. `whatsapp_instances` (Evolution API v2 Gateway)
+- `id` (UUID, PK)
+- `organization_id` (UUID, FK `lojistas.id`, UNIQUE)
+- `instance_name` (TEXT, UNIQUE, padrão `flow_<organization_id>`)
+- `instance_id` (TEXT, NULL)
+- `status` (`'disconnected'`, `'connecting'`, `'open'`, `'close'`)
+- `phone_number` (TEXT, NULL)
+- `profile_name` (TEXT, NULL)
+- `created_at`, `updated_at` (TIMESTAMPTZ)
+- RLS ativado com isolamento multi-tenant por `user_id = auth.uid()`
+
+### 5. `servicos`
 - `id`, `lojista_id` (FK `lojistas.id`)
 - `nome_servico` (VARCHAR)
 - `duracao_minutos` (INT com `CHECK (duracao_minutos IN (15, 30, 45, 60))`)
 - `preco` (DECIMAL(10,2))
 - `ativo` (BOOLEAN)
 
-### 5. `clientes` (Módulo CRM)
+### 6. `clientes` (Módulo CRM)
 - `id`, `lojista_id` (FK `lojistas.id`)
 - `nome` (VARCHAR)
 - `telefone` (VARCHAR, apenas números com DDD)
@@ -113,7 +124,7 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 - `tags` (TEXT[] — preferências e perfil)
 - `CONSTRAINT unique_lojista_cliente UNIQUE (lojista_id, telefone)`
 
-### 6. `agendamentos`
+### 7. `agendamentos`
 - `id`, `lojista_id`, `servico_id`, `cliente_id`
 - `data_hora_inicio`, `data_hora_fim`
 - `status` (`appointment_status`: `'pendente_pin'`, `'confirmado'`, `'concluido'`, `'cancelado'`)
@@ -148,7 +159,9 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
   - Tiers 2 e 3: **Selo da plataforma completamente oculto** (White Label 100%).
 - **Fluxo Atômico:** Trava de 10 minutos, cronômetro decrescente, validação de PIN de 6 dígitos e tela de bloqueio caso inadimplente no Asaas.
 
-### D. Conexão WhatsApp & Configurações (`app/dashboard/configuracoes/`)
+### D. Conexão WhatsApp & Configurações (`app/dashboard/configuracoes/` e `app/actions/whatsapp.ts`)
+- Modelagem `whatsapp_instances` com RLS multi-tenant vinculada à Evolution API v2 (`lib/evolution.ts`).
+- Server actions `generateTenantQrCodeAction` e `checkTenantConnectionAction`.
 - Exibição do QR Code em tempo real, status de conexão da Evolution API, reinício de instância e logout.
 - Editor com preview em tempo real da mensagem de boas-vindas do robô e campo para URL do Google Meu Negócio.
 
@@ -165,19 +178,10 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 
 Quando for colocar o sistema para operar com clientes e WhatsApp reais no mundo exterior:
 
-### [ ] 1. VPS da Evolution API (WhatsApp Real)
-1. Contrate uma VPS Linux (Ubuntu 22.04 LTS ou 24.04 LTS) em provedores como Hetzner, Contabo ou DigitalOcean (~R$ 25 a R$ 40/mês).
-2. Instale o Docker e Docker Compose:
-   ```bash
-   sudo apt update && sudo apt upgrade -y
-   curl -fsSL https://get.docker.com | bash
-   ```
-3. Suba a Evolution API com domínio próprio e SSL (usando Nginx Proxy Manager ou Caddy).
-4. No arquivo `.env.local` e nas variáveis da Vercel, preencha:
-   ```env
-   EVOLUTION_API_URL=https://evolution.seudominio.com
-   EVOLUTION_API_KEY=sua_chave_global_gerada_na_vps
-   ```
+### [x] 1. VPS da Evolution API v2 (WhatsApp Real Ativo)
+- VPS configurada e operacional no IP `http://179.236.70.181:8080`.
+- Chave global `EVOLUTION_API_KEY` conectada e testada no servidor.
+- Tabela `whatsapp_instances` criada no Supabase e homologada com RLS.
 
 ### [ ] 2. Variáveis de Ambiente na Vercel
 Acesse o painel do projeto na **Vercel** > **Settings** > **Environment Variables** e garanta que todas as chaves abaixo estejam configuradas para os ambientes *Production*, *Preview* e *Development*:
