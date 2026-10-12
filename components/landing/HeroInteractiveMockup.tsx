@@ -1,303 +1,317 @@
 'use client';
 
-import React, { useState } from 'react';
+// ==============================================================================
+// HeroInteractiveMockup — Painel Central em Vidro (Simulador em Loop de 8s)
+// Arquivo: components/landing/HeroInteractiveMockup.tsx
+// ==============================================================================
+
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HeroInteractiveMockup() {
+  const [mounted, setMounted] = useState(false);
   const [activeSegment, setActiveSegment] = useState<'agil' | 'clinicas'>('agil');
-  const [selectedSlot, setSelectedSlot] = useState<string>('15:30');
+  
+  // Loop Coordenado de 8 segundos (0s -> 2s -> 4s -> 6s -> 8s)
+  // Step 0: Mensagem do cliente entra
+  // Step 1: Reação do Bot WhatsApp (feixe de luz + badge pulsando)
+  // Step 2: Trava do slot 15:30 na grade (Pré-reservado + cadeado)
+  // Step 3: Revelação sequencial do PIN + contagem regressiva
+  const [simStep, setSimStep] = useState<number>(0);
+  const [countdownSecs, setCountdownSecs] = useState<number>(582); // 09:42
 
-  const slotsAgil = [
-    { time: '09:00', status: 'livre' },
-    { time: '10:30', status: 'ocupado' },
-    { time: '14:00', status: 'ocupado' },
-    { time: '15:30', status: 'selecionado' },
-    { time: '17:00', status: 'livre' },
-    { time: '18:30', status: 'ocupado' },
-  ];
+  useEffect(() => {
+    setMounted(true);
+
+    const stepInterval = setInterval(() => {
+      setSimStep((prev) => (prev + 1) % 4);
+    }, 2000);
+
+    const countdownInterval = setInterval(() => {
+      setCountdownSecs((prev) => (prev > 0 ? prev - 1 : 582));
+    }, 1000);
+
+    return () => {
+      clearInterval(stepInterval);
+      clearInterval(countdownInterval);
+    };
+  }, []);
+
+  const formatCountdown = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const pinDigits = ['8', '4', '9', '2'];
 
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-3xl border border-[#3B4252] bg-[#242933] text-[#ECEFF4] shadow-2xl transition-all duration-300">
-      {/* Top Bar / Janela estilo MacOS */}
-      <div className="border-b border-[#3B4252] bg-[#2E3440]/90 px-4 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3 overflow-hidden">
+    <div className="w-full max-w-full overflow-hidden rounded-3xl border border-white/[0.08] bg-[#2E3440]/90 text-[#ECEFF4] shadow-2xl shadow-black/50 hover:border-[#88C0D0]/40 hover:shadow-[#88C0D0]/5 backdrop-blur-xl transition-all duration-500">
+      
+      {/* Top Bar / Janela estilo MacOS com Glassmorphism */}
+      <div className="border-b border-white/[0.08] bg-[#242933]/95 px-4 py-3 sm:px-6 flex flex-wrap items-center justify-between gap-3 overflow-hidden">
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-[#BF616A]/90 inline-block" />
-          <span className="h-3 w-3 rounded-full bg-[#EBCB8B]/90 inline-block" />
-          <span className="h-3 w-3 rounded-full bg-[#A3BE8C]/90 inline-block" />
-          <span className="ml-2 text-[11px] font-mono text-[#D8DEE9]/60 hidden sm:inline-block">
-            flowagenda.online/demo
+          <span className="h-3 w-3 rounded-full bg-[#BF616A]/90 inline-block shadow-xs" />
+          <span className="h-3 w-3 rounded-full bg-[#EBCB8B]/90 inline-block shadow-xs" />
+          <span className="h-3 w-3 rounded-full bg-[#A3BE8C]/90 inline-block shadow-xs" />
+          <span className="ml-2 text-[11px] font-mono text-[#D8DEE9]/50 hidden sm:inline-block">
+            sistema.flowagenda.online/live-sync
           </span>
         </div>
 
-        {/* Seletor Superior com 2 botões em pílula */}
-        <div className="inline-flex rounded-full bg-[#242933] p-1 border border-[#3B4252] shadow-inner">
+        {/* Seletor Superior com Pílulas Elegantes */}
+        <div className="inline-flex rounded-full bg-[#1E232A]/90 p-1 border border-white/[0.06] shadow-inner">
           <button
             type="button"
             onClick={() => setActiveSegment('agil')}
-            className={`flex items-center gap-1.5 sm:gap-2 rounded-full px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all duration-200 ${
+            className={`flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1 text-xs font-semibold transition-all duration-300 ${
               activeSegment === 'agil'
-                ? 'bg-[#3B4252] text-[#88C0D0] shadow-md border border-[#88C0D0]/40 font-bold'
-                : 'text-[#D8DEE9]/70 hover:text-[#ECEFF4]'
+                ? 'bg-[#3B4252] text-[#88C0D0] shadow-sm border border-[#88C0D0]/30 font-bold'
+                : 'text-[#D8DEE9]/60 hover:text-[#ECEFF4]'
             }`}
           >
-            <span>⚡ Agendamento Ágil</span>
-            <span className="hidden md:inline text-[10px] font-normal text-[#D8DEE9]/60">
-              (Barbearias, Salões, Tatuadores e Pet Care)
-            </span>
+            <span>⚡ Serviços Locais</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSegment('clinicas')}
-            className={`flex items-center gap-1.5 sm:gap-2 rounded-full px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold transition-all duration-200 ${
+            className={`flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1 text-xs font-semibold transition-all duration-300 ${
               activeSegment === 'clinicas'
-                ? 'bg-[#3B4252] text-[#88C0D0] shadow-md border border-[#88C0D0]/40 font-bold'
-                : 'text-[#D8DEE9]/70 hover:text-[#ECEFF4]'
+                ? 'bg-[#3B4252] text-[#88C0D0] shadow-sm border border-[#88C0D0]/30 font-bold'
+                : 'text-[#D8DEE9]/60 hover:text-[#ECEFF4]'
             }`}
           >
-            <span>🛡️ Consultórios & Clínicas</span>
-            <span className="hidden md:inline text-[10px] font-normal text-[#D8DEE9]/60">
-              (Estética, Harmonização, Odonto e Saúde)
-            </span>
+            <span>🛡️ Clínicas & Saúde</span>
           </button>
         </div>
       </div>
 
-      {/* Conteúdo com Overflow Hidden para Mobile */}
-      <div className="p-4 sm:p-6 lg:p-7 overflow-hidden">
-        {activeSegment === 'agil' ? (
-          /* MODO 1: AGENDAMENTO ÁGIL */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch overflow-hidden">
-            {/* Coluna Esquerda: Google + Grade de Horários */}
-            <div className="lg:col-span-7 space-y-4 overflow-hidden">
-              {/* Card Google Meu Negócio */}
-              <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-hidden">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-slate-900 font-bold shadow-md">
-                    <span className="text-xl">G</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-bold text-sm sm:text-base text-[#ECEFF4]">Barbearia Vintage Club</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#A3BE8C]/20 text-[#A3BE8C] font-semibold border border-[#A3BE8C]/30">
-                        Top 1 da Região
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex text-[#EBCB8B] text-xs">
-                        {'★'.repeat(5)}
-                      </div>
-                      <span className="text-xs font-bold text-[#ECEFF4]">5.0</span>
-                      <span className="text-xs text-[#D8DEE9]/70 font-medium">+158 avaliações reais</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 self-start sm:self-center px-2.5 py-1 rounded-lg bg-[#3B4252] text-[10px] text-[#88C0D0] font-mono border border-[#4C566A]">
-                  <span className="h-2 w-2 rounded-full bg-[#A3BE8C] animate-pulse" />
-                  Atendimento WhatsApp Ativo
-                </div>
-              </div>
-
-              {/* Grade Semanal com Slots Ciano */}
-              <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-4 sm:p-5 shadow-lg space-y-3 overflow-hidden">
-                <div className="flex items-center justify-between border-b border-[#3B4252] pb-2.5">
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-[#ECEFF4]">Grade Semanal de Agendamentos</h4>
-                    <p className="text-[11px] text-[#D8DEE9]/60">Sexta-feira • Cortes & Barba (30 min)</p>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#242933] text-[#88C0D0] border border-[#3B4252]">
-                    Slots em Tempo Real
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {slotsAgil.map((slot) => {
-                    const isSelected = selectedSlot === slot.time;
-                    const isOccupied = slot.status === 'ocupado';
-
-                    return (
-                      <button
-                        key={slot.time}
-                        type="button"
-                        onClick={() => !isOccupied && setSelectedSlot(slot.time)}
-                        className={`py-2 px-1 rounded-xl text-xs font-bold text-center transition-all ${
-                          isSelected
-                            ? 'bg-[#88C0D0] text-[#242933] shadow-md shadow-[#88C0D0]/20 font-black scale-105 border border-white/20'
-                            : isOccupied
-                            ? 'bg-[#88C0D0]/15 text-[#88C0D0] border border-[#88C0D0]/40 font-semibold'
-                            : 'bg-[#3B4252] text-[#ECEFF4] hover:border-[#88C0D0]/60 hover:text-[#88C0D0] border border-[#4C566A]'
-                        }`}
-                      >
-                        {slot.time}
-                        <span className="block text-[9px] font-normal opacity-80">
-                          {isSelected ? 'Escolhido' : isOccupied ? 'Ocupado' : 'Livre'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center justify-between pt-1 text-[10px] text-[#D8DEE9]/60">
-                  <span className="flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-[#88C0D0]" /> Slot Selecionado
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-[#88C0D0]/40" /> Ocupado (Ciano)
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-[#3B4252]" /> Disponível
-                  </span>
-                </div>
-              </div>
+      {/* Conteúdo Principal do Simulador */}
+      <div className="p-4 sm:p-6 lg:p-7 space-y-5">
+        
+        {/* Header do Estabelecimento com Status em Tempo Real */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#88C0D0] to-[#81A1C1] text-[#242933] font-black text-sm shadow-md">
+              {activeSegment === 'agil' ? 'VC' : 'CL'}
             </div>
-
-            {/* Coluna Direita: Balão WhatsApp com Validação de PIN */}
-            <div className="lg:col-span-5 flex flex-col justify-between rounded-2xl border border-[#3B4252] bg-[#2E3440] p-4 sm:p-5 shadow-lg overflow-hidden">
-              <div className="flex items-center gap-2.5 pb-2.5 border-b border-[#3B4252]">
-                <div className="h-8 w-8 rounded-full bg-[#A3BE8C] flex items-center justify-center text-[#242933] font-bold text-xs">
-                  💬
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-[#ECEFF4]">FlowAgenda WhatsApp Bot</h5>
-                  <p className="text-[10px] text-[#A3BE8C]">Trava Atômica de 10 min Ativa</p>
-                </div>
-              </div>
-
-              {/* Balão de Conversa & PIN Flutuante */}
-              <div className="my-3 space-y-2.5 font-sans overflow-hidden">
-                <div className="rounded-xl rounded-tl-none bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] border border-[#4C566A] shadow-md">
-                  <p className="font-semibold text-[#88C0D0] text-[11px] mb-0.5">Barbearia Vintage Club:</p>
-                  <p className="text-[11px]">
-                    Olá, Marcos! Seu horário para às <span className="font-bold text-[#88C0D0]">{selectedSlot}</span> foi pré-reservado.
-                  </p>
-                </div>
-
-                {/* Balão de PIN em Destaque Flutuante */}
-                <div className="rounded-xl bg-gradient-to-br from-[#2E3440] to-[#242933] p-3.5 border-2 border-[#88C0D0] shadow-xl text-center space-y-1.5">
-                  <span className="inline-block px-2 py-0.5 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] text-[10px] font-bold">
-                    🔐 VALIDAÇÃO DE PIN NO WHATSAPP
-                  </span>
-                  <div className="text-2xl font-mono font-black tracking-widest text-[#88C0D0]">
-                    7 4 2 9
-                  </div>
-                  <p className="text-[10px] text-[#D8DEE9]/70">
-                    Digite para confirmar. Expira em <span className="font-bold text-[#EBCB8B]">09:42</span>.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-2 text-center border-t border-[#3B4252]">
-                <span className="text-[10px] text-[#A3BE8C] font-semibold flex items-center justify-center gap-1">
-                  ✓ Sem Faltas • Agenda 100% Protegida
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm sm:text-base text-[#ECEFF4]">
+                  {activeSegment === 'agil' ? 'Barbearia Vintage Club' : 'Clínica OdontoLife'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#A3BE8C]/15 text-[#A3BE8C] font-semibold border border-[#A3BE8C]/30">
+                  Google 5.0 ★
                 </span>
               </div>
+              <p className="text-xs text-[#D8DEE9]/60 font-mono">
+                {activeSegment === 'agil' ? 'vintageclub.flowagenda.online' : 'odontolife.com.br'}
+              </p>
             </div>
           </div>
-        ) : (
-          /* MODO 2: CONSULTÓRIOS & CLÍNICAS */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch overflow-hidden">
-            {/* Coluna Esquerda: Google Maps Escuro + Depoimento */}
-            <div className="lg:col-span-7 space-y-4 overflow-hidden">
-              {/* Card Google Maps Escuro */}
-              <div className="relative overflow-hidden rounded-2xl border border-[#3B4252] bg-[#2E3440] p-4 sm:p-5 shadow-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-9 w-9 rounded-xl bg-[#88C0D0]/20 text-[#88C0D0] flex items-center justify-center font-bold text-sm border border-[#88C0D0]/30">
-                      📍
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-xs sm:text-sm text-[#ECEFF4]">Clínica Sorriso & Estética Prime</h4>
-                      <p className="text-[10px] text-[#D8DEE9]/60">Google Meu Negócio • Ficha Otimizada</p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#EBCB8B]/10 text-[#EBCB8B] text-[11px] font-bold border border-[#EBCB8B]/30">
-                    ★ 5.0 (284 reviews)
-                  </div>
+          {/* Badge Reativo (Step >= 1 emite pulso) */}
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono border transition-all duration-500 self-start sm:self-auto ${
+            simStep >= 1
+              ? 'bg-[#A3BE8C]/15 text-[#A3BE8C] border-[#A3BE8C]/40 ring-2 ring-[#A3BE8C]/20'
+              : 'bg-[#2E3440] text-[#D8DEE9]/70 border-white/[0.08]'
+          }`}>
+            <span className={`h-2 w-2 rounded-full ${simStep >= 1 ? 'bg-[#A3BE8C] animate-pulse' : 'bg-[#D8DEE9]/40'}`} />
+            <span className="font-semibold">
+              {simStep >= 1 ? 'Atendimento WhatsApp Ativo' : 'Aguardando Mensagem'}
+            </span>
+          </div>
+        </div>
+
+        {/* Grid Dividido: Grade de Horários (Esquerda) vs Balão WhatsApp & Trava PIN (Direita) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+          
+          {/* ============================================================== */}
+          {/* COLUNA ESQUERDA: Grade da Agenda com Slot das 15:30            */}
+          {/* ============================================================== */}
+          <div className="lg:col-span-7 rounded-2xl border border-white/[0.06] bg-[#242933]/90 p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-inner">
+            <div className="flex items-center justify-between text-xs font-mono text-[#D8DEE9]/70">
+              <span className="font-bold uppercase tracking-wider text-[#ECEFF4]">Grade de Horários • Hoje</span>
+              <span className="text-[#88C0D0]">Tempo Real</span>
+            </div>
+
+            {/* Grid com 6 Slots de Horário */}
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              {/* 10:00 - Ocupado */}
+              <div className="rounded-xl border border-white/[0.05] bg-[#2E3440]/60 p-2.5 text-center text-[#D8DEE9]/50">
+                <span className="font-mono block">10:00</span>
+                <span className="text-[10px] text-[#BF616A] font-semibold mt-0.5 block">Ocupado</span>
+              </div>
+
+              {/* 11:30 - Ocupado */}
+              <div className="rounded-xl border border-white/[0.05] bg-[#2E3440]/60 p-2.5 text-center text-[#D8DEE9]/50">
+                <span className="font-mono block">11:30</span>
+                <span className="text-[10px] text-[#BF616A] font-semibold mt-0.5 block">Ocupado</span>
+              </div>
+
+              {/* 14:00 - Livre */}
+              <div className="rounded-xl border border-[#3B4252] bg-[#2E3440] p-2.5 text-center text-[#ECEFF4]">
+                <span className="font-mono block">14:00</span>
+                <span className="text-[10px] text-[#A3BE8C] font-semibold mt-0.5 block">Disponível</span>
+              </div>
+
+              {/* 15:30 - O SLOT ALVO QUE MUDA DE ESTADO (Step 2 e 3) */}
+              <motion.div 
+                animate={{
+                  borderColor: simStep >= 2 ? '#88C0D0' : '#3B4252',
+                  backgroundColor: simStep >= 2 ? 'rgba(136, 192, 208, 0.15)' : 'rgba(46, 52, 64, 1)',
+                  scale: simStep >= 2 ? [1, 1.03, 1] : 1,
+                }}
+                transition={{ duration: 0.4 }}
+                className={`rounded-xl border p-2.5 text-center transition-all ${
+                  simStep >= 2
+                    ? 'border-[#88C0D0] ring-2 ring-[#88C0D0]/30 shadow-lg shadow-[#88C0D0]/10'
+                    : 'border-[#3B4252] bg-[#2E3440]'
+                }`}
+              >
+                <div className="flex items-center justify-center gap-1 font-mono font-bold text-[#ECEFF4]">
+                  <span>15:30</span>
+                  {simStep >= 2 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="text-[#88C0D0] text-[11px]"
+                    >
+                      🔒
+                    </motion.span>
+                  )}
                 </div>
+                <span className={`text-[10px] font-bold mt-0.5 block transition-colors ${
+                  simStep >= 2 ? 'text-[#88C0D0]' : 'text-[#A3BE8C]'
+                }`}>
+                  {simStep >= 2 ? 'Pré-reservado' : 'Disponível'}
+                </span>
+              </motion.div>
 
-                {/* Mapa Escuro Simulado */}
-                <div className="relative h-24 rounded-xl bg-[#1E232A] border border-[#3B4252] overflow-hidden flex items-center justify-center">
-                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#88C0D0_1px,transparent_1px)] [background-size:14px_14px]" />
-                  <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#3B4252]" />
-                  <div className="absolute top-0 bottom-0 left-1/3 w-0.5 bg-[#3B4252]" />
+              {/* 17:00 - Disponível */}
+              <div className="rounded-xl border border-[#3B4252] bg-[#2E3440] p-2.5 text-center text-[#ECEFF4]">
+                <span className="font-mono block">17:00</span>
+                <span className="text-[10px] text-[#A3BE8C] font-semibold mt-0.5 block">Disponível</span>
+              </div>
 
-                  {/* Pino Pulsante */}
-                  <div className="relative z-10 flex flex-col items-center">
-                    <div className="relative">
-                      <span className="absolute -inset-1.5 rounded-full bg-[#88C0D0]/40 animate-ping" />
-                      <div className="h-7 w-7 rounded-full bg-[#88C0D0] text-[#242933] flex items-center justify-center font-black text-xs shadow-md">
-                        🏥
-                      </div>
-                    </div>
-                    <span className="mt-1 px-2 py-0.5 rounded-full bg-[#242933] text-[9px] font-bold text-[#88C0D0] border border-[#88C0D0]/40 shadow-sm">
-                      +420 buscas por rotas / mês
+              {/* 18:30 - Ocupado */}
+              <div className="rounded-xl border border-white/[0.05] bg-[#2E3440]/60 p-2.5 text-center text-[#D8DEE9]/50">
+                <span className="font-mono block">18:30</span>
+                <span className="text-[10px] text-[#BF616A] font-semibold mt-0.5 block">Ocupado</span>
+              </div>
+            </div>
+
+            {/* Rodapé da Grade com Status da Trava */}
+            <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-[#D8DEE9]/70 font-mono">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#88C0D0]" />
+                Trava Atômica: 10 min
+              </span>
+              <span className="text-[#A3BE8C] font-bold">
+                {simStep >= 2 ? '✓ Slot Bloqueado' : 'Pronto para Reserva'}
+              </span>
+            </div>
+          </div>
+
+          {/* ============================================================== */}
+          {/* COLUNA DIREITA: Simulação WhatsApp + Revelação do PIN          */}
+          {/* ============================================================== */}
+          <div className="lg:col-span-5 flex flex-col justify-between space-y-3">
+            
+            {/* Balão 1: Mensagem do Cliente (Step 0+) */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="rounded-2xl border border-white/[0.08] bg-[#242933] p-3.5 space-y-1 shadow-md self-end max-w-[90%]"
+            >
+              <div className="flex items-center justify-between text-[10px] text-[#D8DEE9]/50">
+                <span className="font-bold text-[#88C0D0]">Cliente</span>
+                <span className="font-mono">15:29</span>
+              </div>
+              <p className="text-xs text-[#ECEFF4] leading-relaxed">
+                &ldquo;Olá! Gostaria de agendar para amanhã às 15h30.&rdquo;
+              </p>
+            </motion.div>
+
+            {/* Balão 2: Resposta do Robô + Feixe de Luz (Step 1+) */}
+            <motion.div
+              animate={{
+                borderColor: simStep >= 1 ? 'rgba(136, 192, 208, 0.4)' : 'rgba(255, 255, 255, 0.08)',
+                boxShadow: simStep >= 1 ? '0 0 20px -3px rgba(136, 192, 208, 0.2)' : 'none',
+              }}
+              transition={{ duration: 0.5 }}
+              className={`rounded-2xl border bg-[#2E3440] p-3.5 space-y-2 shadow-md relative overflow-hidden transition-all ${
+                simStep >= 1 ? 'ring-2 ring-[#88C0D0]/30' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between text-[10px] text-[#D8DEE9]/60">
+                <span className="font-bold text-[#A3BE8C] flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#A3BE8C]" />
+                  FlowAgenda Robô 24/7
+                </span>
+                <span className="font-mono text-[#88C0D0]">Agora</span>
+              </div>
+
+              <p className="text-xs text-[#ECEFF4] leading-relaxed">
+                {simStep >= 2
+                  ? '🔒 Horário pré-reservado com sucesso! Digite o código PIN abaixo para confirmar sua presença:'
+                  : '🤖 Identificando horários vagos e preparando seu link seguro...'}
+              </p>
+
+              {/* Revelação Escalonada do PIN de 4 dígitos (Step 3) */}
+              {simStep >= 3 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-2 rounded-xl border border-[#88C0D0]/40 bg-[#242933] p-2.5 space-y-2 text-center"
+                >
+                  <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-[#88C0D0]">
+                    Código PIN de Confirmação
+                  </span>
+
+                  {/* 4 Dígitos revelados sequencialmente */}
+                  <div className="flex items-center justify-center gap-2">
+                    {pinDigits.map((digit, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.12, duration: 0.3 }}
+                        className="h-9 w-9 rounded-lg border border-[#88C0D0]/50 bg-[#2E3440] flex items-center justify-center font-mono font-black text-base text-[#ECEFF4] shadow-sm"
+                      >
+                        {digit}
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Contagem regressiva ativa */}
+                  <div className="flex items-center justify-between pt-1 px-1 text-[10px] font-mono">
+                    <span className="text-[#EBCB8B] font-semibold">
+                      ⏱️ Expira em {mounted ? formatCountdown(countdownSecs) : '09:42'}
+                    </span>
+                    <span className="text-[#A3BE8C] font-bold">
+                      ✓ Canal Seguro
                     </span>
                   </div>
-                </div>
-              </div>
+                </motion.div>
+              )}
+            </motion.div>
 
-              {/* Depoimento de Reputação & Autoridade */}
-              <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-4 shadow-lg space-y-1.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-full bg-[#88C0D0] text-[#242933] flex items-center justify-center font-black text-xs">
-                    MV
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-[#ECEFF4]">Dra. Mariana Vaz</h5>
-                    <p className="text-[10px] text-[#88C0D0]">Diretora Clínica • CRM/CRO Ativo</p>
-                  </div>
-                </div>
-                <blockquote className="text-[11px] text-[#D8DEE9] italic pt-1 leading-relaxed border-l-2 border-[#88C0D0] pl-2.5">
-                  &ldquo;O FlowAgenda eliminou 92% das faltas sem aviso. Nossa ficha no Google agora é top 1 da região e os pacientes elogiam a confirmação pontual.&rdquo;
-                </blockquote>
-              </div>
+            {/* Barra de Progresso do Loop de 8 segundos */}
+            <div className="pt-1 flex items-center justify-between text-[10px] font-mono text-[#D8DEE9]/50">
+              <span>Sincronização Ativa</span>
+              <span className="text-[#88C0D0]">Loop Coordenado (8s)</span>
             </div>
 
-            {/* Coluna Direita: WhatsApp com Badge Anti No-Show */}
-            <div className="lg:col-span-5 flex flex-col justify-between rounded-2xl border border-[#3B4252] bg-[#2E3440] p-4 sm:p-5 shadow-lg overflow-hidden">
-              <div className="flex items-center justify-between pb-2.5 border-b border-[#3B4252]">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#A3BE8C]" />
-                  <span className="text-xs font-bold text-[#ECEFF4]">Notificação Transacional</span>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#3B4252] text-[#88C0D0] border border-[#4C566A]">
-                  Oficial
-                </span>
-              </div>
-
-              {/* Card WhatsApp com Badge "Presença Confirmada" */}
-              <div className="my-3 space-y-2.5 font-sans overflow-hidden">
-                <div className="rounded-xl bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] border border-[#4C566A] shadow-md space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[#88C0D0]">Lembrete 2h Antes</span>
-                    <span className="text-[9px] text-[#D8DEE9]/60">12:00</span>
-                  </div>
-                  <p className="text-[11px] leading-snug">
-                    Olá, Dr. Ricardo! Sua consulta com <span className="font-semibold text-white">Dra. Mariana</span> está marcada para hoje às <span className="font-bold text-[#88C0D0]">14:00</span>.
-                  </p>
-                </div>
-
-                {/* Badge de Presença Confirmada (Anti No-Show) */}
-                <div className="rounded-xl border border-[#A3BE8C]/40 bg-[#A3BE8C]/10 p-3 text-center space-y-1">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#A3BE8C] text-[#242933] text-[11px] font-black shadow-sm">
-                    ✓ Presença Confirmada (Anti No-Show)
-                  </div>
-                  <p className="text-[10px] text-[#ECEFF4] leading-tight">
-                    Paciente respondeu e garantiu comparecimento. Horário blindado na agenda médica.
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-2 text-center border-t border-[#3B4252]">
-                <span className="text-[10px] text-[#88C0D0] font-mono">
-                  Sincronização com Prontuário & Calendário
-                </span>
-              </div>
-            </div>
           </div>
-        )}
+
+        </div>
+
       </div>
+
     </div>
   );
 }
