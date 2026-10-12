@@ -1,13 +1,24 @@
 'use client';
 
+// ==============================================================================
+// PricingTiers — Nomenclatura Oficial & Ciclo de Faturamento Parametrizado
+// Arquivo: components/landing/PricingTiers.tsx
+// ==============================================================================
+
 import React, { useState } from 'react';
 
-type BillingCycle = 'mensal' | 'semestral' | 'anual';
+type BillingCycle = 'monthly' | 'semiannual' | 'annual';
 
 export default function PricingTiers() {
-  const [cycle, setCycle] = useState<BillingCycle>('anual');
+  const [cycle, setCycle] = useState<BillingCycle>('annual');
 
   const whatsappBaseUrl = 'https://wa.me/5500000000000';
+
+  const cycleLabels: Record<BillingCycle, string> = {
+    monthly: 'MENSAL',
+    semiannual: 'SEMESTRAL',
+    annual: 'ANUAL',
+  };
 
   const tiers = [
     {
@@ -15,9 +26,9 @@ export default function PricingTiers() {
       name: 'Essencial',
       subtitle: 'Para profissionais autônomos que precisam eliminar faltas e automatizar o atendimento no WhatsApp.',
       pricing: {
-        mensal: { price: '79,90', setup: '197,00', setupNote: 'Taxa única' },
-        semestral: { price: '69,90', setup: '97,00', setupNote: '50% OFF no setup' },
-        anual: { price: '59,90', setup: 'GRÁTIS', setupNote: 'Economia máxima' },
+        monthly: { price: '59,90', setup: '99,90 (Taxa única)', setupNote: 'Economize no plano anual' },
+        semiannual: { price: '54,90', setup: '49,90 (50% OFF)', setupNote: 'Cobrado semestralmente' },
+        annual: { price: '49,90', setup: '0,00', setupNote: 'Economia total de R$ 219,90' },
       },
       isHighlight: false,
       ctaText: 'Ativar Plano Essencial',
@@ -35,17 +46,17 @@ export default function PricingTiers() {
       name: 'Profissional',
       subtitle: 'Para negócios em expansão que exigem gestão de clientes, controle de intervalos e rotina organizada.',
       pricing: {
-        mensal: { price: '139,90', setup: '397,00', setupNote: 'Taxa única' },
-        semestral: { price: '119,90', setup: '197,00', setupNote: '50% OFF no setup' },
-        anual: { price: '99,90', setup: 'GRÁTIS', setupNote: 'Economia máxima' },
+        monthly: { price: '99,90', setup: '149,90 (Taxa única)', setupNote: 'Economize no plano anual' },
+        semiannual: { price: '89,90', setup: '74,90 (50% OFF)', setupNote: 'Cobrado semestralmente' },
+        annual: { price: '84,90', setup: '0,00', setupNote: 'Economia total de R$ 329,90' },
       },
       isHighlight: false,
       ctaText: 'Escolher Plano Profissional',
       features: [
         'Tudo incluído no Tier 1',
-        'Layout institucional focado em autoridade médica',
+        'Página institucional premium com design focado em máxima autoridade visual',
         'CRM de clientes com histórico de retornos e visitas',
-        'Slots rígidos de consulta e intervalo entre atendimentos',
+        'Intervalos inteligentes (buffer time) entre atendimentos para pontualidade da rotina',
         'Remoção de marcas externas (White Label no agendamento)',
         'Transbordo prioritário para secretária/recepção',
       ],
@@ -55,9 +66,9 @@ export default function PricingTiers() {
       name: 'Autoridade',
       subtitle: 'Para marcas consolidadas que exigem domínio próprio, equipe sincronizada e máxima reputação.',
       pricing: {
-        mensal: { price: '249,90', setup: '797,00', setupNote: 'Taxa única' },
-        semestral: { price: '219,90', setup: '397,00', setupNote: '50% OFF no setup' },
-        anual: { price: '189,90', setup: 'GRÁTIS', setupNote: 'Economia máxima' },
+        monthly: { price: '189,90', setup: '349,90 (Taxa única Done-For-You)', setupNote: 'Economize no plano anual' },
+        semiannual: { price: '169,90', setup: '174,90 (50% OFF)', setupNote: 'Cobrado semestralmente' },
+        annual: { price: '159,90', setup: '0,00', setupNote: 'Economia total de R$ 709,90' },
       },
       isHighlight: true,
       badge: 'MAIS ESCOLHIDO • MÁXIMA AUTORIDADE',
@@ -66,7 +77,7 @@ export default function PricingTiers() {
         'Tudo incluído no Tier 2',
         'Marca Própria Exclusiva (domínio .com.br próprio)',
         'Checklist & Otimização do Google Meu Negócio Done-For-You',
-        'Robô automatizado de coleta de avaliações 5★ pós-consulta',
+        'Robô automatizado de coleta de avaliações 5★ no Google pós-atendimento',
         'Vitrine dinâmica de avaliações e fotos profissionais',
         'Gerente de contas dedicado e suporte VIP via WhatsApp',
       ],
@@ -75,6 +86,7 @@ export default function PricingTiers() {
 
   return (
     <section className="w-full max-w-7xl mx-auto overflow-hidden py-16 px-4 sm:px-6 lg:px-8 text-[#ECEFF4] font-sans">
+      
       {/* Topo / Header da Seção */}
       <div className="text-center max-w-3xl mx-auto space-y-4 mb-12 overflow-hidden">
         <div className="inline-flex items-center gap-2 rounded-full border border-[#88C0D0]/30 bg-[#88C0D0]/10 px-4 py-1.5 text-xs font-semibold text-[#88C0D0]">
@@ -90,14 +102,14 @@ export default function PricingTiers() {
           Economize tempo no WhatsApp e elimine faltas. Escolha o ciclo ideal para sua empresa:
         </p>
 
-        {/* Seletor de Ciclo de Faturamento em 3 Opções */}
+        {/* 1. SELETOR DE CICLO (SEGMENTED PILL TOGGLE) */}
         <div className="pt-4 flex items-center justify-center overflow-hidden">
           <div className="inline-flex flex-wrap items-center justify-center rounded-2xl bg-[#2E3440] p-1.5 border border-[#3B4252] shadow-inner gap-1">
             <button
               type="button"
-              onClick={() => setCycle('mensal')}
-              className={`rounded-xl px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-bold transition-all ${
-                cycle === 'mensal'
+              onClick={() => setCycle('monthly')}
+              className={`rounded-xl px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold transition-all ${
+                cycle === 'monthly'
                   ? 'bg-[#3B4252] text-[#88C0D0] shadow-sm border border-[#4C566A]'
                   : 'text-[#D8DEE9]/60 hover:text-[#ECEFF4]'
               }`}
@@ -107,44 +119,41 @@ export default function PricingTiers() {
 
             <button
               type="button"
-              onClick={() => setCycle('semestral')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 sm:px-5 py-2 text-xs sm:text-sm font-bold transition-all ${
-                cycle === 'semestral'
+              onClick={() => setCycle('semiannual')}
+              className={`rounded-xl px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold transition-all ${
+                cycle === 'semiannual'
                   ? 'bg-[#3B4252] text-[#88C0D0] shadow-sm border border-[#4C566A]'
                   : 'text-[#D8DEE9]/60 hover:text-[#ECEFF4]'
               }`}
             >
-              <span>Semestral</span>
-              <span className="rounded-full bg-[#88C0D0]/20 text-[#88C0D0] px-2 py-0.5 text-[10px] font-black border border-[#88C0D0]/30">
-                -15% OFF
-              </span>
+              Semestral
             </button>
 
             <button
               type="button"
-              onClick={() => setCycle('anual')}
-              className={`flex items-center gap-1.5 rounded-xl px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold transition-all ${
-                cycle === 'anual'
+              onClick={() => setCycle('annual')}
+              className={`flex items-center gap-2 rounded-xl px-4 sm:px-6 py-2 text-xs sm:text-sm font-bold transition-all ${
+                cycle === 'annual'
                   ? 'bg-[#88C0D0] text-[#242933] shadow-md font-black scale-102'
                   : 'text-[#D8DEE9]/60 hover:text-[#ECEFF4]'
               }`}
             >
               <span>Anual</span>
-              <span className="rounded-full bg-[#A3BE8C] text-[#242933] px-2 py-0.5 text-[10px] font-black uppercase">
-                -25% OFF + Setup GRÁTIS
+              <span className="rounded-full bg-[#A3BE8C] text-[#242933] px-2.5 py-0.5 text-[10px] font-black uppercase shadow-xs">
+                Setup Grátis + Máxima Economia
               </span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Grade com 3 Cards Responsivos */}
+      {/* Grade com 3 Cards Responsivos Fixos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch overflow-hidden">
         {tiers.map((tier) => {
           const currentPlan = tier.pricing[cycle];
-          const isAnnual = cycle === 'anual';
+          const isAnnual = cycle === 'annual';
           const whatsappUrl = `${whatsappBaseUrl}?text=${encodeURIComponent(
-            `Olá! Gostaria de assinar o plano ${tier.name} no ciclo ${cycle.toUpperCase()} do FlowAgenda.`
+            `Olá! Gostaria de assinar o plano ${tier.name} no ciclo ${cycleLabels[cycle]} do FlowAgenda.`
           )}`;
 
           return (
@@ -170,7 +179,7 @@ export default function PricingTiers() {
                   <p className="text-xs text-[#88C0D0] font-medium mt-1 leading-relaxed">{tier.subtitle}</p>
                 </div>
 
-                {/* Bloco de Preço */}
+                {/* Bloco de Preço Parametrizado */}
                 <div className="pt-2 pb-4 border-b border-[#3B4252]">
                   <div className="flex items-baseline gap-1">
                     <span className="text-sm font-semibold text-[#D8DEE9]/60">R$</span>
@@ -186,7 +195,7 @@ export default function PricingTiers() {
                       <span>Taxa de Implantação / Setup:</span>
                       {isAnnual ? (
                         <span className="text-[#A3BE8C] font-black uppercase text-[11px] bg-[#A3BE8C]/20 px-2 py-0.5 rounded border border-[#A3BE8C]/30">
-                          Setup GRÁTIS
+                          R$ 0,00 [SETUP GRÁTIS]
                         </span>
                       ) : (
                         <span className="font-mono text-[#EBCB8B] font-bold">
@@ -194,7 +203,7 @@ export default function PricingTiers() {
                         </span>
                       )}
                     </div>
-                    <div className="text-[10px] text-[#D8DEE9]/50 text-right">
+                    <div className="text-[10px] text-[#D8DEE9]/50 text-right font-medium">
                       {currentPlan.setupNote}
                     </div>
                   </div>
