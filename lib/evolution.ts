@@ -534,3 +534,60 @@ export async function sendEvolutionTextMessage(
 
   return { success: true };
 }
+
+/**
+ * Configura ou atualiza o webhook para uma instância na Evolution API v2
+ * POST /webhook/set/{instanceName}
+ */
+export async function setEvolutionWebhook(
+  instanceName: string,
+  webhookUrl: string = 'https://flowagenda.online/api/webhooks/evolution',
+  hookToken: string = process.env.HOOK_TOKEN || 'senha-segura-flowagenda-2026'
+): Promise<EvolutionApiResult<{ id?: string; url: string; enabled: boolean }>> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+
+    const payload = {
+      webhook: {
+        enabled: true,
+        url: webhookUrl,
+        byEvents: false,
+        base64: false,
+        headers: {
+          'x-hook-token': hookToken,
+        },
+        events: ['MESSAGES_UPSERT'],
+      },
+    };
+
+    const response = await fetch(`${apiUrl}/webhook/set/${encodeURIComponent(instanceName)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return {
+        success: false,
+        error: `Falha ao configurar webhook (HTTP ${response.status}): ${errText}`,
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data,
+    };
+  } catch (error: any) {
+    console.error('[Evolution API] setEvolutionWebhook Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro ao registrar webhook na Evolution API.',
+    };
+  }
+}
+

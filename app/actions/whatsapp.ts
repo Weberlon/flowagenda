@@ -14,6 +14,7 @@ import {
   logoutEvolutionInstance,
   sendTextMessage,
   formatToInternationalPhone,
+  setEvolutionWebhook,
   ConnectionState
 } from '@/lib/evolution';
 import { revalidatePath } from 'next/cache';
@@ -91,6 +92,11 @@ export async function generateTenantQrCodeAction(): Promise<ActionResponse<Tenan
           error: creationResult.error || 'Falha ao criar instância no gateway Evolution API.' 
         };
       }
+
+      // Garante configuração imediata do webhook para a nova instância
+      setEvolutionWebhook(instanceName).catch((err) =>
+        console.error('[Evolution API] Falha ao registrar webhook da nova instância:', err)
+      );
 
       // Tenta persistir no Supabase (tabela whatsapp_instances)
       const { data: newDbInstance } = await supabase

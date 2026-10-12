@@ -4,6 +4,15 @@ import { sendEvolutionTextMessage, maskPhoneNumber } from '@/lib/evolution';
 
 export async function POST(req: Request) {
   try {
+    const receivedToken = req.headers.get('x-hook-token');
+    const expectedToken = process.env.HOOK_TOKEN;
+
+    // Validação de token de segurança caso configurado
+    if (expectedToken && receivedToken && receivedToken !== expectedToken) {
+      console.warn('[WEBHOOK EVOLUTION] Tentativa de acesso com token não autorizado.');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const payload = await req.json();
 
     // Processar apenas recebimento de mensagens
