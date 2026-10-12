@@ -1,10 +1,11 @@
 # FlowAgenda — Compêndio Estratégico, Arquitetural e Operacional Mestre
 
-> **Documento de Continuidade e Estabilidade Técnica**  
-> **Versão:** 2.0 (Produção Homologada)  
+> **Documento de Continuidade e Estabilidade Técnica Absoluta**  
+> **Versão:** 2.1 (Produção Homologada & Webhooks Integrados)  
 > **Última Atualização:** Outubro de 2026  
 > **Repositório GitHub:** `https://github.com/Weberlon/flowagenda` (Branch `main`)  
-> **Hospedagem & CI/CD:** Vercel (Deploy automático a cada push)
+> **Hospedagem & CI/CD:** Vercel (Deploy contínuo via push na branch `main`)  
+> **Domínio Raiz:** `https://flowagenda.online`
 
 ---
 
@@ -13,7 +14,7 @@
 O **FlowAgenda** é uma plataforma **Software with a Service (SwaS)** multi-tenant desenvolvida para comércio e serviços locais (Barbearias, Salões de Beleza, Tatuadores, Pet Care, Clínicas Odontológicas, Médicas e Estéticas).
 
 ### A Proposta de Valor: "Máquina de Tração Local"
-Diferente de sistemas tradicionais de agendamento que cobram comissões por cliente ou funcionam como catálogos impessoais que expõem concorrentes, o FlowAgenda opera como uma solução proprietária do próprio lojista baseada em **3 engrenagens**:
+Diferente de catálogos impessoais de agendamento que cobram comissões por cliente e expõem a concorrência, o FlowAgenda opera como uma solução proprietária do próprio lojista baseada em **3 engrenagens**:
 1. **Atração Orgânica no Google Meu Negócio:** Otimização de ficha e robô automatizado pós-atendimento que dispara link de avaliação no WhatsApp apenas nos momentos de satisfação (1ª e 2ª consultas), construindo autoridade 5 estrelas.
 2. **Presença Digital de Alta Conversão:** Página de agendamento ultra-rápida no celular, sem necessidade de download de aplicativo, sem senhas complicadas e adaptável à identidade visual do cliente (**White Label total nos planos superiores**).
 3. **Atendimento & Confirmação no WhatsApp com PIN:** Robô receptivo 24/7 com trava atômica de 10 minutos, validação de PIN de segurança e lembretes preventivos anti no-show disparados 2 horas antes do procedimento.
@@ -25,11 +26,11 @@ Diferente de sistemas tradicionais de agendamento que cobram comissões por clie
 | Camada | Tecnologia | Detalhes & Configuração |
 | :--- | :--- | :--- |
 | **Framework Full-Stack** | Next.js 16 (App Router) | Turbopack, Server Actions, Server Components para SEO e rotas dinâmicas. |
-| **Linguagem** | TypeScript 5.x | Configurado com `"target": "es2022"` e tipagem estrita. |
-| **Estilização** | Tailwind CSS v4 & PostCSS | Utiliza `@tailwindcss/postcss` com `postcss.config.mjs` e `app/globals.css`. |
+| **Linguagem** | TypeScript 5.x | Configurado com `"target": "es2022"`, tipagem estrita e 0 erros no `tsc --noEmit`. |
+| **Estilização** | Tailwind CSS v4 & PostCSS | Utiliza `@tailwindcss/postcss` com `postcss.config.mjs` e variáveis em `app/globals.css`. |
 | **Design System** | Paleta **Nord Dark / Slate** | Tons `#242933`, `#2E3440`, `#3B4252`, `#4C566A`, ciano `#88C0D0`, verde `#A3BE8C`, amarelo `#EBCB8B`, vermelho `#BF616A` e texto `#ECEFF4`. |
-| **Banco de Dados & Auth** | Supabase (PostgreSQL) | RLS (Row Level Security) obrigatório em todas as tabelas, Supabase Auth via SSR cookies. |
-| **WhatsApp Transacional** | Evolution API v2 (Docker VPS) | Mensagens transacionais diretas, geração e pareamento de QR Code via API. |
+| **Banco de Dados & Auth** | Supabase (PostgreSQL) | RLS (Row Level Security) em todas as tabelas, Supabase Auth via cookies SSR e Service Role para Webhooks. |
+| **WhatsApp Transacional** | Evolution API v2 (VPS Docker) | Servidor em `http://179.236.70.181:8080`, envio transacional, Webhooks de mensagens e geração de QR Code. |
 | **Billing & Assinaturas** | Asaas API v3 | Gestão de clientes, cobrança recorrente e webhook com `timingSafeEqual`. |
 | **Infraestrutura & Deploy** | Vercel | Deploy contínuo via GitHub, Vercel Cron jobs e Vercel Domains API. |
 
@@ -59,9 +60,9 @@ Requisição HTTP
 
 ---
 
-## 4. Estrutura do Banco de Dados (Supabase PostgreSQL)
+## 4. Estrutura do Banco de Dados (Supabase PostgreSQL Auditado)
 
-O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS ativas:
+Todas as 7 tabelas fundamentais foram auditadas, validadas e contam com isolamento multi-tenant por `lojista_id` e RLS:
 
 ### 1. `profiles`
 - `id` (UUID, PK referencia `auth.users`)
@@ -78,8 +79,8 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 - `tipo_site` (`website_type`: `'landing_page'`, `'institucional_completo'`)
 - `logo_url`, `cor_primaria`
 - `asaas_customer_id`, `asaas_subscription_id`
-- `google_review_url` (URL da ficha para coleta 5★)
-- `whatsapp_notificacao` (WhatsApp do estabelecimento)
+- `google_review_url` (URL da ficha Google Meu Negócio para coleta 5★)
+- `whatsapp_notificacao` (WhatsApp com DDD para alertas do estabelecimento)
 - `configuracoes` (JSONB):
   - `mostrar_badge_plataforma` (BOOLEAN): `true` para Tier 1, `false` para Tiers 2 e 3 (White Label)
   - `cor_primaria` (HEX)
@@ -90,9 +91,9 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 - `id`, `lojista_id` (UNIQUE FK `lojistas.id`)
 - `instance_name` (VARCHAR, UNIQUE)
 - `instance_token`, `qr_code_base64`
-- `status_conexao` (`'open'`, `'close'`, `'connecting'`)
-- `mensagem_boas_vindas` (TEXT com variáveis `{nome_estabelecimento}`, `{link_agendamento}`)
-- `bot_pausado_ate` (TIMESTAMPTZ, usado para transbordo de atendimento humano)
+- `status_conexao` (`'open'`, `'close'`, `'connecting'`, `'desconectado'`)
+- `mensagem_boas_vindas` (TEXT com tags `{nome_estabelecimento}`, `{link_agendamento}`)
+- `bot_pausado_ate` (TIMESTAMPTZ, usado para transbordo temporário de 2 horas para humano)
 
 ### 4. `whatsapp_instances` (Evolution API v2 Gateway)
 - `id` (UUID, PK)
@@ -137,20 +138,39 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 
 ### A. Vitrine Institucional Pública (`app/page.tsx` e `app/home/page.tsx`)
 - Mantido como **Server Component puro** (sem `'use client'`), garantindo Core Web Vitals e SEO estático.
-- **HeroSection (`components/landing/HeroSection.tsx`):** Client Component com Framer Motion, headline com gradiente Nord, status badge ativo da Evolution API v2 e integração perfeita ao `HeroInteractiveMockup.tsx`.
-- **Bento Grid Interativo — "A Máquina de Faturamento" (`components/landing/BentoShowcase.tsx`):** Grade assimétrica de 4 cards (Agenda Automatizada com blocos deslizantes e badge WhatsApp 14h, Reputação Google 5★ com contador interpolado 4.2->4.9 e ticker vertical, Trava Anti-Falta com microfechamento e Pix 20%, e Atendimento 24h Autônomo com gráfico de barras noturnas destacadas em `#88C0D0`) com disparos únicos `viewport: { once: true, amount: 0.25 }` a 60 FPS.
-- **Design Tokens Nord Dark (`app/globals.css`):** Declaração no bloco `@theme` do Tailwind v4 (`--color-nord-bg`, `--color-nord-surface`, `--color-nord-border`, `--color-nord-accent`, `--color-nord-text`, etc.) e utilitários de glassmorphism.
-- **Tabela de Preços por Ciclos com Nomenclatura Oficial (`components/landing/PricingTiers.tsx`):**
-  - **Essencial (Tier 1):** R$ 59,90/mês (no anual) ou R$ 79,90 (mensal).
-  - **Profissional (Tier 2):** R$ 99,90/mês (no anual) ou R$ 139,90 (mensal).
-  - **Autoridade (Tier 3 - Mais Escolhido):** R$ 189,90/mês (no anual) ou R$ 249,90 (mensal) com setup grátis e domínio .com.br próprio.
+- **HeroSection (`components/landing/HeroSection.tsx`):** Headline com tipografia Nord Dark, status badge ativo da Evolution API v2 e integração perfeita ao `HeroInteractiveMockup.tsx`.
+- **HeroInteractiveMockup (`components/landing/HeroInteractiveMockup.tsx`):** Simulador hiper-realista em loop sincronizado de 8 segundos com aceleração por hardware (GPU `transform: translate3d`) demonstrando a seleção de horário, bloqueio de 10 min e notificação transacional do WhatsApp.
+- **Bento Grid Interativo — "A Máquina de Faturamento" (`components/landing/BentoShowcase.tsx`):** Grade assimétrica de 4 cards com disparos únicos `viewport: { once: true, amount: 0.25 }` a 60 FPS:
+  1. *Agenda Automatizada:* Blocos de horário deslizantes e badge WhatsApp 14h.
+  2. *Reputação Google 5★:* Contador interpolado 4.2 &rarr; 4.9 e ticker vertical de reviews reais.
+  3. *Trava Anti-Falta:* Cronômetro de 10 minutos, validação de PIN e badge de segurança Pix 20%.
+  4. *Atendimento 24h Autônomo:* Gráfico de barras com agendamentos da madrugada destacados em ciano `#88C0D0`.
+- **Tabela de Preços com Ciclos Dinâmicos (`components/landing/PricingTiers.tsx`):**
+  - **Segmented Pill Toggle:** Fundo `#2E3440` e borda `#3B4252` com 3 abas: "Mensal", "Semestral" e "Anual" (com badge verde `#A3BE8C`: *"Setup Grátis + Máxima Economia"*).
+  - **Matriz de Valores Parametrizada:**
+    - **Essencial:**
+      - Mensal: R$ 59,90/mês | Setup: R$ 99,90 (Taxa única) | *"Economize no plano anual"*
+      - Semestral: R$ 54,90/mês | Setup: R$ 49,90 (50% OFF) | *"Cobrado semestralmente"*
+      - Anual: R$ 49,90/mês | Setup: R$ 0,00 [SETUP GRÁTIS] | *"Economia total de R$ 219,90"*
+    - **Profissional:**
+      - Mensal: R$ 99,90/mês | Setup: R$ 149,90 (Taxa única) | *"Economize no plano anual"*
+      - Semestral: R$ 89,90/mês | Setup: R$ 74,90 (50% OFF) | *"Cobrado semestralmente"*
+      - Anual: R$ 84,90/mês | Setup: R$ 0,00 [SETUP GRÁTIS] | *"Economia total de R$ 329,90"*
+    - **Autoridade (Mais Escolhido):**
+      - Mensal: R$ 189,90/mês | Setup: R$ 349,90 (Taxa única Done-For-You) | *"Economize no plano anual"*
+      - Semestral: R$ 169,90/mês | Setup: R$ 174,90 (50% OFF) | *"Cobrado semestralmente"*
+      - Anual: R$ 159,90/mês | Setup: R$ 0,00 [SETUP GRÁTIS] | *"Economia total de R$ 709,90"*
+  - **Textos de Autoridade Calibrados:**
+    - *"Página institucional premium com design focado em máxima autoridade visual"*
+    - *"Intervalos inteligentes (buffer time) entre atendimentos para pontualidade da rotina"*
+    - *"Robô automatizado de coleta de avaliações 5★ no Google pós-atendimento"*
 
 ### B. Gestão de Clientes & CRM Kanban (`app/dashboard/clientes/`)
 - **Server Actions Blindadas (`app/actions/clientes.ts`):** Extraem a sessão pelo servidor via `supabase.auth.getUser()`, higienizam telefones (`\D`) e gerenciam LTV, etapas e notas.
 - **Client Component (`clientes-client.tsx`):**
   - Alternador de visualização entre Kanban e Lista.
   - 5 colunas com drag-and-drop no desktop e seletor rápido no rodapé dos cards para tablets/iPads.
-  - Badges automáticos de `VIP` (LTV ≥ R$ 500) e `Recorrente` (visitas ≥ 3).
+  - Badges automáticos de `VIP` (LTV &ge; R$ 500) e `Recorrente` (visitas &ge; 3).
   - Drawer lateral para anotações internas e gerenciamento de tags.
 
 ### C. Página Pública do Tenant & White Label (`app/tenant/[slug]/page.tsx`)
@@ -163,56 +183,83 @@ O schema está dividido em tabelas isoladas por `lojista_id` com políticas RLS 
 ### D. Conexão WhatsApp & Configurações (`app/dashboard/configuracoes/` e `app/actions/whatsapp.ts`)
 - Modelagem `whatsapp_instances` com RLS multi-tenant vinculada à Evolution API v2 (`lib/evolution.ts`).
 - Server actions `generateTenantQrCodeAction` e `checkTenantConnectionAction`.
+- Função `setEvolutionWebhook` acoplada para apontar automaticamente o webhook da instância no momento de criação.
 - Exibição do QR Code em tempo real, status de conexão da Evolution API, reinício de instância e logout.
 - Editor com preview em tempo real da mensagem de boas-vindas do robô e campo para URL do Google Meu Negócio.
 
-### E. Automações em Segundo Plano (APIs & Cron)
-1. **Webhook Evolution API (`app/api/webhooks/evolution/route.ts`):** Atendimento receptivo no WhatsApp com link dinâmico do lojista, detecção de intenção humana e pausa temporária do bot por 2 horas.
-2. **Webhook Asaas (`app/api/webhooks/asaas/route.ts`):** Validação segura contra timing attacks com `crypto.timingSafeEqual`, idempotência por ID de evento e suspensão automática de inadimplentes.
+### E. Automações em Segundo Plano (APIs & Webhooks Conectados)
+1. **Webhook Evolution API (`app/api/webhooks/evolution/route.ts`):**
+   - **URL de Produção:** `https://flowagenda.online/api/webhooks/evolution`
+   - **Autenticação:** Header `x-hook-token: senha-segura-flowagenda-2026`
+   - **Funcionalidades:**
+     - Atendimento receptivo no WhatsApp com link dinâmico do lojista (`{link_agendamento}`).
+     - Detecção de intenção humana (transbordo) que pausa o robô por 2 horas e notifica o lojista.
+     - Bloqueio imediato se o lojista estiver com assinatura inadimplente ou cancelada.
+2. **Webhook Asaas (`app/api/webhooks/asaas/route.ts`):**
+   - **URL de Produção:** `https://flowagenda.online/api/webhooks/asaas`
+   - **Autenticação:** Comparação em tempo constante `crypto.timingSafeEqual` com token `@Webdao000`.
+   - **Funcionalidades:**
+     - Idempotência recente por `eventId` para evitar processamento duplicado.
+     - Atualização instantânea do status do lojista (`ativo`, `inadimplente`, `cancelado`) com base em pagamentos e cobranças.
 3. **Vercel Cron (`app/api/cron/reviews/route.ts`):** Cron horário configurado no [`vercel.json`](./vercel.json) (`0 * * * *`):
    - **Fase 1 (Anti No-Show):** Dispara lembrete preventivo no WhatsApp 2h antes da consulta com flag idempotente anti-duplicação (`pin_validacao = 'LEMBR'`).
    - **Fase 2 (Google Reviews 5★):** Envia link de avaliação 2h após a conclusão do atendimento para clientes na 1ª ou 2ª visita e transiciona o agendamento para `concluido`.
 
 ---
 
-## 6. Checklist de Ativação em Produção (Virada de Chave Externa)
+## 6. Estado Atual dos Webhooks e Infraestrutura
 
-Quando for colocar o sistema para operar com clientes e WhatsApp reais no mundo exterior:
+### [x] 1. VPS da Evolution API v2 (WhatsApp Conectado)
+- **Host:** `http://179.236.70.181:8080`
+- **Instância Piloto:** `flowagenda-teste` (Conectada, status `open`, número `553195544945`).
+- **Webhook Configurado:** `https://flowagenda.online/api/webhooks/evolution` com header `x-hook-token` ativo (**HTTP 201 Created / Ativo**).
 
-### [x] 1. VPS da Evolution API v2 (WhatsApp Real Ativo)
-- VPS configurada e operacional no IP `http://179.236.70.181:8080`.
-- Chave global `EVOLUTION_API_KEY` conectada e testada no servidor.
-- Tabela `whatsapp_instances` criada no Supabase e homologada com RLS.
-
-### [ ] 2. Variáveis de Ambiente na Vercel
-Acesse o painel do projeto na **Vercel** > **Settings** > **Environment Variables** e garanta que todas as chaves abaixo estejam configuradas para os ambientes *Production*, *Preview* e *Development*:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_ROOT_DOMAIN` = `flowagenda.online`
-- `HOOK_TOKEN` = `senha-segura-flowagenda-2026`
-- `ASAAS_API_KEY`
-- `ASAAS_WEBHOOK_TOKEN`
-- `ASAAS_API_URL`
-- `EVOLUTION_API_URL`
-- `EVOLUTION_API_KEY`
-
-### [ ] 3. Virada de Chave do Asaas (Cobrança Real)
-- O sistema está operando na sandbox de homologação (`https://sandbox.asaas.com/api/v3`).
-- Ao iniciar a cobrança com dinheiro real de clientes, troque a chave no painel do Asaas para a chave de Produção (`$aact_prod_...`) e aponte a URL para `https://api.asaas.com/v3`.
-
-### [ ] 4. Propagação do Domínio `flowagenda.online`
-- Os servidores DNS na Hostinger foram apontados para `ns1.vercel-dns.com` e `ns2.vercel-dns.com`.
-- Assim que a propagação global de DNS concluir, a Vercel emitirá o certificado SSL automaticamente e o domínio responderá na raiz com a landing page comercial.
+### [x] 2. Webhook do Asaas (Cobranças Vinculadas)
+- **ID do Webhook:** `dbc2e866-8e53-483a-94c7-b5e6589b096d`
+- **Nome:** `Flowagenda Produção`
+- **URL Configurada:** `https://flowagenda.online/api/webhooks/asaas` (**HTTP 200 OK / Ativo**).
+- **Eventos:** `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`, `PAYMENT_DUNNING_RECEIVED`, `PAYMENT_DELETED`, `PAYMENT_REFUNDED`.
 
 ---
 
-## 7. Comandos Essenciais de Manutenção e Verificação
+## 7. O QUE FALTA FAZER (Checklist de Ativação & Próximas Frentes)
 
-Para auditar e testar o projeto a qualquer momento no terminal local:
+Para dar continuidade nas próximas sessões de desenvolvimento, estas são as tarefas pendentes exatas:
+
+### Frente 1: Parametrização Comercial Imediata
+- [ ] **Substituir o WhatsApp de Vendas Oficial:**
+  - Atualizar os links de CTA em [app/page.tsx](file:///c:/Users/Web/Documents/projetos%20VB/saas%20salão%20dentista/app/page.tsx) e [components/landing/PricingTiers.tsx](file:///c:/Users/Web/Documents/projetos%20VB/saas%20salão%20dentista/components/landing/PricingTiers.tsx), substituindo o número de teste `5500000000000` pelo número de WhatsApp comercial real com DDD para receber os leads.
+
+### Frente 2: Produção & Domínio Vercel
+- [ ] **Variáveis de Ambiente na Vercel:**
+  - Garantir que as 10 variáveis do [.env.local](file:///c:/Users/Web/Documents/projetos%20VB/saas%20salão%20dentista/.env.local) estejam salvas no painel da **Vercel** (*Settings > Environment Variables*) para os ambientes *Production* e *Preview*.
+- [ ] **Propagação de DNS do Domínio (`flowagenda.online`):**
+  - Confirmar se a propagação dos nameservers da Hostinger para a Vercel (`ns1.vercel-dns.com` e `ns2.vercel-dns.com`) está 100% concluída e com SSL emitido.
+- [ ] **Virada de Chave do Asaas:**
+  - Quando for cobrar clientes reais, trocar `ASAAS_API_URL` de sandbox para `https://api.asaas.com/v3` e atualizar `ASAAS_API_KEY` para a chave de produção (`$aact_prod_...`).
+
+### Frente 3: Teste de Homologação Ponta a Ponta (E2E)
+- [ ] **Simulação Completa do Fluxo:**
+  1. Acessar `/superadmin` e criar um novo lojista (ou usar o existente `barbeariamodelo`).
+  2. Acessar `/dashboard/configuracoes` e validar a sincronização da instância WhatsApp.
+  3. Acessar a página pública de agendamento em `flowagenda.online/tenant/barbeariamodelo`.
+  4. Agendar horário com um celular real e validar o disparo do PIN de 6 dígitos.
+  5. Inserir o PIN, confirmar o agendamento e verificar o card entrando no Kanban em `/dashboard/clientes`.
+  6. Enviar mensagem de teste para o WhatsApp da loja para testar o auto-atendimento e o gatilho de transbordo humano.
+
+### Frente 4: Próximas Features do Roadmap
+- [ ] **Módulo Financeiro do Lojista:** Tela de resumo de faturamento estimado do mês baseada nos serviços concluídos.
+- [ ] **Gestão Multi-Profissionais:** Seleção de colaborador/atendente específico durante o fluxo de agendamento.
+- [ ] **Sinal de Agendamento via Pix (Caução 20%):** Checkout direto para pagamento de sinal antes da confirmação do lock.
+
+---
+
+## 8. Comandos Essenciais de Manutenção e Verificação
+
+Para auditar e testar o projeto no terminal local a qualquer momento:
 
 ```powershell
-# 1. Verificar integridade dos tipos TypeScript (deve retornar 0 erros)
+# 1. Verificar integridade estrita do TypeScript (deve retornar 0 erros)
 npx tsc --noEmit
 
 # 2. Testar compilação do bundle de produção localmente
@@ -228,16 +275,19 @@ git log -n 5 --oneline
 
 ---
 
-## 8. Histórico de Commits Recentes de Alta Relevância
+## 9. Histórico de Commits Recentes de Alta Relevância
 
-- `feat: bento grid showcase, framer motion hero section, and tailwind v4 nord dark theme tokens` (Commit Atual).
-- `c4dbf7b` — `feat: whatsapp instances multi-tenant schema, evolution api v2 integration and server actions`.
-- `1279a79` — `feat: landing page institucional com hero mockup e pricing por ciclos, white label dinamico e crm kanban com ltv`.
-- `0e08df6` — `feat: hourly vercel cron and automated anti no-show appointment reminders via whatsapp`.
-- `8699638` — `feat: connect real evolution webhook with automated greeting, human handoff, and bot pause isolation`.
-- `e990783` — `feat: align swas strategic compendium (google reviews 5-star robot, tenant high-conversion templates and updated tier pricing)`.
-- `ad53307` — `feat: complete asaas webhook guard with timing-safe auth, idempotency and tenant suspension`.
-- `1c39c68` — `feat: implement atomic 10min lock booking flow with pin verification and transactional whatsapp messages`.
+- `6de7c39` — `feat: configure live production webhooks for Evolution API and Asaas`
+- `5cc2f2b` — `feat: segmented pill billing cycle toggle and calibrated pricing tiers`
+- `887157d` — `feat: elite visual polish with aurora mesh gradients, synchronized hero simulator, and hardware-accelerated bento grid`
+- `4070409` — `feat: interactive bento grid showcase (a maquina de faturamento)`
+- `36b437d` — `feat: bento grid showcase, framer motion hero section, and tailwind v4 nord dark theme tokens`
+- `c4dbf7b` — `feat: whatsapp instances multi-tenant schema, evolution api v2 integration and server actions`
+- `1279a79` — `feat: landing page institucional com hero mockup e pricing por ciclos, white label dinamico e crm kanban com ltv`
+- `0e08df6` — `feat: hourly vercel cron and automated anti no-show appointment reminders via whatsapp`
+- `8699638` — `feat: connect real evolution webhook with automated greeting, human handoff, and bot pause isolation`
+- `ad53307` — `feat: complete asaas webhook guard with timing-safe auth, idempotency and tenant suspension`
+- `1c39c68` — `feat: implement atomic 10min lock booking flow with pin verification and transactional whatsapp messages`
 
 ---
 *Este documento é a fonte canônica da verdade do FlowAgenda. Mantenha-o sempre atualizado a cada grande entrega arquitetural.*
