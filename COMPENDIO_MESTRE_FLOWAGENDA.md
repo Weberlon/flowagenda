@@ -260,16 +260,19 @@ Para dar continuidade nas próximas sessões de desenvolvimento, estas são as t
 Para auditar e testar o projeto no terminal local a qualquer momento:
 
 ```powershell
-# 1. Verificar integridade estrita do TypeScript (deve retornar 0 erros)
+# 1. Executar diagnóstico e homologação automatizada E2E (Evolution API + Supabase Lock)
+npm run test:e2e
+
+# 2. Verificar integridade estrita do TypeScript (deve retornar 0 erros)
 npx tsc --noEmit
 
-# 2. Testar compilação do bundle de produção localmente
+# 3. Testar compilação do bundle de produção localmente
 npm run build
 
-# 3. Rodar o servidor de desenvolvimento
+# 4. Rodar o servidor de desenvolvimento
 npm run dev
 
-# 4. Verificar status de sincronização com o GitHub
+# 5. Verificar status de sincronização com o GitHub
 git status
 git log -n 5 --oneline
 ```

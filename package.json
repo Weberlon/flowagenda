@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "tsx --env-file=.env.local scripts/test-e2e-flow.ts"
   },
   "dependencies": {
     "@supabase/ssr": "latest",
@@ -25,6 +26,7 @@
     "eslint-config-next": "latest",
     "postcss": "latest",
     "tailwindcss": "latest",
+    "tsx": "^4.23.15",
     "typescript": "latest"
   }
 }
