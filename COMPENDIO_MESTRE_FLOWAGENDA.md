@@ -278,6 +278,8 @@ git log -n 5 --oneline
 
 ## 9. Histórico de Commits Recentes de Alta Relevância
 
+- `fba4a40` — `feat: stabilize landing animations with 0.25 viewport, multi-nicho copy, and calibrated pricing cycles`
+- `9222722` — `feat: centralize commercial whatsapp config with NEXT_PUBLIC_WHATSAPP_COMERCIAL env fallback`
 - `6de7c39` — `feat: configure live production webhooks for Evolution API and Asaas`
 - `5cc2f2b` — `feat: segmented pill billing cycle toggle and calibrated pricing tiers`
 - `887157d` — `feat: elite visual polish with aurora mesh gradients, synchronized hero simulator, and hardware-accelerated bento grid`
