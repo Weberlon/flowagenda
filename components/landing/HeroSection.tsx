@@ -9,7 +9,7 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import HeroInteractiveMockup from './HeroInteractiveMockup';
-import { getWhatsAppComercialUrl } from '@/lib/contact';
+import { CONTACT_CONFIG } from '@/config/contact';
 
 interface HeroSectionProps {
   whatsappConsultorUrl?: string;
@@ -20,7 +20,7 @@ export default function HeroSection({
 }: HeroSectionProps) {
   const consultorUrl =
     whatsappConsultorUrl ||
-    getWhatsAppComercialUrl('Olá! Gostaria de ativar o FlowAgenda no meu estabelecimento.');
+    CONTACT_CONFIG.getUrl(CONTACT_CONFIG.getActivationMessage());
   return (
     <section className="relative overflow-hidden pt-8 pb-16 sm:pt-14 sm:pb-24 lg:pt-16 lg:pb-28">
       {/* ================================================================ */}

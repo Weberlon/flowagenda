@@ -2,7 +2,7 @@ import Link from 'next/link';
 import HeroSection from '@/components/landing/HeroSection';
 import BentoShowcase from '@/components/landing/BentoShowcase';
 import PricingTiers from '@/components/landing/PricingTiers';
-import { getWhatsAppComercialUrl } from '@/lib/contact';
+import { CONTACT_CONFIG } from '@/config/contact';
 
 export const metadata = {
   title: 'FlowAgenda | Sua Máquina de Tração Local e Agendamentos no WhatsApp',
@@ -20,8 +20,8 @@ export const metadata = {
 };
 
 export default function AppPage() {
-  const whatsappConsultor = getWhatsAppComercialUrl(
-    'Olá! Gostaria de ativar o FlowAgenda no meu estabelecimento.'
+  const whatsappConsultor = CONTACT_CONFIG.getUrl(
+    CONTACT_CONFIG.getConsultantMessage()
   );
 
   return (

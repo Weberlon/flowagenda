@@ -6,9 +6,7 @@
 // ==============================================================================
 
 import React, { useState } from 'react';
-import { getWhatsAppComercialUrl } from '@/lib/contact';
-
-type BillingCycle = 'monthly' | 'semiannual' | 'annual';
+import { CONTACT_CONFIG, BillingCycle } from '@/config/contact';
 
 export default function PricingTiers() {
   const [cycle, setCycle] = useState<BillingCycle>('annual');
@@ -151,8 +149,8 @@ export default function PricingTiers() {
         {tiers.map((tier) => {
           const currentPlan = tier.pricing[cycle];
           const isAnnual = cycle === 'annual';
-          const whatsappUrl = getWhatsAppComercialUrl(
-            `Olá! Gostaria de assinar o plano ${tier.name} no ciclo ${cycleLabels[cycle]} do FlowAgenda.`
+          const whatsappUrl = CONTACT_CONFIG.getUrl(
+            CONTACT_CONFIG.getPlanMessage(tier.name, cycle)
           );
 
           return (
