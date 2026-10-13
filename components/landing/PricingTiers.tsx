@@ -26,8 +26,8 @@ export default function PricingTiers() {
       subtitle: 'Para profissionais autônomos que precisam eliminar faltas e automatizar o atendimento no WhatsApp.',
       pricing: {
         monthly: { price: '59,90', setup: '99,90 (Taxa única)', setupNote: 'Economize no plano anual' },
-        semiannual: { price: '54,90', setup: '49,90 (50% OFF)', setupNote: 'Cobrado semestralmente' },
-        annual: { price: '49,90', setup: '0,00', setupNote: 'Economia total de R$ 219,90' },
+        semiannual: { price: '54,90', setup: '49,90 (50% OFF)', setupNote: 'Faturado semestralmente' },
+        annual: { price: '49,90', yearlyTotal: '(R$ 598,80/ano)', setup: '0,00', setupNote: 'Economia total de R$ 219,90' },
       },
       isHighlight: false,
       ctaText: 'Ativar Plano Essencial',
@@ -46,8 +46,8 @@ export default function PricingTiers() {
       subtitle: 'Para negócios em expansão que exigem gestão de clientes, controle de intervalos e rotina organizada.',
       pricing: {
         monthly: { price: '99,90', setup: '149,90 (Taxa única)', setupNote: 'Economize no plano anual' },
-        semiannual: { price: '89,90', setup: '74,90 (50% OFF)', setupNote: 'Cobrado semestralmente' },
-        annual: { price: '84,90', setup: '0,00', setupNote: 'Economia total de R$ 329,90' },
+        semiannual: { price: '89,90', setup: '74,90 (50% OFF)', setupNote: 'Faturado semestralmente' },
+        annual: { price: '84,90', yearlyTotal: '(R$ 1.018,80/ano)', setup: '0,00', setupNote: 'Economia total de R$ 329,90' },
       },
       isHighlight: false,
       ctaText: 'Escolher Plano Profissional',
@@ -66,8 +66,8 @@ export default function PricingTiers() {
       subtitle: 'Para marcas consolidadas que exigem domínio próprio, equipe sincronizada e máxima reputação.',
       pricing: {
         monthly: { price: '189,90', setup: '349,90 (Taxa única Done-For-You)', setupNote: 'Economize no plano anual' },
-        semiannual: { price: '169,90', setup: '174,90 (50% OFF)', setupNote: 'Cobrado semestralmente' },
-        annual: { price: '159,90', setup: '0,00', setupNote: 'Economia total de R$ 709,90' },
+        semiannual: { price: '169,90', setup: '174,90 (50% OFF)', setupNote: 'Faturado semestralmente' },
+        annual: { price: '159,90', yearlyTotal: '(R$ 1.918,80/ano)', setup: '0,00', setupNote: 'Economia total de R$ 709,90' },
       },
       isHighlight: true,
       badge: 'MAIS ESCOLHIDO • MÁXIMA AUTORIDADE',
@@ -139,7 +139,7 @@ export default function PricingTiers() {
             >
               <span>Anual</span>
               <span className="rounded-full bg-[#A3BE8C] text-[#242933] px-2.5 py-0.5 text-[10px] font-black uppercase shadow-xs">
-                Setup Grátis + Máxima Economia
+                SETUP 100% GRÁTIS + 2 MESES OFF
               </span>
             </button>
           </div>
@@ -186,6 +186,11 @@ export default function PricingTiers() {
                       {currentPlan.price}
                     </span>
                     <span className="text-xs font-semibold text-[#D8DEE9]/60">/mês</span>
+                    {isAnnual && (currentPlan as any).yearlyTotal && (
+                      <span className="text-[11px] font-mono text-[#A3BE8C] ml-1.5 font-bold">
+                        {(currentPlan as any).yearlyTotal}
+                      </span>
+                    )}
                   </div>
 
                   {/* Ancoragem de Setup */}

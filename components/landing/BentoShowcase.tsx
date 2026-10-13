@@ -19,7 +19,7 @@ export default function BentoShowcase() {
     { author: 'Barbearia do Zé', role: 'Barbearia & Navalha', text: '+48 avaliações 5★ coletadas no Google este mês' },
     { author: 'Dra. Camila Meireles', role: 'Clínica Odontológica', text: 'Zero faltas nas sextas-feiras com a trava de PIN' },
     { author: 'Studio Bella Arte', role: 'Salão & Estética', text: 'Agenda lotada 24/7 sem precisar pagar secretária' },
-    { author: 'Dr. Lucas Fisioterapia', role: 'Consultório Especializado', text: '72% dos pacientes agendam após as 21h da noite' },
+    { author: 'Studio Arte & Tinta', role: 'Tatuagem & Piercing', text: '72% dos clientes agendam após as 21h da noite' },
   ];
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function BentoShowcase() {
           <motion.div
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#2E3440]/90 px-4 py-1.5 text-xs font-semibold text-[#88C0D0] mb-4 backdrop-blur-xl shadow-sm"
           >
@@ -100,7 +100,7 @@ export default function BentoShowcase() {
           <motion.h2 
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ delay: 0.1, duration: 0.5 }}
             className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#ECEFF4] leading-tight"
           >
@@ -113,7 +113,7 @@ export default function BentoShowcase() {
           <motion.p
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ delay: 0.2, duration: 0.5 }}
             className="mt-4 text-sm sm:text-base text-[#D8DEE9]/80 max-w-2xl mx-auto font-normal"
           >
@@ -132,7 +132,7 @@ export default function BentoShowcase() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             whileHover={{ y: -4 }}
             className="md:col-span-2 md:row-span-2 rounded-3xl border border-white/[0.08] bg-[#2E3440]/90 p-6 sm:p-8 flex flex-col justify-between shadow-2xl shadow-black/40 hover:border-[#88C0D0]/40 hover:shadow-[#88C0D0]/5 backdrop-blur-xl transition-all duration-500 relative overflow-hidden group"
@@ -205,7 +205,7 @@ export default function BentoShowcase() {
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.2 }}
+                  viewport={{ once: true, amount: 0.25 }}
                   transition={{ type: 'spring', stiffness: 120, damping: 14 }}
                   className="rounded-2xl border border-[#A3BE8C]/50 bg-[#A3BE8C]/15 p-3.5 flex items-center justify-between shadow-lg shadow-[#A3BE8C]/10"
                 >
@@ -240,7 +240,7 @@ export default function BentoShowcase() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ delay: 0.15, duration: 0.6 }}
             whileHover={{ y: -4 }}
             className="md:col-span-1 md:row-span-1 rounded-3xl border border-white/[0.08] bg-[#2E3440]/90 p-6 flex flex-col justify-between shadow-2xl shadow-black/40 hover:border-[#88C0D0]/40 hover:shadow-[#88C0D0]/5 backdrop-blur-xl transition-all duration-500 relative overflow-hidden"
@@ -250,7 +250,7 @@ export default function BentoShowcase() {
                 <span className="text-xs font-bold uppercase tracking-wider text-[#EBCB8B]">
                   Google Reviews
                 </span>
-                <span className="text-[10px] font-mono text-[#D8DEE9]/50">2h Pós-Consulta</span>
+                <span className="text-[10px] font-mono text-[#D8DEE9]/50">2h Pós-Atendimento</span>
               </div>
 
               {/* Contador Odometer Interpolado Seguro + 5 Estrelas Vetoriais */}
@@ -267,7 +267,7 @@ export default function BentoShowcase() {
                       viewBox="0 0 20 20"
                       initial={{ opacity: 0.4, scale: 0.8 }}
                       whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true, amount: 0.2 }}
+                      viewport={{ once: true, amount: 0.25 }}
                       transition={{ delay: 0.2 + starIdx * 0.08, duration: 0.3 }}
                     >
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -309,7 +309,7 @@ export default function BentoShowcase() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ delay: 0.25, duration: 0.6 }}
             whileHover={{ y: -4 }}
             className="md:col-span-1 md:row-span-1 rounded-3xl border border-white/[0.08] bg-[#2E3440]/90 p-6 flex flex-col justify-between shadow-2xl shadow-black/40 hover:border-[#88C0D0]/40 hover:shadow-[#88C0D0]/5 backdrop-blur-xl transition-all duration-500 relative overflow-hidden"
@@ -321,7 +321,7 @@ export default function BentoShowcase() {
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#A3BE8C]/15 border border-[#A3BE8C]/30 text-[#A3BE8C] shadow-sm"
                   initial={{ scale: 0.85 }}
                   whileInView={{ scale: [0.85, 1.1, 1] }}
-                  viewport={{ once: true, amount: 0.2 }}
+                  viewport={{ once: true, amount: 0.25 }}
                   transition={{ duration: 0.5, ease: 'easeOut' }}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -351,7 +351,7 @@ export default function BentoShowcase() {
                 className="flex items-center justify-between"
                 initial={{ opacity: 0, x: -6 }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
+                viewport={{ once: true, amount: 0.25 }}
                 transition={{ delay: 0.3, duration: 0.4 }}
               >
                 <span>1. Slot Bloqueado</span>
@@ -362,7 +362,7 @@ export default function BentoShowcase() {
                 className="flex items-center justify-between"
                 initial={{ opacity: 0, x: -6 }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
+                viewport={{ once: true, amount: 0.25 }}
                 transition={{ delay: 0.42, duration: 0.4 }}
               >
                 <span>2. PIN Validado</span>
@@ -373,7 +373,7 @@ export default function BentoShowcase() {
                 className="flex items-center justify-between"
                 initial={{ opacity: 0, x: -6 }}
                 whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
+                viewport={{ once: true, amount: 0.25 }}
                 transition={{ delay: 0.54, duration: 0.4 }}
               >
                 <span>3. Lembrete Ativo</span>
@@ -388,7 +388,7 @@ export default function BentoShowcase() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ delay: 0.35, duration: 0.6 }}
             whileHover={{ y: -4 }}
             className="md:col-span-2 md:row-span-1 rounded-3xl border border-white/[0.08] bg-[#2E3440]/90 p-6 sm:p-7 flex flex-col justify-between shadow-2xl shadow-black/40 hover:border-[#88C0D0]/40 hover:shadow-[#88C0D0]/5 backdrop-blur-xl transition-all duration-500 relative overflow-hidden"
@@ -418,7 +418,7 @@ export default function BentoShowcase() {
                     <motion.div
                       initial={{ scaleY: 0 }}
                       whileInView={{ scaleY: 1 }}
-                      viewport={{ once: true, amount: 0.2 }}
+                      viewport={{ once: true, amount: 0.25 }}
                       transition={{ delay: 0.15 + idx * 0.04, duration: 0.5, ease: 'easeOut' }}
                       style={{ 
                         height: `${item.pct}%`,

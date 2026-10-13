@@ -46,7 +46,7 @@ export default function HeroSection({
             className="lg:col-span-6 space-y-6 text-center lg:text-left"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
           >
             {/* Badge Animado de Status com Border Glow */}
