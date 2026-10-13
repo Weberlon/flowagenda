@@ -278,6 +278,7 @@ git log -n 5 --oneline
 
 ## 9. Histórico de Commits Recentes de Alta Relevância
 
+- `4bf489d` — `feat: centralize CONTACT_CONFIG in config/contact.ts and contextualize lead CTAs with plan and cycle`
 - `fba4a40` — `feat: stabilize landing animations with 0.25 viewport, multi-nicho copy, and calibrated pricing cycles`
 - `9222722` — `feat: centralize commercial whatsapp config with NEXT_PUBLIC_WHATSAPP_COMERCIAL env fallback`
 - `6de7c39` — `feat: configure live production webhooks for Evolution API and Asaas`
