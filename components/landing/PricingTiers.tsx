@@ -6,13 +6,12 @@
 // ==============================================================================
 
 import React, { useState } from 'react';
+import { getWhatsAppComercialUrl } from '@/lib/contact';
 
 type BillingCycle = 'monthly' | 'semiannual' | 'annual';
 
 export default function PricingTiers() {
   const [cycle, setCycle] = useState<BillingCycle>('annual');
-
-  const whatsappBaseUrl = 'https://wa.me/5500000000000';
 
   const cycleLabels: Record<BillingCycle, string> = {
     monthly: 'MENSAL',
@@ -152,9 +151,9 @@ export default function PricingTiers() {
         {tiers.map((tier) => {
           const currentPlan = tier.pricing[cycle];
           const isAnnual = cycle === 'annual';
-          const whatsappUrl = `${whatsappBaseUrl}?text=${encodeURIComponent(
+          const whatsappUrl = getWhatsAppComercialUrl(
             `Olá! Gostaria de assinar o plano ${tier.name} no ciclo ${cycleLabels[cycle]} do FlowAgenda.`
-          )}`;
+          );
 
           return (
             <div

@@ -9,15 +9,18 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import HeroInteractiveMockup from './HeroInteractiveMockup';
+import { getWhatsAppComercialUrl } from '@/lib/contact';
 
 interface HeroSectionProps {
   whatsappConsultorUrl?: string;
 }
 
 export default function HeroSection({
-  whatsappConsultorUrl = 'https://wa.me/5500000000000?text=' +
-    encodeURIComponent('Olá! Gostaria de ativar o FlowAgenda no meu estabelecimento.'),
+  whatsappConsultorUrl,
 }: HeroSectionProps) {
+  const consultorUrl =
+    whatsappConsultorUrl ||
+    getWhatsAppComercialUrl('Olá! Gostaria de ativar o FlowAgenda no meu estabelecimento.');
   return (
     <section className="relative overflow-hidden pt-8 pb-16 sm:pt-14 sm:pb-24 lg:pt-16 lg:pb-28">
       {/* ================================================================ */}
@@ -93,7 +96,7 @@ export default function HeroSection({
               transition={{ delay: 0.4, duration: 0.6 }}
             >
               <motion.a
-                href={whatsappConsultorUrl}
+                href={consultorUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.03 }}

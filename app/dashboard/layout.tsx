@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import Link from 'next/link';
+import { getWhatsAppComercialUrl } from '@/lib/contact';
 
 export default async function DashboardLayout({
   children,
@@ -50,7 +51,7 @@ export default async function DashboardLayout({
           </div>
           <div className="space-y-3">
             <a
-              href="https://wa.me/5500000000000?text=Ol%C3%A1,%20gostaria%20de%20ativar%20meu%20estabelecimento%20no%20FlowAgenda"
+              href={getWhatsAppComercialUrl('Olá, gostaria de ativar meu estabelecimento no FlowAgenda')}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full rounded-md bg-blue-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-700 transition-colors"
@@ -135,7 +136,7 @@ export default async function DashboardLayout({
                 </div>
                 <div className="space-y-3 pt-2">
                   <a
-                    href="https://wa.me/5500000000000?text=Ol%C3%A1,%20gostaria%20de%20regularizar%20a%20assinatura%20do%20meu%20estabelecimento%20no%20FlowAgenda"
+                    href={getWhatsAppComercialUrl('Olá, gostaria de regularizar a assinatura do meu estabelecimento no FlowAgenda')}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full rounded-xl bg-slate-900 px-4 py-3 text-center text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-sm"

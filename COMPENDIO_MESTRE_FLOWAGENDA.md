@@ -227,8 +227,9 @@ Todas as 7 tabelas fundamentais foram auditadas, validadas e contam com isolamen
 Para dar continuidade nas próximas sessões de desenvolvimento, estas são as tarefas pendentes exatas:
 
 ### Frente 1: Parametrização Comercial Imediata
-- [ ] **Substituir o WhatsApp de Vendas Oficial:**
-  - Atualizar os links de CTA em [app/page.tsx](file:///c:/Users/Web/Documents/projetos%20VB/saas%20salão%20dentista/app/page.tsx) e [components/landing/PricingTiers.tsx](file:///c:/Users/Web/Documents/projetos%20VB/saas%20salão%20dentista/components/landing/PricingTiers.tsx), substituindo o número de teste `5500000000000` pelo número de WhatsApp comercial real com DDD para receber os leads.
+- [x] **Parametrização do WhatsApp Comercial via Variável de Ambiente (`NEXT_PUBLIC_WHATSAPP_COMERCIAL`):**
+  - Implementado helper centralizado em [`lib/contact.ts`](./lib/contact.ts) e integrado aos CTAs de [`app/page.tsx`](./app/page.tsx), [`components/landing/PricingTiers.tsx`](./components/landing/PricingTiers.tsx), [`components/landing/HeroSection.tsx`](./components/landing/HeroSection.tsx) e [`app/dashboard/layout.tsx`](./app/dashboard/layout.tsx).
+  - Assim que o chip oficial do WhatsApp Business for ativado, basta preencher `NEXT_PUBLIC_WHATSAPP_COMERCIAL` no `.env.local` e na Vercel (sem necessidade de alterar código).
 
 ### Frente 2: Produção & Domínio Vercel
 - [ ] **Variáveis de Ambiente na Vercel:**
