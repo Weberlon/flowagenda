@@ -110,10 +110,18 @@ export default async function TenantPage({ params }: TenantPageProps) {
   // 2. Buscar serviços ativos
   const { data: servicos } = await supabase
     .from('servicos')
-    .select('id, nome_servico, duracao_minutos, preco')
+    .select('id, nome_servico, duracao_minutos, intervalo_minutos, preco, exige_sinal, valor_sinal')
     .eq('lojista_id', lojista.id)
     .eq('ativo', true)
     .order('nome_servico');
+
+  // 3. Buscar profissionais ativos
+  const { data: profissionais } = await supabase
+    .from('profissionais')
+    .select('id, nome, foto_url, bio, ativo')
+    .eq('lojista_id', lojista.id)
+    .eq('ativo', true)
+    .order('nome');
 
   // Configurações White Label & Cores
   const config = lojista.configuracoes as {
@@ -297,6 +305,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
             <AgendamentoClient 
               lojista={lojista} 
               servicos={servicos || []} 
+              profissionais={profissionais || []}
             />
           )}
         </div>

@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/reviews",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/whatsapp-healthcheck",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/appointment-lifecycle",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

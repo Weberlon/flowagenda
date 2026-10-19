@@ -285,5 +285,92 @@ export async function deleteClienteAction(clienteId: string) {
   return { success: true };
 }
 
+// 6. getClienteHistoricoNotas(): Busca notas estruturadas de voz com isolamento RLS
+export interface ClienteHistoricoNota {
+  id: string;
+  cliente_id: string;
+  lojista_id: string;
+  profissional_id?: string | null;
+  procedimento: string;
+  observacoes?: string | null;
+  proximo_passo?: string | null;
+  modo_gravacao: 'gemini' | 'local';
+  created_at: string;
+  updated_at?: string;
+  profissionais?: { nome: string } | null;
+}
+
+export async function getClienteHistoricoNotas(clienteId: string): Promise<ClienteHistoricoNota[]> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data: lojista } = await supabase
+    .from('lojistas')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!lojista) return [];
+
+  const { data: notas, error } = await supabase
+    .from('cliente_historico_notas')
+    .select(`
+      id,
+      cliente_id,
+      lojista_id,
+      profissional_id,
+      procedimento,
+      observacoes,
+      proximo_passo,
+      modo_gravacao,
+      created_at,
+      updated_at,
+      profissionais (
+        nome
+      )
+    `)
+    .eq('cliente_id', clienteId)
+    .eq('lojista_id', lojista.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar histórico de notas:', error.message);
+    return [];
+  }
+
+  return (notas || []) as unknown as ClienteHistoricoNota[];
+}
+
+// 7. deleteClienteHistoricoNota(): Remove uma anotação específica
+export async function deleteClienteHistoricoNota(notaId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Não autorizado' };
+
+  const { data: lojista } = await supabase
+    .from('lojistas')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+  const { error } = await supabase
+    .from('cliente_historico_notas')
+    .delete()
+    .eq('id', notaId)
+    .eq('lojista_id', lojista.id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
 // Manter compatibilidade com getClientesData
 export const getClientesData = getClientes;
+

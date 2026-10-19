@@ -10,6 +10,7 @@
     "test:e2e": "tsx --env-file=.env.local scripts/test-e2e-flow.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.30.0",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "framer-motion": "^14.1.0",
@@ -20,10 +21,12 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "latest",
+    "@types/pg": "^8.23.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
+    "pg": "^8.23.1",
     "postcss": "latest",
     "tailwindcss": "latest",
     "tsx": "^4.23.15",

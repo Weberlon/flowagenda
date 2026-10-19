@@ -6,8 +6,12 @@ import {
   upsertCliente, 
   updateClienteEtapa, 
   updateClienteNotas, 
-  deleteClienteAction 
+  deleteClienteAction,
+  getClienteHistoricoNotas,
+  deleteClienteHistoricoNota,
+  ClienteHistoricoNota
 } from '@/app/actions/clientes';
+import VoiceNoteRecorder from '@/components/crm/VoiceNoteRecorder';
 
 interface ClientesClientProps {
   lojista: {
@@ -54,6 +58,9 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [drawerNotas, setDrawerNotas] = useState('');
   const [drawerTags, setDrawerTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
+  const [historicoNotas, setHistoricoNotas] = useState<ClienteHistoricoNota[]>([]);
+  const [loadingNotas, setLoadingNotas] = useState(false);
+  const [isRecorderOpen, setIsRecorderOpen] = useState(false);
 
   // Modal Novo Cliente
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -133,10 +140,46 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   };
 
   // Abrir Drawer de Detalhes
-  const handleAbrirDrawer = (c: ClienteCRM) => {
+  const handleAbrirDrawer = async (c: ClienteCRM) => {
     setActiveCliente(c);
     setDrawerNotas(c.observacoes || '');
     setDrawerTags(c.tags || []);
+    setIsRecorderOpen(false);
+
+    // Carregar histórico de notas de voz
+    setLoadingNotas(true);
+    try {
+      const notas = await getClienteHistoricoNotas(c.id);
+      setHistoricoNotas(notas);
+    } catch (err) {
+      console.error('Erro ao buscar histórico de notas:', err);
+      setHistoricoNotas([]);
+    } finally {
+      setLoadingNotas(false);
+    }
+  };
+
+  // Callback ao salvar nota no VoiceNoteRecorder
+  const handleNoteSaved = async () => {
+    if (!activeCliente) return;
+    try {
+      const notas = await getClienteHistoricoNotas(activeCliente.id);
+      setHistoricoNotas(notas);
+      setIsRecorderOpen(false);
+    } catch (err) {
+      console.error('Erro ao atualizar histórico após salvar nota:', err);
+    }
+  };
+
+  // Excluir nota de voz do histórico
+  const handleDeleteNota = async (notaId: string) => {
+    if (!window.confirm('Deseja realmente remover esta anotação do histórico?')) return;
+    setHistoricoNotas((prev) => prev.filter((n) => n.id !== notaId));
+    try {
+      await deleteClienteHistoricoNota(notaId);
+    } catch (err) {
+      console.error('Erro ao deletar nota:', err);
+    }
   };
 
   // Salvar Notas & Tags do Drawer
@@ -741,15 +784,137 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
               {/* Anotações Internas de Atendimento */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]/70">
-                  Anotações Internas de Atendimento
+                  Anotações Rápidas Manuais
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={drawerNotas}
                   onChange={(e) => setDrawerNotas(e.target.value)}
                   placeholder="Ex: Prefere corte na tesoura, sensibilidade a lâmina, cafezinho sem açúcar..."
                   className="w-full rounded-xl border border-[#4C566A]/40 bg-[#242933] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
                 />
+              </div>
+
+              {/* Seção de Voz: VoiceNoteRecorder & Histórico Clínico */}
+              <div className="pt-2 border-t border-[#4C566A]/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">🎙️</span>
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#88C0D0]">
+                      Anotações de Voz com IA & Sigilo
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsRecorderOpen((prev) => !prev)}
+                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition ${
+                      isRecorderOpen
+                        ? 'border-[#BF616A]/50 bg-[#BF616A]/20 text-[#BF616A]'
+                        : 'border-[#88C0D0]/50 bg-[#88C0D0]/10 text-[#88C0D0] hover:bg-[#88C0D0]/20'
+                    }`}
+                  >
+                    {isRecorderOpen ? '✕ Fechar Gravador' : '+ Gravar por Voz'}
+                  </button>
+                </div>
+
+                {/* Gravador Expansível */}
+                {isRecorderOpen && (
+                  <div className="p-1 rounded-2xl bg-[#242933] border border-[#4C566A]/40">
+                    <VoiceNoteRecorder
+                      clienteId={activeCliente.id}
+                      lojistaId={lojista.id}
+                      onNoteSaved={handleNoteSaved}
+                    />
+                  </div>
+                )}
+
+                {/* Lista do Histórico de Anotações Estruturadas */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-[#D8DEE9]/60 uppercase tracking-wider">
+                      Histórico Clínico / Procedimentos ({historicoNotas.length})
+                    </span>
+                    {loadingNotas && (
+                      <span className="text-[10px] text-[#88C0D0] animate-pulse">
+                        Carregando notas...
+                      </span>
+                    )}
+                  </div>
+
+                  {historicoNotas.length === 0 && !loadingNotas && (
+                    <div className="p-3 rounded-xl border border-[#4C566A]/20 bg-[#242933]/50 text-center text-xs text-[#D8DEE9]/40 italic">
+                      Nenhuma anotação de atendimento registrada ainda para este cliente.
+                    </div>
+                  )}
+
+                  {historicoNotas.length > 0 && (
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {historicoNotas.map((nota) => (
+                        <div
+                          key={nota.id}
+                          className="p-3 rounded-xl border border-[#4C566A]/30 bg-[#242933] hover:border-[#88C0D0]/40 transition text-xs space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                                nota.modo_gravacao === 'gemini'
+                                  ? 'bg-[#5E81AC]/20 text-[#88C0D0] border border-[#5E81AC]/30'
+                                  : 'bg-[#A3BE8C]/20 text-[#A3BE8C] border border-[#A3BE8C]/30'
+                              }`}
+                            >
+                              {nota.modo_gravacao === 'gemini' ? 'IA Gemini' : 'On-Device (Local)'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-[#D8DEE9]/40 font-mono">
+                                {new Date(nota.created_at).toLocaleDateString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteNota(nota.id)}
+                                title="Excluir nota"
+                                className="text-[#D8DEE9]/40 hover:text-[#BF616A] text-[11px] transition"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] text-[#88C0D0] uppercase font-bold block">
+                              Procedimento
+                            </span>
+                            <p className="text-[#ECEFF4] font-medium leading-relaxed">
+                              {nota.procedimento}
+                            </p>
+                          </div>
+
+                          {nota.observacoes && (
+                            <div className="pt-0.5">
+                              <span className="text-[10px] text-[#D8DEE9]/60 uppercase font-bold block">
+                                Observações
+                              </span>
+                              <p className="text-[#D8DEE9]/80 text-[11px] leading-relaxed">
+                                {nota.observacoes}
+                              </p>
+                            </div>
+                          )}
+
+                          {nota.proximo_passo && (
+                            <div className="pt-0.5 flex items-start gap-1 text-[11px] text-[#EBCB8B]">
+                              <span className="font-bold">🎯 Próximo Passo:</span>
+                              <span>{nota.proximo_passo}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

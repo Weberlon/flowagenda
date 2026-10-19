@@ -1,85 +1,134 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+
+/**
+ * ==============================================================================
+ * FlowAgenda — Roteamento Dinâmico Multi-Tenant via Subdomínios (Edge Runtime)
+ * Arquivo: middleware.ts
+ * ==============================================================================
+ */
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+    /*
+     * Otimização Edge: O middleware NÃO intercepta:
+     * 1. Rotas de Webhook (/api/webhooks/*)
+     * 2. Arquivos estáticos do Next.js (_next/static, _next/image)
+     * 3. Favicon, Sitemap, Robots
+     * 4. Extensões de arquivos estáticos (.svg, .png, .jpg, .jpeg, .webp, .css, .js)
+     */
+    '/((?!api/webhooks|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|webp|css|js)$).*)',
   ],
 };
 
-export async function middleware(req: NextRequest) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
-    request: { headers: req.headers },
+    request: {
+      headers: request.headers,
+    },
   });
 
-  // Atualização de sessão Supabase
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return req.cookies.getAll();
+  // 1. Manter sessão do Supabase atualizada com cookies SSR
+  if (
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            );
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
-          response = NextResponse.next({ request: { headers: req.headers } });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+      }
+    );
 
-  await supabase.auth.getUser();
-
-  const url = req.nextUrl;
-  const path = url.pathname;
-  const rawHost = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'flowagenda.online';
-  const domain = rawHost.replace(/:\d+$/, '');
-  const currentHost = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'flowagenda.online').replace(/:\d+$/, '');
-
-  // 1. admin / app -> /app
-  if (domain === `admin.${currentHost}` || domain === `app.${currentHost}`) {
-    return NextResponse.rewrite(new URL(`/app${path}`, req.url), {
-      headers: response.headers,
-    });
+    await supabase.auth.getUser();
   }
 
-  // Ignorar reescritas para rotas globais do sistema e rotas diretas de tenant
-  if (
-    path.startsWith('/superadmin') ||
-    path.startsWith('/dashboard') ||
-    path.startsWith('/login') ||
-    path.startsWith('/tenant')
-  ) {
+  const url = request.nextUrl;
+  const pathname = url.pathname;
+
+  // 2. Obter hostname da requisição (considerando proxies/Vercel)
+  const host =
+    request.headers.get('x-forwarded-host') ||
+    request.headers.get('host') ||
+    '';
+
+  // Remover a porta se existir (ex: localhost:3000 -> localhost)
+  const hostname = host.split(':')[0].toLowerCase();
+
+  // 3. Vercel Preview: se terminar em .vercel.app, preserve o roteamento padrão
+  if (hostname.endsWith('.vercel.app')) {
     return response;
   }
 
-  // 2. Home institucional / Localhost / Vercel Preview -> /home
-  if (
-    domain === currentHost ||
-    domain === `www.${currentHost}` ||
-    domain === 'localhost' ||
-    domain === '127.0.0.1' ||
-    domain.endsWith('.vercel.app')
-  ) {
-    return NextResponse.rewrite(new URL(`/home${path}`, req.url), {
-      headers: response.headers,
-    });
+  // 4. Isolar o subdomínio considerando Produção e Desenvolvimento Local
+  const rootDomain = (
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'flowagenda.online'
+  )
+    .toLowerCase()
+    .split(':')[0];
+
+  let subdomain: string | null = null;
+
+  if (hostname.endsWith(`.${rootDomain}`)) {
+    // Produção: *.flowagenda.online (ex: app.flowagenda.online ou barbearia.flowagenda.online)
+    subdomain = hostname.replace(`.${rootDomain}`, '');
+  } else if (hostname.endsWith('.localhost')) {
+    // Desenvolvimento Local: *.localhost:3000 (ex: app.localhost ou barbearia.localhost)
+    subdomain = hostname.replace('.localhost', '');
   }
 
-  // 3. Subdomínio Wildcard (*.flowagenda.online) -> /tenant/[slug]
-  if (domain.endsWith(`.${currentHost}`)) {
-    const subdomain = domain.replace(`.${currentHost}`, '');
-    return NextResponse.rewrite(new URL(`/tenant/${subdomain}${path}`, req.url), {
-      headers: response.headers,
+  // Helper para preservar cookies de sessão em rewrites
+  const createRewrite = (targetUrl: URL) => {
+    const rewriteRes = NextResponse.rewrite(targetUrl, {
+      request: { headers: request.headers },
     });
+    response.cookies.getAll().forEach((cookie) => {
+      rewriteRes.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return rewriteRes;
+  };
+
+  // 5. Regras de Roteamento (Rewrite interno):
+
+  // 5.1 Domínio principal (flowagenda.online, www.flowagenda.online ou localhost:3000 sem subdomínio):
+  // Sirva a rota principal de Marketing (/) ou rotas globais do sistema (/login, /superadmin, /dashboard)
+  if (!subdomain || subdomain === 'www') {
+    return response;
   }
 
-  // 4. Domínio Próprio Customizado -> /tenant/custom_[domain]
-  return NextResponse.rewrite(new URL(`/tenant/custom_${domain}${path}`, req.url), {
-    headers: response.headers,
-  });
+  // 5.2 Subdomínio app (app.flowagenda.online ou app.localhost:3000):
+  // Faça rewrite interno para /app/dashboard
+  if (subdomain === 'app') {
+    const appPath =
+      pathname === '/'
+        ? '/app/dashboard'
+        : `/app/dashboard${pathname}`;
+    return createRewrite(new URL(`${appPath}${url.search}`, request.url));
+  }
+
+  // 5.3 Subdomínio de lojista ({slug}.flowagenda.online ou {slug}.localhost:3000):
+  // Faça rewrite interno para /loja/[slug], injetando o slug extraído
+  const lojistaPath =
+    pathname === '/'
+      ? `/loja/${subdomain}`
+      : `/loja/${subdomain}${pathname}`;
+  return createRewrite(new URL(`${lojistaPath}${url.search}`, request.url));
 }
