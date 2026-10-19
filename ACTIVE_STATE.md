@@ -1,8 +1,8 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-10-19T10:48:00-03:00  
-**Fase do Projeto:** Transição para Deploy e Testes em Produção  
-**Compilação:** `npx tsc --noEmit` exit code 0 | Testes E2E: 5/5 asserções aprovadas (1.71s)
+**Atualizado em:** 2026-10-19T11:00:00-03:00  
+**Fase do Projeto:** Produção / Deploy Vercel  
+**Compilação:** `npm run build` exit code 0 | `npx tsc --noEmit` exit code 0 | Git push origin main: CONCLUÍDO (c7fbee3)
 
 ---
 
@@ -37,10 +37,7 @@
 
 ## 2. Próximos Passos Imediatos para a Nova Sessão
 
-1. **Validação de Build de Produção:**
-   - Executar `npm run build` para garantir que o bundle estático/dinâmico é gerado sem erros.
-
-2. **Deploy & Conferência de Variáveis de Ambiente na Vercel:**
+1. **Deploy & Conferência de Variáveis de Ambiente na Vercel (EM ANDAMENTO):**
    - Conferir chaves injetadas no projeto Vercel:
      - `NEXT_PUBLIC_SUPABASE_URL`
      - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
