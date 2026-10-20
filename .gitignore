@@ -13,3 +13,7 @@ Asaas.txt
 scratch_*.ts
 scratch/
 *.tsbuildinfo
+
+# Exports locais e planilhas geradas
+/exports/
+*.csv
