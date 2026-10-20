@@ -28,6 +28,8 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  let hasSession = false;
+
   // 1. Manter sessão do Supabase atualizada com cookies SSR
   if (
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -58,7 +60,27 @@ export async function middleware(request: NextRequest) {
       }
     );
 
-    await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        hasSession = true;
+      }
+    } catch {
+      // Ignora falhas temporárias na validação remota de auth
+    }
+  }
+
+  // Checagem de cookies de sessão caso supabase.auth.getUser() não tenha rodado ou como contingência
+  if (!hasSession) {
+    hasSession = request.cookies
+      .getAll()
+      .some(
+        (c) =>
+          (c.name.includes('-auth-token') || c.name.startsWith('sb-')) &&
+          Boolean(c.value)
+      );
   }
 
   const url = request.nextUrl;
@@ -106,7 +128,7 @@ export async function middleware(request: NextRequest) {
     return rewriteRes;
   };
 
-  // 5. Regras de Roteamento (Rewrite interno):
+  // 5. Regras de Roteamento:
 
   // 5.1 Domínio principal (flowagenda.online, www.flowagenda.online ou localhost:3000 sem subdomínio):
   // Sirva a rota principal de Marketing (/) ou rotas globais do sistema (/login, /superadmin, /dashboard)
@@ -115,13 +137,20 @@ export async function middleware(request: NextRequest) {
   }
 
   // 5.2 Subdomínio app (app.flowagenda.online ou app.localhost:3000):
-  // Faça rewrite interno para /app/dashboard
   if (subdomain === 'app') {
-    const appPath =
-      pathname === '/'
-        ? '/app/dashboard'
-        : `/app/dashboard${pathname}`;
-    return createRewrite(new URL(`${appPath}${url.search}`, request.url));
+    if (pathname === '/') {
+      const redirectPath = hasSession ? '/dashboard' : '/login';
+      const redirectRes = NextResponse.redirect(
+        new URL(`${redirectPath}${url.search}`, request.url)
+      );
+      response.cookies.getAll().forEach((cookie) => {
+        redirectRes.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return redirectRes;
+    }
+
+    // Se já for uma rota específica (/login, /dashboard, /agenda, etc.), segue diretamente
+    return response;
   }
 
   // 5.3 Subdomínio de lojista ({slug}.flowagenda.online ou {slug}.localhost:3000):
