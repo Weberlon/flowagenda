@@ -12,12 +12,12 @@ export const config = {
   matcher: [
     /*
      * Otimização Edge: O middleware NÃO intercepta:
-     * 1. Rotas de Webhook (/api/webhooks/*)
+     * 1. Rotas de API, Webhooks e Crons (/api/*)
      * 2. Arquivos estáticos do Next.js (_next/static, _next/image)
      * 3. Favicon, Sitemap, Robots
      * 4. Extensões de arquivos estáticos (.svg, .png, .jpg, .jpeg, .webp, .css, .js)
      */
-    '/((?!api/webhooks|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|webp|css|js)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|.*\\.(?:svg|png|jpg|jpeg|webp|css|js)$).*)',
   ],
 };
 

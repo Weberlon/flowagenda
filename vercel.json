@@ -1,16 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/reviews",
-      "schedule": "0 * * * *"
+      "path": "/api/cron/appointment-lifecycle",
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/whatsapp-healthcheck",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/cron/appointment-lifecycle",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 4 * * *"
     }
   ]
 }
