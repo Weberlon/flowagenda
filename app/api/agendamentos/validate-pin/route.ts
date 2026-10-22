@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
-import { sendWhatsAppMessage } from '@/lib/whatsapp-sender';
+import { sendEvolutionTextMessage } from '@/lib/evolution';
 
 /**
  * ==============================================================================
@@ -223,25 +223,25 @@ export async function POST(req: Request) {
 
     // 6. Disparo de WhatsApp de Confirmação para o Cliente
     if (cleanPhone) {
-      sendWhatsAppMessage({
-        instanceName,
-        number: cleanPhone,
-        text: `🎉 *Agendamento Confirmado com Sucesso!*\n\nOlá, *${agendamento.cliente_nome}*!\nSeu horário para *${nomeServico}* com *${nomeProfissional}* foi reservado para:\n📅 *${horarioFormatado}* no *${nomeLoja}*.\n\nCaso precise reagendar ou cancelar, entre em contato com antecedência. Nos vemos em breve!`,
-      }).catch((waErr) => {
+      const formattedClientPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+      const msgCliente = `🎉 *Agendamento Confirmado com Sucesso!*\n\nOlá, *${agendamento.cliente_nome}*!\nSeu horário para *${nomeServico}* com *${nomeProfissional}* foi reservado para:\n📅 *${horarioFormatado}* no *${nomeLoja}*.\n\nCaso precise reagendar ou cancelar, entre em contato com antecedência. Nos vemos em breve!`;
+      try {
+        await sendEvolutionTextMessage(instanceName, formattedClientPhone, msgCliente);
+      } catch (waErr) {
         console.warn('[ValidatePin] Falha no disparo WhatsApp para o cliente:', waErr);
-      });
+      }
     }
 
     // 7. Disparo de Alerta para o WhatsApp do Lojista
     const whatsappLojista = (lojista?.whatsapp_notificacao || lojista?.whatsapp || '').replace(/\D/g, '');
     if (whatsappLojista && whatsappLojista.length >= 10) {
-      sendWhatsAppMessage({
-        instanceName,
-        number: whatsappLojista,
-        text: `📅 *Novo Agendamento Confirmado!*\n\nCliente: *${agendamento.cliente_nome}* (${cleanPhone})\nServiço: *${nomeServico}*\nProfissional: *${nomeProfissional}*\nHorário: *${horarioFormatado}*`,
-      }).catch((waErr) => {
+      const formattedLojistaPhone = whatsappLojista.startsWith('55') ? whatsappLojista : `55${whatsappLojista}`;
+      const msgLojista = `📅 *Novo Agendamento Confirmado!*\n\nCliente: *${agendamento.cliente_nome}* (${cleanPhone})\nServiço: *${nomeServico}*\nProfissional: *${nomeProfissional}*\nHorário: *${horarioFormatado}*`;
+      try {
+        await sendEvolutionTextMessage(instanceName, formattedLojistaPhone, msgLojista);
+      } catch (waErr) {
         console.warn('[ValidatePin] Falha no disparo WhatsApp para o lojista:', waErr);
-      });
+      }
     }
 
     return NextResponse.json(

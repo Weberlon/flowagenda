@@ -215,16 +215,27 @@ export async function reservarHorarioComLockAction(
 
   const { data: lojista } = await dbClient
     .from('lojistas')
-    .select('nome_estabelecimento')
+    .select('nome_estabelecimento, slug_subdominio')
     .eq('id', lojistaId)
     .single();
 
   const nomeLoja = lojista?.nome_estabelecimento || 'FlowAgenda';
-  const instanceName = configRobo?.instance_name || `flowagenda_${lojistaId.slice(0, 8)}`;
+  const cleanSlug = (lojista?.slug_subdominio || 'default').replace(/[^a-zA-Z0-9]/g, '_');
+  const instanceName = configRobo?.instance_name || `flowagenda_${cleanSlug}`;
+
+  const cleanDigits = telefone.replace(/\D/g, '');
+  const formattedPhone = cleanDigits.startsWith('55') ? cleanDigits : `55${cleanDigits}`;
 
   const mensagemPin = `Olá, ${cleanNome}! 🤖\n\nSeu código de validação do agendamento no *${nomeLoja}* é:\n\n🔑 *${pin}*\n\nDigite este código na tela em até 10 minutos para confirmar sua reserva.`;
 
-  await sendEvolutionTextMessage(instanceName, cleanPhone, mensagemPin);
+  console.log(`[Agendamento] Disparando PIN ${pin} para ${formattedPhone} na instância "${instanceName}"...`);
+  const waResult = await sendEvolutionTextMessage(instanceName, formattedPhone, mensagemPin);
+  console.log('[Agendamento] Retorno Evolution API envio PIN:', waResult);
+
+  if (!waResult.success) {
+    console.error('[Agendamento] Falha Evolution API ao disparar PIN:', waResult.error);
+    throw new Error(`Falha ao enviar código PIN para o WhatsApp: ${waResult.error || 'Erro na VPS Evolution'}. Verifique o número informado.`);
+  }
 
   // 6. Segurança: pinSimulado NUNCA é exposto em produção ou se a Evolution API estiver ativa
   const isMockDev = process.env.NODE_ENV !== 'production' && !process.env.EVOLUTION_API_KEY;

@@ -8,11 +8,12 @@
  */
 
 import { createAdminClient } from '@/utils/supabase/admin';
-import { sendWhatsAppMessage } from '@/lib/whatsapp-sender';
+import { sendEvolutionTextMessage } from '@/lib/evolution';
 import { createAsaasCustomer, createAsaasPixPayment } from '@/lib/asaas';
 
 export interface BookingPayload {
-  lojista_id: string;
+  lojista_id?: string;
+  slug_subdominio?: string;
   profissional_id: string;
   servico_id: string;
   data_horario: string; // ISO string UTC
@@ -198,7 +199,7 @@ export async function createBookingReservation(
   try {
     // 1. Validação estrita de parâmetros obrigatórios
     if (
-      !payload.lojista_id ||
+      (!payload.lojista_id && !payload.slug_subdominio) ||
       !payload.servico_id ||
       !payload.data_horario ||
       !payload.cliente_nome?.trim() ||
@@ -210,12 +211,61 @@ export async function createBookingReservation(
       };
     }
 
+    // 2. Resolução segura de Lojista sem auth.getUser() (clientes anônimos)
+    let lojista: any = null;
+    if (payload.lojista_id) {
+      const { data } = await adminSupabase
+        .from('lojistas')
+        .select('id, slug_subdominio, nome_estabelecimento')
+        .eq('id', payload.lojista_id)
+        .maybeSingle();
+      lojista = data;
+    }
+
+    if (!lojista && payload.slug_subdominio) {
+      const { data } = await adminSupabase
+        .from('lojistas')
+        .select('id, slug_subdominio, nome_estabelecimento')
+        .eq('slug_subdominio', payload.slug_subdominio)
+        .maybeSingle();
+      lojista = data;
+    }
+
+    if (!lojista) {
+      try {
+        const { headers } = await import('next/headers');
+        const reqHeaders = await headers();
+        const host = reqHeaders.get('host') || '';
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'flowagenda.online';
+        if (host.includes(`.${rootDomain}`)) {
+          const sub = host.replace(`.${rootDomain}`, '').split(':')[0];
+          const { data } = await adminSupabase
+            .from('lojistas')
+            .select('id, slug_subdominio, nome_estabelecimento')
+            .eq('slug_subdominio', sub)
+            .maybeSingle();
+          lojista = data;
+        }
+      } catch {
+        // Ignora
+      }
+    }
+
+    if (!lojista) {
+      return {
+        success: false,
+        error: 'Estabelecimento não identificado para esta reserva.',
+      };
+    }
+
+    const lojistaId = lojista.id;
+
     // Alocação determinística de profissional quando 'qualquer'
     if (!payload.profissional_id || payload.profissional_id === 'qualquer') {
       const { data: profsAtivos } = await adminSupabase
         .from('profissionais')
         .select('id, nome')
-        .eq('lojista_id', payload.lojista_id)
+        .eq('lojista_id', lojistaId)
         .eq('ativo', true)
         .order('nome');
 
@@ -265,11 +315,14 @@ export async function createBookingReservation(
       payload.profissional_id = profEscolhidoId;
     }
 
-    const cleanPhone = cleanPhoneNumber(payload.cliente_telefone);
-    if (cleanPhone.length < 10) {
+    // Higienização estrita do telefone para formato internacional com DDI 55
+    const cleanPhone = payload.cliente_telefone.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+
+    if (!cleanPhone || cleanPhone.length < 10 || formattedPhone.length < 12 || formattedPhone.length > 13) {
       return {
         success: false,
-        error: 'Número de telefone WhatsApp inválido. Digite DDD + Número.',
+        error: 'Número de telefone WhatsApp inválido. Digite DDD + Número (ex: 31988887777).',
       };
     }
 
@@ -289,12 +342,12 @@ export async function createBookingReservation(
       };
     }
 
-    // 2. Buscar serviço e calcular término com Buffer Time (intervalo_minutos)
+    // 3. Buscar serviço e calcular término com Buffer Time (intervalo_minutos)
     const { data: servico, error: servicoErr } = await adminSupabase
       .from('servicos')
       .select('id, nome_servico, duracao_minutos, intervalo_minutos, preco, ativo, exige_sinal, valor_sinal')
       .eq('id', payload.servico_id)
-      .eq('lojista_id', payload.lojista_id)
+      .eq('lojista_id', lojistaId)
       .single();
 
     if (servicoErr || !servico || !servico.ativo) {
@@ -310,21 +363,20 @@ export async function createBookingReservation(
 
     const dataFim = new Date(dataInicio.getTime() + duracaoTotalMinutos * 60 * 1000);
 
-    // 3. Limpeza proativa de locks expirados no banco
+    // 4. Limpeza proativa de locks expirados no banco
     const nowIso = new Date().toISOString();
     try {
       await adminSupabase
         .from('agendamentos')
         .update({ status: 'cancelado' })
-        .eq('lojista_id', payload.lojista_id)
+        .eq('lojista_id', lojistaId)
         .in('status', ['locked', 'pendente_pin', 'awaiting_payment_confirmation'])
         .lt('expira_em', nowIso);
     } catch (cleanErr) {
       console.warn('[BookingLock] Falha na limpeza de locks expirados (não impeditivo):', cleanErr);
     }
 
-    // 4. Verificação de Concorrência e Conflito de Grade para o Profissional
-    // Condição de colisão de intervalos: A < dataFim E B > dataInicio
+    // 5. Verificação de Concorrência e Conflito de Grade para o Profissional
     const { data: conflitos, error: conflitoErr } = await adminSupabase
       .from('agendamentos')
       .select('id, status, expira_em, data_hora_inicio, data_hora_fim')
@@ -348,23 +400,17 @@ export async function createBookingReservation(
       };
     }
 
-    // 5. Identificar instância do WhatsApp do lojista
+    // 6. Identificar instância do WhatsApp do lojista
     const { data: configRobo } = await adminSupabase
       .from('configuracoes_robo')
       .select('instance_name')
-      .eq('lojista_id', payload.lojista_id)
+      .eq('lojista_id', lojistaId)
       .maybeSingle();
 
-    const { data: lojista } = await adminSupabase
-      .from('lojistas')
-      .select('slug_subdominio, nome_estabelecimento')
-      .eq('id', payload.lojista_id)
-      .single();
+    const cleanSlug = (lojista.slug_subdominio || 'barbeariamodelo').replace(/[^a-zA-Z0-9]/g, '_');
+    const instanceName = configRobo?.instance_name || `flowagenda_${cleanSlug}`;
 
-    const instanceName =
-      configRobo?.instance_name || `flowagenda_${lojista?.slug_subdominio || 'teste'}`;
-
-    // 6. Rota B: Serviço com Sinal Financeiro via Pix (Asaas)
+    // 7. Rota B: Serviço com Sinal Financeiro via Pix (Asaas)
     const exigeSinal = Boolean(servico.exige_sinal && Number(servico.valor_sinal) > 0);
 
     if (exigeSinal) {
@@ -373,8 +419,8 @@ export async function createBookingReservation(
       // Criar/Obter cliente no Asaas
       const asaasCustomer = await createAsaasCustomer({
         name: payload.cliente_nome,
-        phone: cleanPhone,
-        externalReference: payload.lojista_id,
+        phone: formattedPhone,
+        externalReference: lojistaId,
       });
 
       // Gerar cobrança Pix imediata
@@ -382,7 +428,7 @@ export async function createBookingReservation(
         customerId: asaasCustomer.id,
         value: valorSinal,
         description: `Sinal: ${servico.nome_servico} - ${lojista?.nome_estabelecimento || 'FlowAgenda'}`,
-        externalReference: payload.lojista_id,
+        externalReference: lojistaId,
       });
 
       // 10 minutos de lock + 3 minutos de tolerância bancária
@@ -391,11 +437,11 @@ export async function createBookingReservation(
       const { data: agendamentoPix, error: insertPixErr } = await adminSupabase
         .from('agendamentos')
         .insert({
-          lojista_id: payload.lojista_id,
+          lojista_id: lojistaId,
           profissional_id: payload.profissional_id,
           servico_id: payload.servico_id,
           cliente_nome: payload.cliente_nome.trim(),
-          cliente_telefone: cleanPhone,
+          cliente_telefone: formattedPhone,
           data_horario: dataInicio.toISOString(),
           data_hora_inicio: dataInicio.toISOString(),
           data_hora_fim: dataFim.toISOString(),
@@ -424,18 +470,18 @@ export async function createBookingReservation(
       };
     }
 
-    // 7. Rota A: Serviço sem Sinal Financeiro (Confirmação por PIN)
+    // 8. Rota A: Serviço sem Sinal Financeiro (Confirmação por PIN)
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
     const expiraEmPin = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     const { data: agendamentoPin, error: insertPinErr } = await adminSupabase
       .from('agendamentos')
       .insert({
-        lojista_id: payload.lojista_id,
+        lojista_id: lojistaId,
         profissional_id: payload.profissional_id,
         servico_id: payload.servico_id,
         cliente_nome: payload.cliente_nome.trim(),
-        cliente_telefone: cleanPhone,
+        cliente_telefone: formattedPhone,
         data_horario: dataInicio.toISOString(),
         data_hora_inicio: dataInicio.toISOString(),
         data_hora_fim: dataFim.toISOString(),
@@ -454,14 +500,20 @@ export async function createBookingReservation(
       };
     }
 
-    // Disparar o PIN no WhatsApp do cliente de forma assíncrona blindada
-    sendWhatsAppMessage({
-      instanceName,
-      number: cleanPhone,
-      text: `Seu código de confirmação FlowAgenda é: *${pin}*. Ele expira em 10 minutos. Digite na tela para garantir seu horário.`,
-    }).catch((waErr) => {
-      console.warn('[BookingLock] Falha não impeditiva no disparo do PIN:', waErr);
-    });
+    // Disparar o PIN no WhatsApp do cliente via Evolution API (lib/evolution.ts)
+    console.log(`[BookingLock] Disparando PIN ${pin} para ${formattedPhone} na instância "${instanceName}"...`);
+    const mensagemPin = `Olá, ${payload.cliente_nome.trim()}! 🤖\n\nSeu código de confirmação FlowAgenda no *${lojista.nome_estabelecimento}* é:\n\n🔑 *${pin}*\n\nEle expira em 10 minutos. Digite na tela para garantir seu horário.`;
+
+    const waResult = await sendEvolutionTextMessage(instanceName, formattedPhone, mensagemPin);
+    console.log('[BookingLock] Retorno Evolution API envio PIN:', waResult);
+
+    if (!waResult.success) {
+      console.error('[BookingLock] Erro retornado pela Evolution API ao disparar PIN:', waResult.error);
+      return {
+        success: false,
+        error: `Falha ao enviar código PIN para o WhatsApp: ${waResult.error || 'Erro na VPS Evolution'}. Verifique o número informado.`,
+      };
+    }
 
     return {
       success: true,

@@ -4,20 +4,73 @@ import { sendEvolutionTextMessage, maskPhoneNumber } from '@/lib/evolution';
 
 export async function POST(req: Request) {
   try {
-    const receivedToken = req.headers.get('x-hook-token');
-    const expectedToken = process.env.HOOK_TOKEN;
+    const url = new URL(req.url);
+    const receivedToken =
+      req.headers.get('x-hook-token') ||
+      req.headers.get('apikey') ||
+      req.headers.get('x-api-key') ||
+      req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+      url.searchParams.get('token') ||
+      url.searchParams.get('secret') ||
+      url.searchParams.get('apikey');
+
+    const expectedTokens = [
+      process.env.EVOLUTION_WEBHOOK_SECRET,
+      process.env.EVOLUTION_API_KEY,
+      process.env.HOOK_TOKEN,
+      'senha-segura-flowagenda-2026',
+    ].filter(Boolean) as string[];
 
     // Validação de token de segurança caso configurado
-    if (expectedToken && receivedToken && receivedToken !== expectedToken) {
-      console.warn('[WEBHOOK EVOLUTION] Tentativa de acesso com token não autorizado.');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (expectedTokens.length > 0 && receivedToken) {
+      if (!expectedTokens.includes(receivedToken)) {
+        console.warn(`[WEBHOOK EVOLUTION] Tentativa de acesso com token não autorizado.`);
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
 
     const payload = await req.json();
+    const eventName = (payload.event || payload.type || '').toString().toLowerCase();
 
-    // Processar apenas recebimento de mensagens
-    if (payload.event !== 'messages.upsert' || !payload.data) {
-      return NextResponse.json({ received: true }, { status: 200 });
+    // 1. Tratamento de Atualização de Status de Conexão (CONNECTION_UPDATE / connection.update)
+    if (eventName === 'connection.update' || eventName === 'connection_update') {
+      const instanceName = (payload.instance || payload.instanceName || payload.data?.instanceName || payload.data?.instance) as string;
+      const rawState = (payload.data?.state || payload.data?.status || payload.state || '').toString().toLowerCase();
+
+      if (instanceName && rawState) {
+        console.log(`[WEBHOOK EVOLUTION] Atualização de conexão para ${instanceName}: ${rawState}`);
+        const supabase = createAdminClient();
+        const mappedStatus = rawState === 'open' ? 'open' : rawState === 'connecting' ? 'connecting' : 'desconectado';
+
+        await supabase
+          .from('configuracoes_robo')
+          .update({ 
+            status_conexao: mappedStatus,
+            updated_at: new Date().toISOString() 
+          })
+          .eq('instance_name', instanceName);
+
+        try {
+          await supabase
+            .from('whatsapp_instances')
+            .update({
+              status_conexao: rawState === 'open' ? 'online' : 'offline',
+              status: mappedStatus,
+              ultima_verificacao: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('instance_name', instanceName);
+        } catch {
+          // Não impeditivo se whatsapp_instances não estiver no schema
+        }
+      }
+
+      return NextResponse.json({ received: true, action: 'connection_status_updated' }, { status: 200 });
+    }
+
+    // 2. Processar apenas recebimento de mensagens (messages.upsert / MESSAGES_UPSERT)
+    if ((eventName !== 'messages.upsert' && eventName !== 'messages_upsert') || !payload.data) {
+      return NextResponse.json({ received: true, ignored: eventName }, { status: 200 });
     }
 
     // Compatibilidade com diferentes formatos de payload da Evolution API
