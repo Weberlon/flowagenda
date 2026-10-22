@@ -124,45 +124,57 @@ export async function getConfiguracoesData(explicitLojistaId?: string) {
 }
 
 export async function refreshWhatsAppStatusAction(explicitLojistaId?: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Não autorizado' };
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Não autorizado' };
 
-  let lojista: any = null;
-  if (explicitLojistaId) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (profile?.role === 'super_admin') {
-      const { data: targetLojista } = await supabase
-        .from('lojistas')
-        .select('id')
-        .eq('id', explicitLojistaId)
+    let lojista: any = null;
+    if (explicitLojistaId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
         .single();
-      lojista = targetLojista;
+      if (profile?.role === 'super_admin') {
+        const { data: targetLojista } = await supabase
+          .from('lojistas')
+          .select('id, slug_subdominio')
+          .eq('id', explicitLojistaId)
+          .single();
+        lojista = targetLojista;
+      }
     }
+
+    if (!lojista) {
+      lojista = await resolveCurrentLojista(supabase, user.id, 'id, slug_subdominio');
+    }
+
+    if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+    let { data: configRobo } = await supabase
+      .from('configuracoes_robo')
+      .select('instance_name')
+      .eq('lojista_id', lojista.id)
+      .maybeSingle();
+
+    if (!configRobo?.instance_name) {
+      const cleanSlug = (lojista.slug_subdominio || 'default').replace(/[^a-zA-Z0-9]/g, '_');
+      const autoInstanceName = `flowagenda_${cleanSlug}`;
+      await supabase.from('configuracoes_robo').upsert({
+        lojista_id: lojista.id,
+        instance_name: autoInstanceName,
+        status_conexao: 'desconectado',
+      }, { onConflict: 'lojista_id' });
+      configRobo = { instance_name: autoInstanceName };
+    }
+
+    const status = await fetchInstanceConnectionStatus(configRobo.instance_name);
+    return { success: true, status };
+  } catch (error: any) {
+    console.error('refreshWhatsAppStatusAction error:', error);
+    return { success: false, error: error?.message || 'Falha ao sincronizar status do WhatsApp.' };
   }
-
-  if (!lojista) {
-    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
-  }
-
-  if (!lojista) return { success: false, error: 'Lojista não encontrado' };
-
-  const { data: configRobo } = await supabase
-    .from('configuracoes_robo')
-    .select('instance_name')
-    .eq('lojista_id', lojista.id)
-    .single();
-
-  if (!configRobo?.instance_name) {
-    return { success: false, error: 'Instância não configurada' };
-  }
-
-  const status = await fetchInstanceConnectionStatus(configRobo.instance_name);
-  return { success: true, status };
 }
 
 export async function updateMensagemBoasVindasAction(mensagem: string, explicitLojistaId?: string) {
@@ -250,97 +262,114 @@ export async function updateWhatsAppNotificacaoAction(whatsapp: string, explicit
 }
 
 export async function restartWhatsAppAction(explicitLojistaId?: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Não autorizado' };
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Não autorizado' };
 
-  let lojista: any = null;
-  if (explicitLojistaId) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (profile?.role === 'super_admin') {
-      const { data: targetLojista } = await supabase
-        .from('lojistas')
-        .select('id')
-        .eq('id', explicitLojistaId)
+    let lojista: any = null;
+    if (explicitLojistaId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
         .single();
-      lojista = targetLojista;
+      if (profile?.role === 'super_admin') {
+        const { data: targetLojista } = await supabase
+          .from('lojistas')
+          .select('id, slug_subdominio')
+          .eq('id', explicitLojistaId)
+          .single();
+        lojista = targetLojista;
+      }
     }
+
+    if (!lojista) {
+      lojista = await resolveCurrentLojista(supabase, user.id, 'id, slug_subdominio');
+    }
+
+    if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+    let { data: configRobo } = await supabase
+      .from('configuracoes_robo')
+      .select('instance_name')
+      .eq('lojista_id', lojista.id)
+      .maybeSingle();
+
+    if (!configRobo?.instance_name) {
+      const cleanSlug = (lojista.slug_subdominio || 'default').replace(/[^a-zA-Z0-9]/g, '_');
+      const autoInstanceName = `flowagenda_${cleanSlug}`;
+      await supabase.from('configuracoes_robo').upsert({
+        lojista_id: lojista.id,
+        instance_name: autoInstanceName,
+        status_conexao: 'desconectado',
+      }, { onConflict: 'lojista_id' });
+      configRobo = { instance_name: autoInstanceName };
+    }
+
+    const res = await restartEvolutionInstance(configRobo.instance_name);
+    revalidatePath('/dashboard/configuracoes');
+    return res;
+  } catch (error: any) {
+    console.error('restartWhatsAppAction error:', error);
+    return { success: false, error: error?.message || 'Falha ao reiniciar robô WhatsApp.' };
   }
-
-  if (!lojista) {
-    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
-  }
-
-  if (!lojista) return { success: false, error: 'Lojista não encontrado' };
-
-  const { data: configRobo } = await supabase
-    .from('configuracoes_robo')
-    .select('instance_name')
-    .eq('lojista_id', lojista.id)
-    .single();
-
-  if (!configRobo?.instance_name) {
-    return { success: false, error: 'Instância não encontrada' };
-  }
-
-  const res = await restartEvolutionInstance(configRobo.instance_name);
-  revalidatePath('/dashboard/configuracoes');
-  return res;
 }
 
 export async function disconnectWhatsAppAction(explicitLojistaId?: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, error: 'Não autorizado' };
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Não autorizado' };
 
-  let lojista: any = null;
-  if (explicitLojistaId) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    if (profile?.role === 'super_admin') {
-      const { data: targetLojista } = await supabase
-        .from('lojistas')
-        .select('id')
-        .eq('id', explicitLojistaId)
+    let lojista: any = null;
+    if (explicitLojistaId) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
         .single();
-      lojista = targetLojista;
+      if (profile?.role === 'super_admin') {
+        const { data: targetLojista } = await supabase
+          .from('lojistas')
+          .select('id, slug_subdominio')
+          .eq('id', explicitLojistaId)
+          .single();
+        lojista = targetLojista;
+      }
     }
-  }
 
-  if (!lojista) {
-    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
-  }
+    if (!lojista) {
+      lojista = await resolveCurrentLojista(supabase, user.id, 'id, slug_subdominio');
+    }
 
-  if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+    if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 
-  const { data: configRobo } = await supabase
-    .from('configuracoes_robo')
-    .select('instance_name')
-    .eq('lojista_id', lojista.id)
-    .single();
-
-  if (!configRobo?.instance_name) {
-    return { success: false, error: 'Instância não encontrada' };
-  }
-
-  const res = await logoutEvolutionInstance(configRobo.instance_name);
-
-  if (res.success) {
-    await supabase
+    let { data: configRobo } = await supabase
       .from('configuracoes_robo')
-      .update({ status_conexao: 'desconectado', updated_at: new Date().toISOString() })
-      .eq('lojista_id', lojista.id);
-  }
+      .select('instance_name')
+      .eq('lojista_id', lojista.id)
+      .maybeSingle();
 
-  revalidatePath('/dashboard/configuracoes');
-  return res;
+    if (!configRobo?.instance_name) {
+      return { success: false, error: 'Instância não encontrada' };
+    }
+
+    const res = await logoutEvolutionInstance(configRobo.instance_name);
+
+    if (res.success) {
+      await supabase
+        .from('configuracoes_robo')
+        .update({ status_conexao: 'desconectado', updated_at: new Date().toISOString() })
+        .eq('lojista_id', lojista.id);
+    }
+
+    revalidatePath('/dashboard/configuracoes');
+    return res;
+  } catch (error: any) {
+    console.error('disconnectWhatsAppAction error:', error);
+    return { success: false, error: error?.message || 'Falha ao desconectar robô WhatsApp.' };
+  }
 }
 
 export async function updateGoogleReviewUrlAction(reviewUrl: string, explicitLojistaId?: string) {

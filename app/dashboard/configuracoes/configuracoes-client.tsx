@@ -78,7 +78,7 @@ export function ConfiguracoesClient({
     setIsRefreshing(true);
     setStatusFeedback(null);
     try {
-      const res = await refreshWhatsAppStatusAction();
+      const res = await refreshWhatsAppStatusAction(lojista.id);
       if (res.success && res.status) {
         setWhatsappStatus(res.status);
         setStatusFeedback('Status sincronizado!');
@@ -96,7 +96,7 @@ export function ConfiguracoesClient({
   const handleSalvarMensagem = () => {
     setMsgFeedback(null);
     startTransitionMsg(async () => {
-      const res = await updateMensagemBoasVindasAction(mensagem);
+      const res = await updateMensagemBoasVindasAction(mensagem, lojista.id);
       if (res.success) {
         setMsgFeedback('Mensagem de boas-vindas salva com sucesso!');
       } else {
@@ -109,7 +109,7 @@ export function ConfiguracoesClient({
   const handleSalvarWhatsApp = () => {
     setZapFeedback(null);
     startTransitionZap(async () => {
-      const res = await updateWhatsAppNotificacaoAction(whatsappNotificacao);
+      const res = await updateWhatsAppNotificacaoAction(whatsappNotificacao, lojista.id);
       if (res.success) {
         setZapFeedback('WhatsApp de notificações atualizado!');
       } else {
@@ -122,7 +122,7 @@ export function ConfiguracoesClient({
   const handleSalvarGoogleReview = () => {
     setGoogleFeedback(null);
     startTransitionGoogle(async () => {
-      const res = await updateGoogleReviewUrlAction(googleReviewUrl);
+      const res = await updateGoogleReviewUrlAction(googleReviewUrl, lojista.id);
       if (res.success) {
         setGoogleFeedback('Link do Google Meu Negócio atualizado!');
       } else {
@@ -135,7 +135,7 @@ export function ConfiguracoesClient({
   const handleRestart = () => {
     startTransitionRestart(async () => {
       setStatusFeedback('Reiniciando instância...');
-      const res = await restartWhatsAppAction();
+      const res = await restartWhatsAppAction(lojista.id);
       if (res.success) {
         setStatusFeedback('Instância reiniciada. Atualizando QR Code...');
         await handleRefreshStatus();
@@ -150,7 +150,7 @@ export function ConfiguracoesClient({
     if (!confirm('Deseja realmente desconectar o robô de WhatsApp?')) return;
     startTransitionDisconnect(async () => {
       setStatusFeedback('Desconectando...');
-      const res = await disconnectWhatsAppAction();
+      const res = await disconnectWhatsAppAction(lojista.id);
       if (res.success) {
         setStatusFeedback('Instância desconectada.');
         await handleRefreshStatus();

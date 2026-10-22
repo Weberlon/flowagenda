@@ -1,8 +1,7 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
-import { cookies } from 'next/headers';
-import { getConfiguracoesData } from '@/app/actions/configuracoes';
-import { ConfiguracoesClient } from '@/app/dashboard/configuracoes/configuracoes-client';
+import { fetchInstanceConnectionStatus } from '@/lib/evolution';
+import { SuperAdminWhatsAppClient } from './whatsapp-client';
 import Link from 'next/link';
 
 interface PageProps {
@@ -12,14 +11,18 @@ interface PageProps {
 export const dynamic = 'force-dynamic';
 
 export default async function SuperAdminTenantWhatsAppPage({ params }: PageProps) {
+  // 1. DESEMPACOTAMENTO DE PARAMS (NEXT.JS 15 / REACT 19):
   const { id } = await params;
+
   const supabase = await createClient();
 
+  // Validação de sessão do usuário
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     redirect('/login');
   }
 
+  // Validação estrita de Role: Super Admin
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
@@ -37,22 +40,68 @@ export default async function SuperAdminTenantWhatsAppPage({ params }: PageProps
     );
   }
 
-  // Seta o cookie de impersonação para garantir que qualquer Server Action chamada nesta página atue no tenant correto
-  const cookieStore = await cookies();
-  cookieStore.set('flow_impersonate_tenant_id', id, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  });
+  // 2. CONSULTA AO SCHEMA REAL DO SUPABASE:
+  // Busque os dados exclusivamente em public.lojistas usando o UUID recebido:
+  const { data: lojista, error: lojistaError } = await supabase
+    .from('lojistas')
+    .select('id, nome_estabelecimento, slug_subdominio')
+    .eq('id', id)
+    .single();
 
-  // Carrega os dados do estabelecimento alvo diretamente com explicitLojistaId
-  let data;
-  try {
-    data = await getConfiguracoesData(id);
-  } catch (err: any) {
-    console.error('Erro ao buscar dados do tenant:', err);
+  if (lojistaError || !lojista) {
     notFound();
+  }
+
+  // 3. MAPEAMENTO CORRETO DA INSTÂNCIA EVOLUTION API:
+  // A instância na Evolution API utiliza o slug do estabelecimento com prefixo (ex: flowagenda_barbeariamodelo), NUNCA o UUID da rota.
+  // Passe slug_subdominio (e não o UUID) para as funções de busca de status e geração de QR Code da lib/evolution.ts.
+  let { data: configRobo } = await supabase
+    .from('configuracoes_robo')
+    .select('*')
+    .eq('lojista_id', lojista.id)
+    .maybeSingle();
+
+  const cleanSlug = lojista.slug_subdominio.replace(/[^a-zA-Z0-9]/g, '_');
+  const instanceName = configRobo?.instance_name || `flowagenda_${cleanSlug}`;
+
+  if (!configRobo) {
+    const { data: newRobo } = await supabase
+      .from('configuracoes_robo')
+      .insert({
+        lojista_id: lojista.id,
+        instance_name: instanceName,
+        status_conexao: 'desconectado',
+      })
+      .select()
+      .maybeSingle();
+
+    if (newRobo) {
+      configRobo = newRobo;
+    }
+  }
+
+  // Isole a chamada da Evolution API em bloco try/catch para renderizar aviso amigável na tela se a VPS falhar
+  let whatsappStatus: { instanceName: string; state: string; qrcode?: string | null } | null = null;
+  let vpsWarning: string | null = null;
+
+  try {
+    whatsappStatus = await fetchInstanceConnectionStatus(instanceName);
+
+    // Sincroniza o status do banco caso tenha mudado
+    if (whatsappStatus?.state && configRobo && whatsappStatus.state !== configRobo.status_conexao) {
+      await supabase
+        .from('configuracoes_robo')
+        .update({ status_conexao: whatsappStatus.state, updated_at: new Date().toISOString() })
+        .eq('lojista_id', lojista.id);
+    }
+  } catch (err: any) {
+    console.error(`[SuperAdmin WhatsApp] VPS Error para ${instanceName}:`, err);
+    vpsWarning = 'Não foi possível conectar ao gateway Evolution API neste momento. Verifique se a VPS está online.';
+    whatsappStatus = {
+      instanceName,
+      state: 'close',
+      qrcode: null,
+    };
   }
 
   return (
@@ -72,13 +121,13 @@ export default async function SuperAdminTenantWhatsAppPage({ params }: PageProps
               Instância WhatsApp
             </span>
             <span className="text-xs text-slate-300">
-              Estabelecimento: <strong className="text-white font-semibold">{data.lojista.nome_estabelecimento}</strong> ({data.lojista.slug_subdominio})
+              Estabelecimento: <strong className="text-white font-semibold">{lojista.nome_estabelecimento}</strong> ({lojista.slug_subdominio})
             </span>
           </div>
         </div>
         <div className="flex items-center gap-2.5">
           <Link
-            href={`/dashboard/configuracoes?impersonate_tenant_id=${data.lojista.id}`}
+            href={`/dashboard/configuracoes?impersonate_tenant_id=${lojista.id}`}
             className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-300 transition-colors shadow-sm"
           >
             Impersonar no Dashboard ➔
@@ -86,11 +135,13 @@ export default async function SuperAdminTenantWhatsAppPage({ params }: PageProps
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-6 md:p-10">
-        <ConfiguracoesClient
-          lojista={data.lojista}
-          configRobo={data.configRobo}
-          initialWhatsappStatus={data.whatsappStatus}
+      <main className="max-w-5xl mx-auto p-6 md:p-10">
+        {/* 4. INDEPENDÊNCIA DE COOKIE DE IMPERSONAÇÃO: SuperAdminWhatsAppClient opera diretamente com lojista.id */}
+        <SuperAdminWhatsAppClient
+          lojista={lojista}
+          instanceName={instanceName}
+          initialStatus={whatsappStatus}
+          vpsWarning={vpsWarning}
         />
       </main>
     </div>

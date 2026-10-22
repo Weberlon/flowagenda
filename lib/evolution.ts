@@ -438,27 +438,40 @@ export async function createEvolutionInstance(instanceName: string) {
  * Wrapper de compatibilidade para consultar status e QR Code em um único método
  */
 export async function fetchInstanceConnectionStatus(instanceName: string) {
-  const stateResult = await getConnectionState(instanceName);
-  const state = stateResult.success && stateResult.data ? stateResult.data.state : 'close';
+  try {
+    const stateResult = await getConnectionState(instanceName);
+    const state = stateResult.success && stateResult.data ? stateResult.data.state : 'close';
 
-  let qrcode: string | null = null;
-  if (state !== 'open') {
-    let qrResult = await fetchQrCode(instanceName);
-    // Se a instância não existe na Evolution API, provisiona automaticamente
-    if (!qrResult.success && qrResult.error && (qrResult.error.includes('404') || qrResult.error.toLowerCase().includes('not found'))) {
-      await createInstance(instanceName);
-      qrResult = await fetchQrCode(instanceName);
+    let qrcode: string | null = null;
+    if (state !== 'open') {
+      let qrResult = await fetchQrCode(instanceName);
+      // Se a instância não existe na Evolution API, provisiona automaticamente
+      if (!qrResult.success && qrResult.error && (qrResult.error.includes('404') || qrResult.error.toLowerCase().includes('not found'))) {
+        try {
+          await createInstance(instanceName);
+          qrResult = await fetchQrCode(instanceName);
+        } catch (e) {
+          console.warn('[Evolution API] Falha ao auto-provisionar instância:', e);
+        }
+      }
+      if (qrResult.success && qrResult.data?.base64) {
+        qrcode = qrResult.data.base64;
+      }
     }
-    if (qrResult.success && qrResult.data?.base64) {
-      qrcode = qrResult.data.base64;
-    }
+
+    return {
+      instanceName,
+      state,
+      qrcode,
+    };
+  } catch (err: any) {
+    console.error(`[Evolution API] fetchInstanceConnectionStatus falhou para ${instanceName}:`, err);
+    return {
+      instanceName,
+      state: 'close' as ConnectionState,
+      qrcode: null,
+    };
   }
-
-  return {
-    instanceName,
-    state,
-    qrcode,
-  };
 }
 
 /**
@@ -481,6 +494,13 @@ export async function restartEvolutionInstance(instanceName: string): Promise<{ 
 
     if (!response.ok) {
       const errText = await response.text();
+      // Auto-provisionamento: se a instância não existe na VPS (404), provisiona criando-a
+      if (response.status === 404 || errText.toLowerCase().includes('not found') || errText.toLowerCase().includes('does not exist')) {
+        const createRes = await createInstance(instanceName);
+        if (createRes.success) {
+          return { success: true, message: 'Instância provisionada com sucesso na Evolution API.' };
+        }
+      }
       return { success: false, error: `Falha ao reiniciar instância: ${errText}` };
     }
 
