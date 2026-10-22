@@ -253,12 +253,7 @@ export async function validarPinEConfirmarAction(
   pin: string, 
   lojistaId: string
 ) {
-  let dbClient: any;
-  try {
-    dbClient = createAdminClient();
-  } catch {
-    dbClient = await createClient();
-  }
+  const dbClient = createAdminClient();
 
   // 1. Buscar a reserva com lock ativo
   const { data: reserva, error: reservaError } = await dbClient
@@ -275,11 +270,12 @@ export async function validarPinEConfirmarAction(
     .single();
 
   if (reservaError || !reserva) {
+    console.error('[Agendamento] Reserva não encontrada:', reservaError);
     throw new Error('Reserva não encontrada.');
   }
 
   if (reserva.status === 'confirmado') {
-    throw new Error('Este agendamento já foi confirmado.');
+    return { success: true };
   }
 
   if (reserva.status === 'cancelado') {
@@ -307,16 +303,22 @@ export async function validarPinEConfirmarAction(
     .from('agendamentos')
     .update({
       status: 'confirmado',
+      pin_validacao: null,
     })
     .eq('id', reservaId);
 
   if (confirmError) {
+    console.error('[Agendamento] Erro ao confirmar agendamento no banco:', confirmError);
     throw new Error(`Erro ao confirmar: ${confirmError.message}`);
   }
 
+  const cliente = (Array.isArray(reserva.cliente) ? reserva.cliente[0] : reserva.cliente) as any;
+  const lojista = (Array.isArray(reserva.lojista) ? reserva.lojista[0] : reserva.lojista) as any;
+  const servico = (Array.isArray(reserva.servico) ? reserva.servico[0] : reserva.servico) as any;
+
   // 5. Atualizar estatísticas e fidelidade do cliente
-  if (reserva.cliente_id && reserva.cliente) {
-    const novoTotal = (reserva.cliente.total_agendamentos || 0) + 1;
+  if (reserva.cliente_id && cliente) {
+    const novoTotal = (cliente.total_agendamentos || 0) + 1;
     await dbClient
       .from('clientes')
       .update({
@@ -326,8 +328,8 @@ export async function validarPinEConfirmarAction(
       .eq('id', reserva.cliente_id);
   }
 
-  const nomeCliente = reserva.cliente?.nome || 'Cliente';
-  const telefoneCliente = reserva.cliente?.telefone || '';
+  const nomeCliente = cliente?.nome || 'Cliente';
+  const telefoneCliente = cliente?.telefone || '';
 
   // 6. Mensagens transacionais pós-confirmação
   const dataFormatada = new Date(reserva.data_hora_inicio).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -343,18 +345,19 @@ export async function validarPinEConfirmarAction(
     .eq('lojista_id', lojistaId)
     .single();
 
-  const instanceName = configRobo?.instance_name || `flowagenda_${lojistaId.slice(0, 8)}`;
+  const cleanSlug = (lojista?.slug_subdominio || 'default').replace(/[^a-zA-Z0-9]/g, '_');
+  const instanceName = configRobo?.instance_name || `flowagenda_${cleanSlug}`;
 
   // Notificar cliente
   if (telefoneCliente) {
-    const msgConfirmacaoCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, *${nomeCliente}*!\nSeu horário no *${reserva.lojista?.nome_estabelecimento}* está 100% garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n💈 *Serviço:* ${reserva.servico?.nome_servico}\n\nTe esperamos! Caso precise reagendar, avise com antecedência.`;
+    const msgConfirmacaoCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, *${nomeCliente}*!\nSeu horário no *${lojista?.nome_estabelecimento || 'estabelecimento'}* está 100% garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n💈 *Serviço:* ${servico?.nome_servico || 'Serviço'}\n\nTe esperamos! Caso precise reagendar, avise com antecedência.`;
     await sendEvolutionTextMessage(instanceName, telefoneCliente, msgConfirmacaoCliente);
   }
 
   // Notificar lojista (se configurado)
-  if (reserva.lojista?.whatsapp_notificacao) {
-    const msgNotificacaoLojista = `🔔 *Novo Agendamento Confirmado!*\n\n• Cliente: ${nomeCliente} (${maskPhoneNumber(telefoneCliente)})\n• Data: ${dataFormatada} às ${horaFormatada}\n• Serviço: ${reserva.servico?.nome_servico}`;
-    await sendEvolutionTextMessage(instanceName, reserva.lojista.whatsapp_notificacao, msgNotificacaoLojista);
+  if (lojista?.whatsapp_notificacao) {
+    const msgNotificacaoLojista = `🔔 *Novo Agendamento Confirmado!*\n\n• Cliente: ${nomeCliente} (${maskPhoneNumber(telefoneCliente)})\n• Data: ${dataFormatada} às ${horaFormatada}\n• Serviço: ${servico?.nome_servico || 'Serviço'}`;
+    await sendEvolutionTextMessage(instanceName, lojista.whatsapp_notificacao, msgNotificacaoLojista);
   }
 
   return { success: true };

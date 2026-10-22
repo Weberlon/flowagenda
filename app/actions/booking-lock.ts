@@ -531,59 +531,242 @@ export async function createBookingReservation(
 }
 
 /**
- * Validação segura de PIN do agendamento (transição locked -> confirmado)
+ * Validação segura de PIN do agendamento (transição locked/pendente_pin -> confirmado)
+ * Executada com createAdminClient (bypass de RLS para usuário anônimo)
  */
 export async function validarPinBookingAction(
   agendamentoId: string,
-  pin: string
+  pin: string,
+  telefone?: string
 ): Promise<{ success: boolean; error?: string }> {
   const adminSupabase = createAdminClient();
 
   try {
     const cleanPin = pin.trim();
-    if (!agendamentoId || !cleanPin) {
-      return { success: false, error: 'Identificador e PIN são obrigatórios.' };
+    if (!cleanPin) {
+      return { success: false, error: 'O código PIN de validação é obrigatório.' };
     }
 
-    const { data: agendamento, error: fetchErr } = await adminSupabase
-      .from('agendamentos')
-      .select('id, lojista_id, status, pin_validacao, expira_em, cliente_telefone, cliente_nome, data_hora_inicio')
-      .eq('id', agendamentoId)
-      .single();
+    let agendamento: any = null;
 
-    if (fetchErr || !agendamento) {
-      return { success: false, error: 'Agendamento não encontrado.' };
+    // 1. Busca prioritária por ID da reserva (se fornecido)
+    if (agendamentoId && agendamentoId.trim()) {
+      const { data, error: fetchErr } = await adminSupabase
+        .from('agendamentos')
+        .select(`
+          id, lojista_id, status, pin_validacao, expira_em, cliente_telefone, cliente_nome, data_hora_inicio,
+          servico_id, profissional_id,
+          lojistas ( id, nome_estabelecimento, slug_subdominio, whatsapp_notificacao, whatsapp ),
+          servicos ( id, nome_servico, preco ),
+          profissionais ( id, nome )
+        `)
+        .eq('id', agendamentoId.trim())
+        .maybeSingle();
+
+      if (fetchErr) {
+        console.error('[ConfirmBooking] Erro ao consultar agendamento por ID:', fetchErr);
+      }
+      agendamento = data;
+    }
+
+    // 2. Busca de contingência por Telefone normalizado com DDI 55
+    if (!agendamento) {
+      const phoneInput = telefone || agendamentoId;
+      const cleanDigits = (phoneInput || '').replace(/\D/g, '');
+
+      if (cleanDigits.length >= 10) {
+        const ddiPhone = cleanDigits.startsWith('55') ? cleanDigits : `55${cleanDigits}`;
+        const localPhone = cleanDigits.startsWith('55') ? cleanDigits.slice(2) : cleanDigits;
+
+        console.log(`[ConfirmBooking] Buscando reserva ativa por telefone: ${ddiPhone} / ${localPhone}`);
+
+        const { data: agendamentoByPhone, error: phoneErr } = await adminSupabase
+          .from('agendamentos')
+          .select(`
+            id, lojista_id, status, pin_validacao, expira_em, cliente_telefone, cliente_nome, data_hora_inicio,
+            servico_id, profissional_id,
+            lojistas ( id, nome_estabelecimento, slug_subdominio, whatsapp_notificacao, whatsapp ),
+            servicos ( id, nome_servico, preco ),
+            profissionais ( id, nome )
+          `)
+          .or(`cliente_telefone.eq.${ddiPhone},cliente_telefone.eq.${localPhone},telefone_contato.eq.${ddiPhone},telefone_contato.eq.${localPhone}`)
+          .in('status', ['locked', 'pendente_pin'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (phoneErr) {
+          console.error('[ConfirmBooking] Erro ao consultar agendamento por telefone:', phoneErr);
+        }
+        agendamento = agendamentoByPhone;
+      }
+    }
+
+    if (!agendamento) {
+      console.warn('[ConfirmBooking] Agendamento não encontrado para os parâmetros:', { agendamentoId, telefone });
+      return { success: false, error: 'Reserva não encontrada ou expirada. Por favor, reinicie o agendamento.' };
     }
 
     if (agendamento.status === 'confirmado') {
       return { success: true };
     }
 
-    if (new Date(agendamento.expira_em).getTime() < Date.now()) {
+    if (agendamento.status === 'cancelado') {
+      return { success: false, error: 'Esta reserva foi cancelada. Por favor, selecione outro horário.' };
+    }
+
+    // 3. Validação de Expiração do Lock Provisório (10 minutos)
+    const agora = new Date();
+    if (new Date(agendamento.expira_em).getTime() < agora.getTime()) {
+      await adminSupabase
+        .from('agendamentos')
+        .update({ status: 'cancelado' })
+        .eq('id', agendamento.id);
+
       return { success: false, error: 'O tempo limite de 10 minutos expirou. O horário foi liberado.' };
     }
 
+    // 4. Validação do Código PIN
     if (agendamento.pin_validacao !== cleanPin) {
-      return { success: false, error: 'Código PIN incorreto. Verifique o WhatsApp e tente novamente.' };
+      return { success: false, error: 'Código PIN incorreto. Verifique a mensagem recebida no WhatsApp e tente novamente.' };
+    }
+
+    // 5. Upsert no CRM (tabela public.clientes) utilizando createAdminClient()
+    let clienteId: string | null = agendamento.cliente_id || null;
+    const rawCliPhone = (agendamento.cliente_telefone || telefone || '').replace(/\D/g, '');
+    const formattedCliPhone = rawCliPhone.startsWith('55') ? rawCliPhone : `55${rawCliPhone}`;
+    const localCliPhone = rawCliPhone.startsWith('55') ? rawCliPhone.slice(2) : rawCliPhone;
+
+    if (agendamento.lojista_id && formattedCliPhone.length >= 10) {
+      try {
+        const { data: clienteExistente, error: findCliErr } = await adminSupabase
+          .from('clientes')
+          .select('id, total_agendamentos, total_gasto')
+          .eq('lojista_id', agendamento.lojista_id)
+          .or(`telefone.eq.${formattedCliPhone},telefone.eq.${localCliPhone}`)
+          .maybeSingle();
+
+        if (findCliErr) {
+          console.error('[ConfirmBooking] Erro ao consultar cliente no CRM:', findCliErr);
+        }
+
+        const precoServico = Number((agendamento.servicos as any)?.preco || 0);
+
+        if (clienteExistente) {
+          clienteId = clienteExistente.id;
+          const { error: updCliErr } = await adminSupabase
+            .from('clientes')
+            .update({
+              nome: agendamento.cliente_nome || undefined,
+              total_agendamentos: (clienteExistente.total_agendamentos || 1) + 1,
+              total_gasto: Number(clienteExistente.total_gasto || 0) + precoServico,
+              ultimo_agendamento: agora.toISOString(),
+            })
+            .eq('id', clienteExistente.id);
+
+          if (updCliErr) {
+            console.error('[ConfirmBooking] Erro ao atualizar cliente no CRM:', updCliErr);
+          }
+        } else {
+          const { data: novoCliente, error: insCliErr } = await adminSupabase
+            .from('clientes')
+            .insert({
+              lojista_id: agendamento.lojista_id,
+              nome: agendamento.cliente_nome || 'Cliente',
+              telefone: formattedCliPhone,
+              total_agendamentos: 1,
+              total_gasto: precoServico,
+              ultimo_agendamento: agora.toISOString(),
+            })
+            .select('id')
+            .single();
+
+          if (insCliErr) {
+            console.error('[ConfirmBooking] Erro ao cadastrar cliente no CRM:', insCliErr);
+          } else if (novoCliente) {
+            clienteId = novoCliente.id;
+          }
+        }
+      } catch (crmEx) {
+        console.error('[ConfirmBooking] Exceção ao sincronizar cliente no CRM:', crmEx);
+      }
+    }
+
+    // 6. Atualização Atômica para 'confirmado' (Limpando PIN com null para não violar VARCHAR(6))
+    const updateFields: Record<string, any> = {
+      status: 'confirmado',
+      pin_validacao: null, // pin_validacao é VARCHAR(6) no Postgres; NULL evita erro de estouro de caractere
+    };
+
+    if (clienteId) {
+      updateFields.cliente_id = clienteId;
     }
 
     const { error: updateErr } = await adminSupabase
       .from('agendamentos')
-      .update({
-        status: 'confirmado',
-        pin_validacao: 'VALIDADO',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', agendamentoId);
+      .update(updateFields)
+      .eq('id', agendamento.id);
 
     if (updateErr) {
-      return { success: false, error: 'Falha ao confirmar agendamento.' };
+      console.error('[ConfirmBooking] Erro de banco ao confirmar agendamento:', updateErr);
+      return {
+        success: false,
+        error: `Falha ao confirmar agendamento no banco: ${updateErr.message}`,
+      };
+    }
+
+    console.log(`[ConfirmBooking] Agendamento ${agendamento.id} confirmado com sucesso no banco de dados.`);
+
+    // 7. Notificações Transacionais pós-confirmação via Evolution API (Não-impeditivas)
+    try {
+      const lojista = agendamento.lojistas as any;
+      const servico = agendamento.servicos as any;
+      const profissional = agendamento.profissionais as any;
+
+      const { data: configRobo } = await adminSupabase
+        .from('configuracoes_robo')
+        .select('instance_name')
+        .eq('lojista_id', agendamento.lojista_id)
+        .maybeSingle();
+
+      const cleanSlug = (lojista?.slug_subdominio || 'default').replace(/[^a-zA-Z0-9]/g, '_');
+      const instanceName = configRobo?.instance_name || `flowagenda_${cleanSlug}`;
+
+      const dataInicio = new Date(agendamento.data_hora_inicio);
+      const dataFormatada = dataInicio.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      const horaFormatada = dataInicio.toLocaleTimeString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      const nomeCliente = agendamento.cliente_nome || 'Cliente';
+      const nomeLoja = lojista?.nome_estabelecimento || 'FlowAgenda';
+      const nomeServico = servico?.nome_servico || 'Serviço';
+      const nomeProfissional = profissional?.nome || 'Profissional Titular';
+
+      // Disparo para o cliente
+      if (formattedCliPhone && formattedCliPhone.length >= 10) {
+        const msgCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, *${nomeCliente}*!\nSeu horário no *${nomeLoja}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n💈 *Serviço:* ${nomeServico}\n👤 *Profissional:* ${nomeProfissional}\n\nTe esperamos! Caso precise reagendar, avise com antecedência.`;
+        await sendEvolutionTextMessage(instanceName, formattedCliPhone, msgCliente);
+      }
+
+      // Disparo de notificação para o lojista
+      const lojistaPhone = (lojista?.whatsapp_notificacao || lojista?.whatsapp || '').replace(/\D/g, '');
+      if (lojistaPhone && lojistaPhone.length >= 10) {
+        const formattedLojistaPhone = lojistaPhone.startsWith('55') ? lojistaPhone : `55${lojistaPhone}`;
+        const msgLojista = `📅 *Novo Agendamento Confirmado!*\n\n• Cliente: ${nomeCliente} (${formattedCliPhone})\n• Data: ${dataFormatada} às ${horaFormatada}\n• Serviço: ${nomeServico}\n• Profissional: ${nomeProfissional}`;
+        await sendEvolutionTextMessage(instanceName, formattedLojistaPhone, msgLojista);
+      }
+    } catch (notifErr) {
+      console.warn('[ConfirmBooking] Falha no disparo de notificação WhatsApp pós-confirmação (não impeditivo):', notifErr);
     }
 
     return { success: true };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao validar PIN';
-    return { success: false, error: msg };
+    const errorMsg = err instanceof Error ? err.message : 'Erro interno ao validar PIN';
+    console.error('[ConfirmBooking] Exceção crítica:', err);
+    return { success: false, error: errorMsg };
   }
 }
 
