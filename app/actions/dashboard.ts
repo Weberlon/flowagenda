@@ -2,6 +2,36 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { fetchInstanceConnectionStatus } from '@/lib/evolution';
+import { cookies } from 'next/headers';
+
+async function resolveDashboardLojista(supabase: any, userId: string) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (profile?.role === 'super_admin') {
+    const cookieStore = await cookies();
+    const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
+    if (impersonateTenantId) {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id, nome_estabelecimento')
+        .eq('id', impersonateTenantId)
+        .single();
+      if (targetLojista) return targetLojista;
+    }
+  }
+
+  const { data: lojista } = await supabase
+    .from('lojistas')
+    .select('id, nome_estabelecimento')
+    .eq('user_id', userId)
+    .single();
+
+  return lojista;
+}
 
 export async function getDashboardData() {
   const supabase = await createClient();
@@ -9,11 +39,7 @@ export async function getDashboardData() {
 
   if (!user) throw new Error('Unauthorized');
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id, nome_estabelecimento')
-    .eq('user_id', user.id)
-    .single();
+  const lojista = await resolveDashboardLojista(supabase, user.id);
 
   if (!lojista) throw new Error('Tenant not found');
 
@@ -51,11 +77,7 @@ export async function getServicosData() {
 
   if (!user) throw new Error('Unauthorized');
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  const lojista = await resolveDashboardLojista(supabase, user.id);
 
   if (!lojista) throw new Error('Tenant not found');
 
@@ -73,7 +95,7 @@ export async function addServicoAction(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
 
-  const { data: lojista } = await supabase.from('lojistas').select('id').eq('user_id', user.id).single();
+  const lojista = await resolveDashboardLojista(supabase, user.id);
   if (!lojista) throw new Error('Tenant not found');
 
   const nome_servico = formData.get('nome_servico') as string;

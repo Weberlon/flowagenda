@@ -117,7 +117,10 @@ export async function createInstance(
 ): Promise<EvolutionApiResult<{ instanceName: string; instanceId?: string; token?: string; qrcode?: string | null }>> {
   try {
     const { apiUrl, apiKey } = getEvolutionConfig();
-    const instanceName = `flow_${organizationId}`;
+    const instanceName =
+      organizationId.startsWith('flow_') || organizationId.startsWith('flowagenda_')
+        ? organizationId
+        : `flow_${organizationId}`;
 
     const response = await fetch(`${apiUrl}/instance/create`, {
       method: 'POST',
@@ -420,8 +423,7 @@ export async function deleteInstance(
  */
 export async function createEvolutionInstance(instanceName: string) {
   try {
-    const orgId = instanceName.replace(/^flow_/, '').replace(/^flowagenda_/, '');
-    const result = await createInstance(orgId);
+    const result = await createInstance(instanceName);
     if (!result.success) {
       throw new Error(result.error);
     }
@@ -441,7 +443,12 @@ export async function fetchInstanceConnectionStatus(instanceName: string) {
 
   let qrcode: string | null = null;
   if (state !== 'open') {
-    const qrResult = await fetchQrCode(instanceName);
+    let qrResult = await fetchQrCode(instanceName);
+    // Se a instância não existe na Evolution API, provisiona automaticamente
+    if (!qrResult.success && qrResult.error && (qrResult.error.includes('404') || qrResult.error.toLowerCase().includes('not found'))) {
+      await createInstance(instanceName);
+      qrResult = await fetchQrCode(instanceName);
+    }
     if (qrResult.success && qrResult.data?.base64) {
       qrcode = qrResult.data.base64;
     }

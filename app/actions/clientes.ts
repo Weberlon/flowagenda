@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 export interface ClienteCRM {
   id: string;
@@ -25,13 +26,37 @@ export async function getClientes() {
 
   if (!user) throw new Error('Não autorizado');
 
-  const { data: lojista, error: lojistaErr } = await supabase
-    .from('lojistas')
-    .select('id, nome_estabelecimento, slug_subdominio')
-    .eq('user_id', user.id)
+  let lojista: any = null;
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
     .single();
 
-  if (lojistaErr || !lojista) throw new Error('Lojista não encontrado');
+  if (profile?.role === 'super_admin') {
+    const cookieStore = await cookies();
+    const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
+    if (impersonateTenantId) {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id, nome_estabelecimento, slug_subdominio')
+        .eq('id', impersonateTenantId)
+        .single();
+      if (targetLojista) lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    const { data: userLojista, error: lojistaErr } = await supabase
+      .from('lojistas')
+      .select('id, nome_estabelecimento, slug_subdominio')
+      .eq('user_id', user.id)
+      .single();
+
+    if (lojistaErr || !userLojista) throw new Error('Lojista não encontrado');
+    lojista = userLojista;
+  }
 
   const { data: clientes, error: clientesErr } = await supabase
     .from('clientes')

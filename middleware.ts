@@ -86,6 +86,35 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const pathname = url.pathname;
 
+  // 1.1 Interceptação e gestão de Impersonação Segura para Super Admin
+  if (url.searchParams.has('exit_impersonation')) {
+    const redirectRes = NextResponse.redirect(new URL('/superadmin', request.url));
+    response.cookies.getAll().forEach((cookie) => {
+      redirectRes.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    redirectRes.cookies.delete('flow_impersonate_tenant_id');
+    return redirectRes;
+  }
+
+  if (url.searchParams.has('impersonate_tenant_id')) {
+    const tenantId = url.searchParams.get('impersonate_tenant_id');
+    if (tenantId) {
+      const cleanUrl = new URL(request.url);
+      cleanUrl.searchParams.delete('impersonate_tenant_id');
+      const redirectRes = NextResponse.redirect(cleanUrl);
+      response.cookies.getAll().forEach((cookie) => {
+        redirectRes.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      redirectRes.cookies.set('flow_impersonate_tenant_id', tenantId, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      });
+      return redirectRes;
+    }
+  }
+
   // 2. Obter hostname da requisição (considerando proxies/Vercel)
   const host =
     request.headers.get('x-forwarded-host') ||

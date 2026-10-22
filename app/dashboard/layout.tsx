@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { getWhatsAppComercialUrl } from '@/lib/contact';
 
@@ -15,23 +16,48 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // Validação de Role: Se for Super Admin, redireciona para a central de gestão
+  // Validação de Role
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single();
 
-  if (profile?.role === 'super_admin') {
-    redirect('/superadmin');
-  }
+  const isSuperAdmin = profile?.role === 'super_admin';
+  let lojista: any = null;
+  let isImpersonating = false;
 
-  // Buscar lojista associado ao user_id
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
+  if (isSuperAdmin) {
+    const cookieStore = await cookies();
+    const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
+
+    if (impersonateTenantId) {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('*')
+        .eq('id', impersonateTenantId)
+        .single();
+
+      if (targetLojista) {
+        lojista = targetLojista;
+        isImpersonating = true;
+      }
+    }
+
+    // Se é Super Admin e não possui lojista para impersonar, vai para a gestão central
+    if (!lojista) {
+      redirect('/superadmin');
+    }
+  } else {
+    // Buscar lojista associado diretamente ao user_id (Lojista padrão)
+    const { data: userLojista } = await supabase
+      .from('lojistas')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    lojista = userLojista;
+  }
 
   if (!lojista) {
     return (
@@ -103,6 +129,26 @@ export default async function DashboardLayout({
 
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden bg-slate-50 text-slate-900">
+        {/* Impersonation Warning Banner */}
+        {isImpersonating && (
+          <div className="bg-amber-400 text-slate-950 px-6 py-2 text-xs font-medium flex flex-wrap items-center justify-between gap-3 shadow-sm z-20 border-b border-amber-500">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-slate-950 text-amber-300 uppercase tracking-wider">
+                Super Admin
+              </span>
+              <span>
+                Gerenciando estabelecimento: <strong>{lojista.nome_estabelecimento}</strong> ({lojista.slug_subdominio})
+              </span>
+            </div>
+            <Link
+              href="/dashboard?exit_impersonation=true"
+              className="inline-flex items-center gap-1 font-bold underline hover:text-slate-900 transition-colors"
+            >
+              Sair da Impersonação ➔
+            </Link>
+          </div>
+        )}
+
         {/* Header */}
         <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
           <h2 className="text-lg font-semibold tracking-tight text-slate-800">{lojista.nome_estabelecimento}</h2>

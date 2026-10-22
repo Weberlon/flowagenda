@@ -7,20 +7,77 @@ import {
   logoutEvolutionInstance 
 } from '@/lib/evolution';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
-export async function getConfiguracoesData() {
+/**
+ * Resolução determinística do lojista ativo.
+ * Suporta impersonação segura para perfis 'super_admin' sem conceder privilégios a lojistas comuns.
+ */
+async function resolveCurrentLojista(
+  supabase: any,
+  userId: string,
+  selectFields = 'id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url'
+) {
+  // 1. Checa se o usuário é super_admin
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (profile?.role === 'super_admin') {
+    const cookieStore = await cookies();
+    const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
+    if (impersonateTenantId) {
+      const { data: lojista } = await supabase
+        .from('lojistas')
+        .select(selectFields)
+        .eq('id', impersonateTenantId)
+        .single();
+      if (lojista) return lojista;
+    }
+  }
+
+  // 2. Busca padrão para o próprio usuário lojista
+  const { data: lojista } = await supabase
+    .from('lojistas')
+    .select(selectFields)
+    .eq('user_id', userId)
+    .single();
+
+  return lojista;
+}
+
+export async function getConfiguracoesData(explicitLojistaId?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Não autorizado');
 
-  const { data: lojista, error: lojistaErr } = await supabase
-    .from('lojistas')
-    .select('id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url')
-    .eq('user_id', user.id)
-    .single();
+  let lojista: any = null;
 
-  if (lojistaErr || !lojista) throw new Error('Lojista não encontrado');
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id);
+  }
+
+  if (!lojista) throw new Error('Lojista não encontrado');
 
   // Buscar ou provisionar configuração do robô
   let { data: configRobo } = await supabase
@@ -66,16 +123,31 @@ export async function getConfiguracoesData() {
   };
 }
 
-export async function refreshWhatsAppStatusAction() {
+export async function refreshWhatsAppStatusAction(explicitLojistaId?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Não autorizado' };
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  let lojista: any = null;
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
+  }
 
   if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 
@@ -93,16 +165,31 @@ export async function refreshWhatsAppStatusAction() {
   return { success: true, status };
 }
 
-export async function updateMensagemBoasVindasAction(mensagem: string) {
+export async function updateMensagemBoasVindasAction(mensagem: string, explicitLojistaId?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Não autorizado' };
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  let lojista: any = null;
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
+  }
 
   if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 
@@ -120,16 +207,31 @@ export async function updateMensagemBoasVindasAction(mensagem: string) {
   return { success: true };
 }
 
-export async function updateWhatsAppNotificacaoAction(whatsapp: string) {
+export async function updateWhatsAppNotificacaoAction(whatsapp: string, explicitLojistaId?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Não autorizado' };
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  let lojista: any = null;
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
+  }
 
   if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 
@@ -147,16 +249,31 @@ export async function updateWhatsAppNotificacaoAction(whatsapp: string) {
   return { success: true };
 }
 
-export async function restartWhatsAppAction() {
+export async function restartWhatsAppAction(explicitLojistaId?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Não autorizado' };
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  let lojista: any = null;
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
+  }
 
   if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 
@@ -175,16 +292,31 @@ export async function restartWhatsAppAction() {
   return res;
 }
 
-export async function disconnectWhatsAppAction() {
+export async function disconnectWhatsAppAction(explicitLojistaId?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Não autorizado' };
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  let lojista: any = null;
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
+  }
 
   if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 
@@ -211,16 +343,31 @@ export async function disconnectWhatsAppAction() {
   return res;
 }
 
-export async function updateGoogleReviewUrlAction(reviewUrl: string) {
+export async function updateGoogleReviewUrlAction(reviewUrl: string, explicitLojistaId?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: 'Não autorizado' };
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
+  let lojista: any = null;
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id, 'id');
+  }
 
   if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 

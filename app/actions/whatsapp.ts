@@ -18,6 +18,7 @@ import {
   ConnectionState
 } from '@/lib/evolution';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 
 export interface ActionResponse<T = any> {
   success: boolean;
@@ -41,11 +42,54 @@ export interface TenantConnectionData {
   isConnected: boolean;
 }
 
+async function resolveTargetLojista(
+  supabase: any,
+  userId: string,
+  explicitLojistaId?: string,
+  selectFields = 'id, nome_estabelecimento'
+) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (profile?.role === 'super_admin') {
+    if (explicitLojistaId) {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select(selectFields)
+        .eq('id', explicitLojistaId)
+        .single();
+      if (targetLojista) return targetLojista;
+    }
+
+    const cookieStore = await cookies();
+    const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
+    if (impersonateTenantId) {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select(selectFields)
+        .eq('id', impersonateTenantId)
+        .single();
+      if (targetLojista) return targetLojista;
+    }
+  }
+
+  const { data: lojista } = await supabase
+    .from('lojistas')
+    .select(selectFields)
+    .eq('user_id', userId)
+    .single();
+
+  return lojista;
+}
+
 /**
  * 1. Gera ou recupera o QR Code de pareamento do tenant (Lojista)
  * Orquestra sessão autenticada, Supabase e Evolution API v2.
  */
-export async function generateTenantQrCodeAction(): Promise<ActionResponse<TenantQrCodeData>> {
+export async function generateTenantQrCodeAction(explicitLojistaId?: string): Promise<ActionResponse<TenantQrCodeData>> {
   try {
     const supabase = await createClient();
 
@@ -55,14 +99,10 @@ export async function generateTenantQrCodeAction(): Promise<ActionResponse<Tenan
       return { success: false, error: 'Sessão expirada. Faça login novamente para continuar.' };
     }
 
-    // 2. Obtém a organização (lojista) associada ao usuário
-    const { data: lojista, error: lojistaError } = await supabase
-      .from('lojistas')
-      .select('id, nome_estabelecimento')
-      .eq('user_id', user.id)
-      .single();
+    // 2. Obtém a organização (lojista) associada ao usuário ou via impersonação
+    const lojista = await resolveTargetLojista(supabase, user.id, explicitLojistaId, 'id, nome_estabelecimento');
 
-    if (lojistaError || !lojista) {
+    if (!lojista) {
       return { success: false, error: 'Organização não encontrada para o usuário autenticado.' };
     }
 
@@ -197,7 +237,7 @@ export async function generateTenantQrCodeAction(): Promise<ActionResponse<Tenan
 /**
  * 2. Consulta o status de conexão da organização e sincroniza o Supabase
  */
-export async function checkTenantConnectionAction(): Promise<ActionResponse<TenantConnectionData>> {
+export async function checkTenantConnectionAction(explicitLojistaId?: string): Promise<ActionResponse<TenantConnectionData>> {
   try {
     const supabase = await createClient();
 
@@ -207,14 +247,10 @@ export async function checkTenantConnectionAction(): Promise<ActionResponse<Tena
       return { success: false, error: 'Sessão expirada. Faça login novamente.' };
     }
 
-    // 2. Busca a organização (lojista)
-    const { data: lojista, error: lojistaError } = await supabase
-      .from('lojistas')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
+    // 2. Busca a organização (lojista) ou impersonação
+    const lojista = await resolveTargetLojista(supabase, user.id, explicitLojistaId, 'id');
 
-    if (lojistaError || !lojista) {
+    if (!lojista) {
       return { success: false, error: 'Organização não encontrada.' };
     }
 
@@ -281,7 +317,7 @@ export async function checkTenantConnectionAction(): Promise<ActionResponse<Tena
 /**
  * 3. Desconecta a sessão Baileys da organização e atualiza o Supabase
  */
-export async function disconnectTenantWhatsappAction(): Promise<ActionResponse<{ message: string }>> {
+export async function disconnectTenantWhatsappAction(explicitLojistaId?: string): Promise<ActionResponse<{ message: string }>> {
   try {
     const supabase = await createClient();
 
@@ -290,11 +326,7 @@ export async function disconnectTenantWhatsappAction(): Promise<ActionResponse<{
       return { success: false, error: 'Sessão expirada. Faça login novamente.' };
     }
 
-    const { data: lojista } = await supabase
-      .from('lojistas')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
+    const lojista = await resolveTargetLojista(supabase, user.id, explicitLojistaId, 'id');
 
     if (!lojista) {
       return { success: false, error: 'Organização não encontrada.' };
@@ -346,7 +378,8 @@ export async function disconnectTenantWhatsappAction(): Promise<ActionResponse<{
  */
 export async function sendTenantTextMessageAction(
   targetPhone: string,
-  messageText: string
+  messageText: string,
+  explicitLojistaId?: string
 ): Promise<ActionResponse<{ messageId?: string }>> {
   try {
     const supabase = await createClient();
@@ -356,11 +389,7 @@ export async function sendTenantTextMessageAction(
       return { success: false, error: 'Sessão expirada. Faça login novamente.' };
     }
 
-    const { data: lojista } = await supabase
-      .from('lojistas')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
+    const lojista = await resolveTargetLojista(supabase, user.id, explicitLojistaId, 'id');
 
     if (!lojista) {
       return { success: false, error: 'Organização não encontrada.' };
