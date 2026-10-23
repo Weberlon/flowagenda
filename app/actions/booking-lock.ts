@@ -502,7 +502,7 @@ export async function createBookingReservation(
 
     // Disparar o PIN no WhatsApp do cliente via Evolution API (lib/evolution.ts)
     console.log(`[BookingLock] Disparando PIN ${pin} para ${formattedPhone} na instância "${instanceName}"...`);
-    const mensagemPin = `Olá, ${payload.cliente_nome.trim()}! 🤖\n\nSeu código de confirmação FlowAgenda no *${lojista.nome_estabelecimento}* é:\n\n🔑 *${pin}*\n\nEle expira em 10 minutos. Digite na tela para garantir seu horário.`;
+    const mensagemPin = `Olá, ${payload.cliente_nome.trim()}! 🤖\n\nSeu código de confirmação no *${lojista.nome_estabelecimento}* é:\n\n🔑 *${pin}*\n\nEle vence em 10 minutos. Digite na tela para confirmar seu horário.`;
 
     const waResult = await sendEvolutionTextMessage(instanceName, formattedPhone, mensagemPin);
     console.log('[BookingLock] Retorno Evolution API envio PIN:', waResult);
@@ -711,7 +711,7 @@ export async function validarPinBookingAction(
       console.error('[ConfirmBooking] Erro de banco ao confirmar agendamento:', updateErr);
       return {
         success: false,
-        error: `Falha ao confirmar agendamento no banco: ${updateErr.message}`,
+        error: 'Não foi possível confirmar seu agendamento. Tente novamente.',
       };
     }
 
@@ -733,12 +733,19 @@ export async function validarPinBookingAction(
       const instanceName = configRobo?.instance_name || `flowagenda_${cleanSlug}`;
 
       const dataInicio = new Date(agendamento.data_hora_inicio);
-      const dataFormatada = dataInicio.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-      const horaFormatada = dataInicio.toLocaleTimeString('pt-BR', {
+      const dataFormatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      const horaFormatter = new Intl.DateTimeFormat('pt-BR', {
         timeZone: 'America/Sao_Paulo',
         hour: '2-digit',
         minute: '2-digit',
       });
+      const dataFormatada = dataFormatter.format(dataInicio);
+      const horaFormatada = horaFormatter.format(dataInicio);
 
       const nomeCliente = agendamento.cliente_nome || 'Cliente';
       const nomeLoja = lojista?.nome_estabelecimento || 'FlowAgenda';
@@ -747,7 +754,7 @@ export async function validarPinBookingAction(
 
       // Disparo para o cliente
       if (formattedCliPhone && formattedCliPhone.length >= 10) {
-        const msgCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, *${nomeCliente}*!\nSeu horário no *${nomeLoja}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n💈 *Serviço:* ${nomeServico}\n👤 *Profissional:* ${nomeProfissional}\n\nTe esperamos! Caso precise reagendar, avise com antecedência.`;
+        const msgCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, ${nomeCliente}!\nSeu horário no *${nomeLoja}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n✂️ *Serviço:* ${nomeServico}\n👤 *Profissional:* ${nomeProfissional}\n\nEsperamos você! Caso precise reagendar ou cancelar, entre em contato com antecedência.`;
         await sendEvolutionTextMessage(instanceName, formattedCliPhone, msgCliente);
       }
 
@@ -764,9 +771,9 @@ export async function validarPinBookingAction(
 
     return { success: true };
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : 'Erro interno ao validar PIN';
+    const errorMsg = err instanceof Error ? err.message : 'Não foi possível confirmar seu agendamento. Tente novamente.';
     console.error('[ConfirmBooking] Exceção crítica:', err);
-    return { success: false, error: errorMsg };
+    return { success: false, error: 'Não foi possível confirmar seu agendamento. Tente novamente.' };
   }
 }
 

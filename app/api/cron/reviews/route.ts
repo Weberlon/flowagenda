@@ -64,7 +64,7 @@ export async function GET(req: Request) {
             `Olá, *${nomeCliente}*! ⏰\n\n` +
             `Passando para lembrar do seu agendamento hoje no *${lojista.nome_estabelecimento}*:\n\n` +
             `🗓️ *Horário:* às ${horarioFormatado}\n` +
-            `✨ *Procedimento:* ${nomeServico}\n\n` +
+            `✂️ *Serviço:* ${nomeServico}\n\n` +
             `Já estamos preparando tudo para receber você! Caso tenha algum imprevisto ou precise reagendar, responda esta mensagem para nos avisar. 🤝`;
 
           await sendEvolutionTextMessage(instanceName, cliente.telefone, mensagemLembrete);

@@ -235,11 +235,10 @@ export default function AgendamentoClient({
         if (res.success) {
           setStep('sucesso');
         } else {
-          setErrorMessage(res.error || 'Código PIN inválido.');
+          setErrorMessage(res.error || 'Não foi possível confirmar seu agendamento. Tente novamente.');
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Erro ao validar PIN.';
-        setErrorMessage(msg);
+        setErrorMessage('Não foi possível confirmar seu agendamento. Tente novamente.');
       }
     });
   };
@@ -283,7 +282,7 @@ export default function AgendamentoClient({
               Passo 1 de 4
             </div>
             <h2 className="text-2xl font-black text-white tracking-tight">
-              Selecione o Procedimento
+              Escolha o serviço
             </h2>
             <p className="text-xs text-[#D8DEE9]/70 mt-1">
               Escolha o atendimento desejado no {lojista.nome_estabelecimento}.
@@ -349,7 +348,7 @@ export default function AgendamentoClient({
             onClick={() => setStep('servico')}
             className="text-xs font-semibold text-[#81A1C1] hover:text-[#88C0D0] flex items-center gap-1.5 transition-colors"
           >
-            ← Trocar de Procedimento
+            ← Trocar de Serviço
           </button>
 
           <div>
@@ -357,7 +356,7 @@ export default function AgendamentoClient({
               Passo 2 de 4
             </div>
             <h2 className="text-2xl font-black text-white tracking-tight">
-              Com quem você deseja agendar?
+              Selecione o profissional
             </h2>
             <p className="text-xs text-[#D8DEE9]/70 mt-1">
               {selectedServico?.nome_servico} • R$ {Number(selectedServico?.preco).toFixed(2).replace('.', ',')}
@@ -457,7 +456,7 @@ export default function AgendamentoClient({
                 Passo 3 de 4
               </div>
               <h2 className="text-2xl font-black text-white tracking-tight">
-                Escolha o Dia e Horário
+                Escolha o melhor dia e horário
               </h2>
               <p className="text-xs text-[#D8DEE9]/70 mt-0.5">
                 {selectedServico?.nome_servico} • {isQualquerProfissional ? 'Qualquer Profissional' : selectedProfissional?.nome}
@@ -582,7 +581,7 @@ export default function AgendamentoClient({
           {/* Resumo Card */}
           <div className="p-4 rounded-2xl bg-[#242933] border border-[#434C5E] space-y-2 text-xs">
             <div className="flex justify-between items-center text-[#D8DEE9]">
-              <span>Procedimento:</span>
+              <span>Serviço:</span>
               <strong className="text-white">{selectedServico?.nome_servico}</strong>
             </div>
             <div className="flex justify-between items-center text-[#D8DEE9]">
@@ -637,7 +636,7 @@ export default function AgendamentoClient({
                 required
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ''))}
-                placeholder="Ex: 31999998888"
+                placeholder="DDD + Celular (ex: 31 99999-8888)"
                 className="w-full rounded-xl border border-[#4C566A] bg-[#242933] p-3 text-xs text-[#ECEFF4] font-mono placeholder-[#81A1C1] focus:outline-none focus:border-[#88C0D0]"
               />
               <span className="text-[11px] text-[#81A1C1] mt-1 block">

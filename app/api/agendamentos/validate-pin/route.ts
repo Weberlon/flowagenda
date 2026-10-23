@@ -216,15 +216,30 @@ export async function POST(req: Request) {
     const instanceName =
       configRobo?.instance_name || `flowagenda_${lojista?.slug_subdominio || 'teste'}`;
 
-    const horarioFormatado = formatarDataHoraBRT(agendamento.data_hora_inicio);
+    const dataInicio = new Date(agendamento.data_hora_inicio);
+    const dataFormatter = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const horaFormatter = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const dataFormatada = dataFormatter.format(dataInicio);
+    const horaFormatada = horaFormatter.format(dataInicio);
+
     const nomeLoja = lojista?.nome_estabelecimento || 'FlowAgenda';
     const nomeProfissional = profissional?.nome || 'Profissional Titular';
     const nomeServico = servico?.nome_servico || 'Serviço';
+    const nomeCliente = agendamento.cliente_nome || 'Cliente';
 
     // 6. Disparo de WhatsApp de Confirmação para o Cliente
     if (cleanPhone) {
       const formattedClientPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-      const msgCliente = `🎉 *Agendamento Confirmado com Sucesso!*\n\nOlá, *${agendamento.cliente_nome}*!\nSeu horário para *${nomeServico}* com *${nomeProfissional}* foi reservado para:\n📅 *${horarioFormatado}* no *${nomeLoja}*.\n\nCaso precise reagendar ou cancelar, entre em contato com antecedência. Nos vemos em breve!`;
+      const msgCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, ${nomeCliente}!\nSeu horário no *${nomeLoja}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n✂️ *Serviço:* ${nomeServico}\n👤 *Profissional:* ${nomeProfissional}\n\nEsperamos você! Caso precise reagendar ou cancelar, entre em contato com antecedência.`;
       try {
         await sendEvolutionTextMessage(instanceName, formattedClientPhone, msgCliente);
       } catch (waErr) {
@@ -236,7 +251,7 @@ export async function POST(req: Request) {
     const whatsappLojista = (lojista?.whatsapp_notificacao || lojista?.whatsapp || '').replace(/\D/g, '');
     if (whatsappLojista && whatsappLojista.length >= 10) {
       const formattedLojistaPhone = whatsappLojista.startsWith('55') ? whatsappLojista : `55${whatsappLojista}`;
-      const msgLojista = `📅 *Novo Agendamento Confirmado!*\n\nCliente: *${agendamento.cliente_nome}* (${cleanPhone})\nServiço: *${nomeServico}*\nProfissional: *${nomeProfissional}*\nHorário: *${horarioFormatado}*`;
+      const msgLojista = `📅 *Novo Agendamento Confirmado!*\n\n• Cliente: ${nomeCliente} (${cleanPhone})\n• Data: ${dataFormatada} às ${horaFormatada}\n• Serviço: ${nomeServico}\n• Profissional: ${nomeProfissional}`;
       try {
         await sendEvolutionTextMessage(instanceName, formattedLojistaPhone, msgLojista);
       } catch (waErr) {

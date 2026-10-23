@@ -22,7 +22,7 @@ export async function login(formData: FormData) {
     return { error: 'Credenciais inválidas. Tente novamente.' }
   }
 
-  // Obter o perfil do utilizador para redirecionar para a rota correta
+  // Obter o perfil do usuário para redirecionar para a rota correta
   if (authData.user) {
     const { data: profile } = await supabase
       .from('profiles')

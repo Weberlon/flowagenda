@@ -226,7 +226,7 @@ export async function reservarHorarioComLockAction(
   const cleanDigits = telefone.replace(/\D/g, '');
   const formattedPhone = cleanDigits.startsWith('55') ? cleanDigits : `55${cleanDigits}`;
 
-  const mensagemPin = `Olá, ${cleanNome}! 🤖\n\nSeu código de validação do agendamento no *${nomeLoja}* é:\n\n🔑 *${pin}*\n\nDigite este código na tela em até 10 minutos para confirmar sua reserva.`;
+  const mensagemPin = `Olá, ${cleanNome}! 🤖\n\nSeu código de confirmação no *${nomeLoja}* é:\n\n🔑 *${pin}*\n\nEle vence em 10 minutos. Digite na tela para confirmar seu horário.`;
 
   console.log(`[Agendamento] Disparando PIN ${pin} para ${formattedPhone} na instância "${instanceName}"...`);
   const waResult = await sendEvolutionTextMessage(instanceName, formattedPhone, mensagemPin);
@@ -309,7 +309,7 @@ export async function validarPinEConfirmarAction(
 
   if (confirmError) {
     console.error('[Agendamento] Erro ao confirmar agendamento no banco:', confirmError);
-    throw new Error(`Erro ao confirmar: ${confirmError.message}`);
+    throw new Error('Não foi possível confirmar seu agendamento. Tente novamente.');
   }
 
   const cliente = (Array.isArray(reserva.cliente) ? reserva.cliente[0] : reserva.cliente) as any;
@@ -332,12 +332,20 @@ export async function validarPinEConfirmarAction(
   const telefoneCliente = cliente?.telefone || '';
 
   // 6. Mensagens transacionais pós-confirmação
-  const dataFormatada = new Date(reserva.data_hora_inicio).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  const horaFormatada = new Date(reserva.data_hora_inicio).toLocaleTimeString('pt-BR', { 
+  const dataInicio = new Date(reserva.data_hora_inicio);
+  const dataFormatter = new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo',
-    hour: '2-digit', 
-    minute: '2-digit' 
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   });
+  const horaFormatter = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const dataFormatada = dataFormatter.format(dataInicio);
+  const horaFormatada = horaFormatter.format(dataInicio);
 
   const { data: configRobo } = await dbClient
     .from('configuracoes_robo')
@@ -350,7 +358,7 @@ export async function validarPinEConfirmarAction(
 
   // Notificar cliente
   if (telefoneCliente) {
-    const msgConfirmacaoCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, *${nomeCliente}*!\nSeu horário no *${lojista?.nome_estabelecimento || 'estabelecimento'}* está 100% garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n💈 *Serviço:* ${servico?.nome_servico || 'Serviço'}\n\nTe esperamos! Caso precise reagendar, avise com antecedência.`;
+    const msgConfirmacaoCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, ${nomeCliente}!\nSeu horário no *${lojista?.nome_estabelecimento || 'estabelecimento'}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n✂️ *Serviço:* ${servico?.nome_servico || 'Serviço'}\n👤 *Profissional:* Profissional Titular\n\nEsperamos você! Caso precise reagendar ou cancelar, entre em contato com antecedência.`;
     await sendEvolutionTextMessage(instanceName, telefoneCliente, msgConfirmacaoCliente);
   }
 
