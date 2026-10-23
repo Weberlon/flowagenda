@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendEvolutionTextMessage, maskPhoneNumber } from '@/lib/evolution';
+import { compilarMensagemWhatsApp } from '@/lib/whatsapp/template-engine';
 
 // Validação estrita de duração de acordo com a regra de engenharia do AGENTS.md
 const DURACOES_PERMITIDAS = [15, 30, 45, 60] as const;
@@ -263,7 +264,7 @@ export async function validarPinEConfirmarAction(
       cliente_id, servico_id,
       cliente:clientes(id, nome, telefone, total_agendamentos),
       servico:servicos(nome_servico),
-      lojista:lojistas(nome_estabelecimento, whatsapp_notificacao)
+      lojista:lojistas(nome_estabelecimento, whatsapp_notificacao, slug_subdominio, configuracoes)
     `)
     .eq('id', reservaId)
     .eq('lojista_id', lojistaId)
@@ -358,7 +359,19 @@ export async function validarPinEConfirmarAction(
 
   // Notificar cliente
   if (telefoneCliente) {
-    const msgConfirmacaoCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, ${nomeCliente}!\nSeu horário no *${lojista?.nome_estabelecimento || 'estabelecimento'}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n✂️ *Serviço:* ${servico?.nome_servico || 'Serviço'}\n👤 *Profissional:* Profissional Titular\n\nEsperamos você! Caso precise reagendar ou cancelar, entre em contato com antecedência.`;
+    const templateCustomizado = lojista?.configuracoes?.notificacoes?.whatsapp?.template_confirmacao;
+    const msgConfirmacaoCliente = compilarMensagemWhatsApp(
+      templateCustomizado,
+      'confirmacao',
+      {
+        cliente: nomeCliente,
+        data: dataFormatada,
+        horario: horaFormatada,
+        servico: servico?.nome_servico || 'Serviço',
+        profissional: 'Equipe',
+        estabelecimento: lojista?.nome_estabelecimento || 'FlowAgenda',
+      }
+    );
     await sendEvolutionTextMessage(instanceName, telefoneCliente, msgConfirmacaoCliente);
   }
 

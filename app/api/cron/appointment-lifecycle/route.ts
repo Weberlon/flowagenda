@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendWhatsAppMessage } from '@/lib/whatsapp-sender';
+import { compilarMensagemWhatsApp } from '@/lib/whatsapp/template-engine';
 
 /**
  * ==============================================================================
@@ -27,6 +28,7 @@ interface LojistaJoin {
   nome_estabelecimento: string | null;
   slug_subdominio: string | null;
   google_review_url: string | null;
+  configuracoes?: Record<string, any> | null;
 }
 
 interface ProfissionalJoin {
@@ -177,7 +179,8 @@ export async function GET(req: Request) {
           nome_negocio,
           nome_estabelecimento,
           slug_subdominio,
-          google_review_url
+          google_review_url,
+          configuracoes
         ),
         profissionais (
           id,
@@ -210,8 +213,9 @@ export async function GET(req: Request) {
         const lojista = ag.lojistas;
         const nomeNegocio =
           lojista?.nome_negocio || lojista?.nome_estabelecimento || 'Estabelecimento';
-        const nomeProfissional = ag.profissionais?.nome || 'Profissional';
+        const nomeProfissional = ag.profissionais?.nome || 'Profissional Titular';
         const nomeCliente = ag.cliente_nome || 'Cliente';
+        const nomeServico = ag.servicos?.nome_servico || 'Serviço';
         const horarioRef = ag.data_horario || ag.data_hora_inicio;
         const horarioFormatado = formatarHorarioBRT(horarioRef);
 
@@ -221,12 +225,27 @@ export async function GET(req: Request) {
           lojista?.slug_subdominio || null
         );
 
+        // Compilação dinâmica do lembrete com fallback seguro via template-engine
+        const templateLembreteCustomizado =
+          lojista?.configuracoes?.notificacoes?.whatsapp?.template_lembrete;
+
+        const textoLembrete = compilarMensagemWhatsApp(
+          templateLembreteCustomizado,
+          'lembrete',
+          {
+            cliente: nomeCliente,
+            data: 'hoje',
+            horario: horarioFormatado,
+            servico: nomeServico,
+            profissional: nomeProfissional,
+            estabelecimento: nomeNegocio,
+          }
+        );
+
         const resultado = await sendWhatsAppMessage({
           instanceName,
           number: telefone,
-          text:
-            `Olá, ${nomeCliente}! Lembramos que seu atendimento na *${nomeNegocio}* com *${nomeProfissional}* está marcado para hoje às *${horarioFormatado}*.\n\n` +
-            `Caso precise remarcar ou tenha algum imprevisto, entre em contato com antecedência para liberar a vaga.`,
+          text: textoLembrete,
         });
 
         if (resultado.success) {

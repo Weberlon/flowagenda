@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendEvolutionTextMessage } from '@/lib/evolution';
+import { compilarMensagemWhatsApp } from '@/lib/whatsapp/template-engine';
 
 /**
  * ==============================================================================
@@ -67,7 +68,8 @@ export async function POST(req: Request) {
           nome_estabelecimento,
           slug_subdominio,
           whatsapp_notificacao,
-          whatsapp
+          whatsapp,
+          configuracoes
         ),
         servicos (
           id,
@@ -239,7 +241,22 @@ export async function POST(req: Request) {
     // 6. Disparo de WhatsApp de Confirmação para o Cliente
     if (cleanPhone) {
       const formattedClientPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-      const msgCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, ${nomeCliente}!\nSeu horário no *${nomeLoja}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n✂️ *Serviço:* ${nomeServico}\n👤 *Profissional:* ${nomeProfissional}\n\nEsperamos você! Caso precise reagendar ou cancelar, entre em contato com antecedência.`;
+      const templateConfirmacaoCustomizado =
+        (lojista as any)?.configuracoes?.notificacoes?.whatsapp?.template_confirmacao;
+
+      const msgCliente = compilarMensagemWhatsApp(
+        templateConfirmacaoCustomizado,
+        'confirmacao',
+        {
+          cliente: nomeCliente,
+          data: dataFormatada,
+          horario: horaFormatada,
+          servico: nomeServico,
+          profissional: nomeProfissional,
+          estabelecimento: nomeLoja,
+        }
+      );
+
       try {
         await sendEvolutionTextMessage(instanceName, formattedClientPhone, msgCliente);
       } catch (waErr) {

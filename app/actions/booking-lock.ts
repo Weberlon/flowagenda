@@ -10,6 +10,7 @@
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendEvolutionTextMessage } from '@/lib/evolution';
 import { createAsaasCustomer, createAsaasPixPayment } from '@/lib/asaas';
+import { compilarMensagemWhatsApp } from '@/lib/whatsapp/template-engine';
 
 export interface BookingPayload {
   lojista_id?: string;
@@ -556,7 +557,7 @@ export async function validarPinBookingAction(
         .select(`
           id, lojista_id, status, pin_validacao, expira_em, cliente_telefone, cliente_nome, data_hora_inicio,
           servico_id, profissional_id,
-          lojistas ( id, nome_estabelecimento, slug_subdominio, whatsapp_notificacao, whatsapp ),
+          lojistas ( id, nome_estabelecimento, slug_subdominio, whatsapp_notificacao, whatsapp, configuracoes ),
           servicos ( id, nome_servico, preco ),
           profissionais ( id, nome )
         `)
@@ -585,7 +586,7 @@ export async function validarPinBookingAction(
           .select(`
             id, lojista_id, status, pin_validacao, expira_em, cliente_telefone, cliente_nome, data_hora_inicio,
             servico_id, profissional_id,
-            lojistas ( id, nome_estabelecimento, slug_subdominio, whatsapp_notificacao, whatsapp ),
+            lojistas ( id, nome_estabelecimento, slug_subdominio, whatsapp_notificacao, whatsapp, configuracoes ),
             servicos ( id, nome_servico, preco ),
             profissionais ( id, nome )
           `)
@@ -752,9 +753,26 @@ export async function validarPinBookingAction(
       const nomeServico = servico?.nome_servico || 'Serviço';
       const nomeProfissional = profissional?.nome || 'Profissional Titular';
 
-      // Disparo para o cliente
+      // Extrair template customizado de confirmação do lojista (se houver)
+      const templateConfirmacaoCustomizado =
+        lojista?.configuracoes?.notificacoes?.whatsapp?.template_confirmacao;
+
+      // Compilar mensagem dinâmica com fallbacks e tratamento defensivo via template-engine
+      const msgCliente = compilarMensagemWhatsApp(
+        templateConfirmacaoCustomizado,
+        'confirmacao',
+        {
+          cliente: nomeCliente,
+          data: dataFormatada,
+          horario: horaFormatada,
+          servico: nomeServico,
+          profissional: nomeProfissional,
+          estabelecimento: nomeLoja,
+        }
+      );
+
+      // Disparo estritamente síncrono com await para o gateway da Evolution API
       if (formattedCliPhone && formattedCliPhone.length >= 10) {
-        const msgCliente = `🎉 *Agendamento Confirmado!*\n\nOlá, ${nomeCliente}!\nSeu horário no *${nomeLoja}* está garantido.\n\n📅 *Data:* ${dataFormatada}\n⏰ *Horário:* ${horaFormatada}\n✂️ *Serviço:* ${nomeServico}\n👤 *Profissional:* ${nomeProfissional}\n\nEsperamos você! Caso precise reagendar ou cancelar, entre em contato com antecedência.`;
         await sendEvolutionTextMessage(instanceName, formattedCliPhone, msgCliente);
       }
 

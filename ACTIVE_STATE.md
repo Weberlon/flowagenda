@@ -60,10 +60,13 @@
    - Rota A: Sem sinal ➔ Lock de 10 min com envio e validação de PIN WhatsApp.
    - Rota B: Com sinal ➔ Lock de 13 min com QR Code e Copia e Cola Pix Asaas e polling automático de confirmação.
 
-6. **Customização de Mensagens do WhatsApp (Motor & Interface):**
+6. **Customização de Mensagens do WhatsApp (Motor, Interface & Despacho Homologados):**
    - **Motor de Interpolação (`lib/whatsapp/template-engine.ts`):** Compilação dinâmica de templates com fallbacks seguros contra valores nulos/vazios e higienização automática contra tags HTML acidentais.
    - **Persistência Defensiva (`app/actions/configuracoes-whatsapp.ts`):** Deep merge estrito em `configuracoes.notificacoes.whatsapp` preservando integridade das demais chaves JSONB em `public.lojistas`.
    - **Interface Interativa (`app/dashboard/configuracoes/mensagens-form.tsx`):** Abas para confirmação e lembrete, chips clicáveis com inserção no cursor, restauração para o padrão oficial, pré-visualização fidedigna em balão de WhatsApp e feedbacks visuais de carregamento/sucesso/erro.
+   - **Despacho Integrado e Síncrono (Etapa 4):**
+     - Confirmação de agendamento em `app/actions/booking-lock.ts` e `app/api/agendamentos/validate-pin/route.ts` consome o template customizado do lojista via `compilarMensagemWhatsApp` com envio síncrono (`await sendEvolutionTextMessage`).
+     - Lembrete preventivo em `app/api/cron/appointment-lifecycle/route.ts` interpola dinamicamente `template_lembrete` com fallback nativo.
 
 7. **Trabalhadores Automatizados (Vercel Cron):**
    - `whatsapp-healthcheck` (a cada 15 min): Varredura das instâncias na VPS Evolution API.
