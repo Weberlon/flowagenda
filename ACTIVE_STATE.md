@@ -1,96 +1,90 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-10-22T22:22:00-03:00  
-**Fase do Projeto:** Produção / Deploy Vercel  
-**Compilação:** `npx tsc --noEmit` exit code 0
+**Atualizado em:** 2026-10-23T10:55:00-03:00  
+**Fase do Projeto:** Produção / Deploy Vercel & Homologação de Segurança  
+**Integridade do Código:** `npx tsc --noEmit` exit code 0 (Zero erros TypeScript)
 
 ---
 
-## 1. Registro de Governança e Infraestrutura (Supabase / Banco de Dados)
+## 1. Registro de Governança, Infraestrutura & Segurança
 
 1. **Perfil Super Admin Configurado:**
    - Tabela: `public.profiles`
    - Usuário: `bragaweberlon@gmail.com`
-   - Campo: `role = 'super_admin'` (atribuição manual persistida).
+   - Campo: `role = 'super_admin'` (atribuição manual no banco de dados).
    - Efeito: Acesso irrestrito a `/superadmin` e permissão de impersonação segura de tenants em `/dashboard`.
-   - UX: Botão atualizado para "Acessar como Lojista ➔" no cabeçalho de `/superadmin/tenants/[id]/whatsapp`.
+   - UX Homologada: Botão padronizado para "Acessar como Lojista ➔" em `/superadmin/tenants/[id]/whatsapp`.
 
-2. **Schema de Agendamentos e Trava de Concorrência:**
+2. **Auditoria de Segurança Multi-Tenant (Concluída em 2026-10-22/23):**
+   - **Mecanismo de Impersonação (Status: Aprovado):**
+     - Layouts e Server Actions (`app/dashboard/layout.tsx`, `clientes.ts`, `configuracoes.ts`, `whatsapp.ts`, `dashboard.ts`, `configuracoes-whatsapp.ts`) consultam obrigatoriamente `profiles.role === 'super_admin'` via sessão autenticada do Supabase antes de ler o cookie `flow_impersonate_tenant_id`. Lojistas comuns não conseguem forjar acesso a outros tenants.
+   - **Isolamento de Queries no Portal Público (Status: Ação Necessária):**
+     - Identificado que `validarPinBookingAction` (`app/actions/booking-lock.ts:554-603`) e a rota `/api/agendamentos/validate-pin` buscam agendamentos sem filtrar obrigatoriamente por `lojista_id`. O fallback de busca por telefone busca globalmente entre todos os tenants.
+     - Em `createBookingReservation`, se `payload.profissional_id` for enviado diretamente pelo cliente, não há checagem prévia validando se o profissional pertence ao `lojistaId` do estabelecimento.
+   - **Políticas de RLS no Supabase (Status: Ação Necessária):**
+     - RLS está ativo em todas as tabelas (`lojistas`, `servicos`, `clientes`, `agendamentos`, `profissionais`).
+     - As políticas legadas `Public appointment reservation insert` e `Public appointment pin validation update` em `agendamentos` (migration `20261001092400_initial_schema.sql:98-99`) permitem update/insert direto anônimo via PostgREST da Supabase API. Devem ser revogadas (`DROP POLICY`), pois o fluxo público foi 100% transferido para Server Actions com `createAdminClient()`.
+   - **Gestão de Segredos (Status: Ação Necessária):**
+     - Nenhuma credencial crítica usa o prefixo `NEXT_PUBLIC_`.
+     - O arquivo `Sflow.txt` contém credencial e precisa ser incluído no `.gitignore`.
+     - O script `scripts/test-e2e-flow.ts:71` contém IP hardcoded de VPS como fallback (`http://179.236.70.181:8080`) e deve depender exclusivamente de variável de ambiente.
+
+3. **Schema de Agendamentos e Trava de Concorrência:**
    - A coluna `pin_validacao` em `public.agendamentos` é mantida estritamente como `VARCHAR(6)`.
-   - Compatibilidade de runtime garantida: `validarPinBookingAction` e Server Actions limpam o campo com `null` após a confirmação para evitar violação de limite de caracteres.
-
-3. **Sincronização Autônoma (Service Role):**
-   - As tabelas `public.configuracoes_robo` e `public.clientes` são gerenciadas de forma autônoma pelo runtime através do `createAdminClient()` (Supabase Service Role Key), contornando bloqueios de RLS para requisições públicas anônimas de clientes.
-
-4. **Homologação em Produção — Mensagens Transacionais Customizadas via JSONB:**
-   - Caminho: `public.lojistas.configuracoes.notificacoes.whatsapp` (`template_confirmacao` e `template_lembrete`).
-   - Status: **Homologado com Sucesso em Produção**.
-   - Garantias Arquiteturais:
-     - Persistência com deep merge defensivo (`salvarTemplatesWhatsAppAction`) que impede perda de chaves irmãs no JSONB.
-     - Motor de interpolação estrito (`compilarMensagemWhatsApp`) com fallbacks contra campos nulos/vazios e higienização contra tags HTML acidentais.
-     - Despacho síncrono com `await` garantindo entrega ao gateway da Evolution API antes do encerramento do ciclo de vida de funções serverless da Vercel.
+   - Compatibilidade de runtime: `validarPinBookingAction` limpa o campo com `null` após a confirmação para evitar truncamento ou conflito.
 
 ---
 
 ## 2. Módulos Homologados e Consolidados
 
-1. **Padronização Estrita em Português do Brasil (pt-BR):**
-   - **Templates WhatsApp:**
-     - PIN: `Olá, ${nome}! 🤖\n\nSeu código de confirmação no *${estabelecimento}* é:\n\n🔑 *${pin}*\n\nEle vence em 10 minutos. Digite na tela para confirmar seu horário.`
-     - Confirmação: `🎉 *Agendamento Confirmado!*\n\nOlá, ${nome}!\nSeu horário no *${estabelecimento}* está garantido.\n\n📅 *Data:* ${data}\n⏰ *Horário:* ${horario}\n✂️ *Serviço:* ${servico}\n👤 *Profissional:* ${profissional}\n\nEsperamos você! Caso precise reagendar ou cancelar, entre em contato com antecedência.`
-     - Formatação oficial de data/hora: Uso estrito de `Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' })`.
-   - **Frontend do Cliente:**
-     - Etapa 1: `"Passo 1 de 4: Escolha o serviço"`.
-     - Etapa 2: `"← Trocar de Serviço"` e `"Passo 2 de 4: Selecione o profissional"`.
-     - Etapa 3: `"Passo 3 de 4: Escolha o melhor dia e horário"`.
-     - Etapa 4: Resumo com label `"Serviço:"` e placeholder `"DDD + Celular (ex: 31 99999-8888)"`.
-     - Mensagem de erro de confirmação: `"Não foi possível confirmar seu agendamento. Tente novamente."`.
-   - **Backend / Actions e Workers:**
-     - Limpeza de vocabulário pt-PT (`utilizador` substituído por `usuário` em `app/actions/auth.ts`, `Procedimento` ajustado para `Serviço` em `reviews/route.ts`).
-     - **Garantia de Quebras de Linha no WhatsApp:** Zero uso de tags HTML (`<br>` ou `<br/>`) em despachadores e templates transacionais; padronização estrita com `\n` e `\n\n`.
+1. **Customização de Mensagens do WhatsApp via JSONB (Homologação Completa):**
+   - **Caminho:** `public.lojistas.configuracoes.notificacoes.whatsapp` (`template_confirmacao` e `template_lembrete`).
+   - **Motor de Interpolação (`lib/whatsapp/template-engine.ts`):** Substituição dinâmica de `{cliente}`, `{data}`, `{horario}`, `{servico}` e `{profissional}` com fallbacks seguros contra campos nulos/vazios e higienização estrita contra tags HTML.
+   - **Persistência Defensiva (`app/actions/configuracoes-whatsapp.ts`):** Deep merge estrito preservando integridade das demais chaves JSONB em `public.lojistas`.
+   - **Interface Interativa (`app/dashboard/configuracoes/mensagens-form.tsx`):** Abas de configuração, chips de variáveis com inserção no cursor, restauração do padrão pt-BR e preview fidedigno em balão de chat do WhatsApp.
+   - **Despacho Síncrono:** Integração com `await` em `app/actions/booking-lock.ts`, `/api/agendamentos/validate-pin` e `/api/cron/appointment-lifecycle`.
 
-2. **Roteamento Multi-Tenant em Borda (`middleware.ts`):**
-   - Resolução de subdomínios wildcard (`*.flowagenda.online`), suporte total ao dev local (`tenant.localhost:3000`) e bypass de previews Vercel (`*.vercel.app`).
-   - Rewrite para `/` (marketing), `/app/dashboard` (painel lojista) e `/loja/[slug]` (grade pública de agendamento).
-   - Impersonação segura via query param `?impersonate_tenant_id=` (gravando cookie HTTP-only `flow_impersonate_tenant_id`) e `?exit_impersonation=true`.
+2. **Padronização Estrita em Português do Brasil (pt-BR):**
+   - Varredura completa no frontend, Server Actions, metadados e templates do WhatsApp.
+   - Eliminação de todo vocabulário pt-PT (`telemóvel` -> `celular/WhatsApp`, `marcação` -> `agendamento`, `utilizador` -> `usuário`, `registo` -> `cadastro`).
+   - Padronização estrita de formatação de data/hora no fuso `America/Sao_Paulo`.
+   - **Garantia de Quebras de Linha no WhatsApp:** Zero tags HTML (`<br>`, `<br/>`); uso exclusivo de `\n` e `\n\n`.
 
-3. **RBAC Super Admin & Impersonação Segura (`app/dashboard`, `app/superadmin`):**
-   - Super Admin gerencia qualquer tenant via impersonação segura no `/dashboard`.
-   - Banner de alerta visual no topo do dashboard informando o modo impersonação ativo com atalho para desativação imediata.
-   - Painel Super Admin (`app/superadmin/page.tsx`) com lista de estabelecimentos, status do robô WhatsApp e links rápidos de gestão.
-   - Rota dedicada de recuperação de WhatsApp em `app/superadmin/tenants/[id]/whatsapp`.
+3. **Roteamento Multi-Tenant em Borda (`middleware.ts`):**
+   - Resolução de subdomínios wildcard (`*.flowagenda.online`), suporte ao dev local (`tenant.localhost:3000`) e bypass de previews Vercel (`*.vercel.app`).
+   - Rewrites para marketing `/`, painel lojista `/app/dashboard` e grade pública `/loja/[slug]`.
 
-4. **Integração WhatsApp / Evolution API v2 (`lib/evolution.ts`, `app/actions/whatsapp.ts`, `lib/whatsapp-sender.ts`):**
-   - Auto-provisionamento tolerante a falhas na Evolution API caso a instância ainda não exista.
-   - Envio blindado com presença humanizada (`composing`) e jitter randômico anti-banimento (3s a 7s).
+4. **Integração WhatsApp / Evolution API v2 (`lib/evolution.ts`, `app/actions/whatsapp.ts`):**
+   - Auto-provisionamento de instâncias tolerante a falhas na Evolution API.
+   - Envio humanizado com presença (`composing`) e jitter anti-banimento (3s a 7s).
 
-5. **Grade Pública de Agendamento (`app/tenant/[slug]/...`):**
-   - Cálculo de buffer time (`duracao + intervalo`), checagem estrita de colisão por `lojista_id` E `profissional_id`.
-   - Rota A: Sem sinal ➔ Lock de 10 min com envio e validação de PIN WhatsApp.
-   - Rota B: Com sinal ➔ Lock de 13 min com QR Code e Copia e Cola Pix Asaas e polling automático de confirmação.
-
-6. **Customização de Mensagens do WhatsApp (Motor, Interface & Despacho Homologados):**
-   - **Motor de Interpolação (`lib/whatsapp/template-engine.ts`):** Compilação dinâmica de templates com fallbacks seguros contra valores nulos/vazios e higienização automática contra tags HTML acidentais.
-   - **Persistência Defensiva (`app/actions/configuracoes-whatsapp.ts`):** Deep merge estrito em `configuracoes.notificacoes.whatsapp` preservando integridade das demais chaves JSONB em `public.lojistas`.
-   - **Interface Interativa (`app/dashboard/configuracoes/mensagens-form.tsx`):** Abas para confirmação e lembrete, chips clicáveis com inserção no cursor, restauração para o padrão oficial, pré-visualização fidedigna em balão de WhatsApp e feedbacks visuais de carregamento/sucesso/erro.
-   - **Despacho Integrado e Síncrono (Etapa 4):**
-     - Confirmação de agendamento em `app/actions/booking-lock.ts` e `app/api/agendamentos/validate-pin/route.ts` consome o template customizado do lojista via `compilarMensagemWhatsApp` com envio síncrono (`await sendEvolutionTextMessage`).
-     - Lembrete preventivo em `app/api/cron/appointment-lifecycle/route.ts` interpola dinamicamente `template_lembrete` com fallback nativo.
-
-7. **Trabalhadores Automatizados (Vercel Cron):**
-   - `whatsapp-healthcheck` (a cada 15 min): Varredura das instâncias na VPS Evolution API.
-   - `appointment-lifecycle` (a cada 10 min): Lembretes anti-no-show 2h antes e convite de avaliação Google Meu Negócio 5★ 2h pós-atendimento.
+5. **Trabalhadores Automatizados (Vercel Cron):**
+   - `whatsapp-healthcheck` (a cada 15 min): Monitoramento de saúde das instâncias na VPS.
+   - `appointment-lifecycle` (a cada 10 min): Disparo de lembretes anti-no-show 2h antes e solicitação de avaliação Google Meu Negócio 5★ 2h pós-atendimento.
 
 ---
 
-## 3. Próximos Passos Imediatos
+## 3. Próximas Ações Imediatas (Backlog Priorizado para o Próximo Chat)
 
-1. **Acessar `/superadmin` com `bragaweberlon@gmail.com`:**
-   - Validar acesso direto liberado pelo middleware com a role `super_admin`.
-   - Visualizar estabelecimentos cadastrados (ex: Barbearia Modelo).
-   - Gerar e escanear o QR Code de conexão da Evolution API na rota `/superadmin/tenants/[id]/whatsapp`.
+### Fase 1: Correções de Segurança da Auditoria (Imediato)
+1. **Endurecer Isolamento em `app/actions/booking-lock.ts` e `/api/agendamentos/validate-pin`:**
+   - Adicionar `.eq('lojista_id', lojistaId)` em todas as queries de busca do agendamento por ID e na validação do PIN.
+   - Remover ou escopar por `lojista_id` o fallback de busca por telefone.
+   - Validar em `createBookingReservation` se `payload.profissional_id` pertence ao `lojistaId` do estabelecimento.
+2. **Higienização de Repositório e Segredos:**
+   - Adicionar `Sflow.txt` ao `.gitignore`.
+   - Remover o IP fixo de fallback em `scripts/test-e2e-flow.ts:71`.
+3. **Limpeza de Políticas RLS no Supabase:**
+   - Executar migration ou SQL descartando as políticas públicas permissivas obsoletas em `public.agendamentos`:
+     ```sql
+     DROP POLICY IF EXISTS "Public appointment reservation insert" ON public.agendamentos;
+     DROP POLICY IF EXISTS "Public appointment pin validation update" ON public.agendamentos;
+     ```
 
-2. **Teste E2E de Agendamento em Produção:**
-   - Acessar `barbeariamodelo.flowagenda.online`.
-   - Agendar horário com número real de WhatsApp.
-   - Validar o recebimento do PIN pt-BR, confirmação automática e atualização do CRM.
+### Fase 2: Homologação Operacional do WhatsApp & E2E
+1. **Conexão Real do WhatsApp na VPS:**
+   - Acessar `/superadmin/tenants/[id]/whatsapp` logado como `bragaweberlon@gmail.com`.
+   - Gerar e escanear o QR Code de conexão da instância da Barbearia Modelo.
+2. **Teste Ponta a Ponta (E2E):**
+   - Agendar horário no portal público (`barbeariamodelo.flowagenda.online`).
+   - Validar recebimento do PIN no WhatsApp real, confirmação na tela e inserção de cliente no CRM.
