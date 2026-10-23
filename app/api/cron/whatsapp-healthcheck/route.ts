@@ -126,8 +126,12 @@ async function sendEmergencyAlertEmail(params: {
  * Consulta de estado na Evolution API com AbortController (timeout 5000ms)
  */
 async function checkEvolutionInstance(instanceName: string): Promise<boolean> {
-  const apiUrl = (process.env.EVOLUTION_API_URL || 'http://179.236.70.181:8080').replace(/\/+$/, '');
+  const apiUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
   const apiKey = process.env.EVOLUTION_API_KEY || '';
+
+  if (!apiUrl || !apiKey) {
+    return false;
+  }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);

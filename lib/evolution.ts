@@ -427,6 +427,10 @@ export async function createEvolutionInstance(instanceName: string) {
     if (!result.success) {
       throw new Error(result.error);
     }
+    // Garante configuração imediata do webhook para a nova instância
+    setEvolutionWebhook(instanceName).catch((err) =>
+      console.warn('[Evolution API] Falha ao configurar webhook na criação:', err)
+    );
     return { token: result.data?.token || instanceName };
   } catch (error: any) {
     console.error('createEvolutionInstance error:', error);
@@ -449,6 +453,7 @@ export async function fetchInstanceConnectionStatus(instanceName: string) {
       if (!qrResult.success && qrResult.error && (qrResult.error.includes('404') || qrResult.error.toLowerCase().includes('not found'))) {
         try {
           await createInstance(instanceName);
+          await setEvolutionWebhook(instanceName);
           qrResult = await fetchQrCode(instanceName);
         } catch (e) {
           console.warn('[Evolution API] Falha ao auto-provisionar instância:', e);
@@ -498,11 +503,17 @@ export async function restartEvolutionInstance(instanceName: string): Promise<{ 
       if (response.status === 404 || errText.toLowerCase().includes('not found') || errText.toLowerCase().includes('does not exist')) {
         const createRes = await createInstance(instanceName);
         if (createRes.success) {
+          await setEvolutionWebhook(instanceName);
           return { success: true, message: 'Instância provisionada com sucesso na Evolution API.' };
         }
       }
       return { success: false, error: `Falha ao reiniciar instância: ${errText}` };
     }
+
+    // Ao reiniciar com sucesso, sincroniza também o webhook na VPS
+    setEvolutionWebhook(instanceName).catch((err) =>
+      console.warn('[Evolution API] Falha ao sincronizar webhook após reinicialização:', err)
+    );
 
     return { success: true };
   } catch (error: any) {
@@ -568,22 +579,31 @@ export async function sendEvolutionTextMessage(
  */
 export async function setEvolutionWebhook(
   instanceName: string,
-  webhookUrl: string = 'https://flowagenda.online/api/webhooks/evolution',
-  hookToken: string = process.env.HOOK_TOKEN || 'senha-segura-flowagenda-2026'
+  webhookUrl?: string,
+  hookToken?: string
 ): Promise<EvolutionApiResult<{ id?: string; url: string; enabled: boolean }>> {
   try {
     const { apiUrl, apiKey } = getEvolutionConfig();
 
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'flowagenda.online';
+    const defaultWebhookUrl = process.env.NEXT_PUBLIC_APP_URL 
+      ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '')}/api/webhooks/evolution`
+      : `https://${rootDomain}/api/webhooks/evolution`;
+
+    const targetUrl = webhookUrl || defaultWebhookUrl;
+    const targetToken = hookToken || process.env.EVOLUTION_WEBHOOK_SECRET || process.env.HOOK_TOKEN || process.env.EVOLUTION_API_KEY || '';
+
     const payload = {
       webhook: {
         enabled: true,
-        url: webhookUrl,
+        url: targetUrl,
         byEvents: false,
         base64: false,
         headers: {
-          'x-hook-token': hookToken,
+          'apikey': targetToken,
+          'x-hook-token': targetToken,
         },
-        events: ['MESSAGES_UPSERT'],
+        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
       },
     };
 
@@ -605,6 +625,7 @@ export async function setEvolutionWebhook(
     }
 
     const data = await response.json();
+    console.log(`[Evolution API] Webhook configurado com sucesso para ${instanceName} -> ${targetUrl}`);
     return {
       success: true,
       data,

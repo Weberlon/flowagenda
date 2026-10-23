@@ -43,14 +43,14 @@ export async function sendWhatsAppMessage(
   params: SendWhatsAppParams
 ): Promise<SendWhatsAppResult> {
   try {
-    const apiUrl = (process.env.EVOLUTION_API_URL || 'http://179.236.70.181:8080').replace(/\/+$/, '');
+    const apiUrl = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
     const apiKey = process.env.EVOLUTION_API_KEY || '';
 
-    if (!apiKey) {
-      console.warn('[WhatsApp Sender] EVOLUTION_API_KEY não configurada.');
+    if (!apiUrl || !apiKey) {
+      console.warn('[WhatsApp Sender] EVOLUTION_API_URL ou EVOLUTION_API_KEY não configuradas.');
       return {
         success: false,
-        error: 'Chave de API da Evolution não configurada no servidor.',
+        error: 'Configuração da Evolution API (URL ou Key) ausente no servidor.',
       };
     }
 
