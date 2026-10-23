@@ -130,7 +130,7 @@ export default async function SuperAdminTenantWhatsAppPage({ params }: PageProps
             href={`/dashboard/configuracoes?impersonate_tenant_id=${lojista.id}`}
             className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-300 transition-colors shadow-sm"
           >
-            Impersonar no Dashboard ➔
+            Acessar como Lojista ➔
           </Link>
         </div>
       </header>

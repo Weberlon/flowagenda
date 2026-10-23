@@ -1,6 +1,6 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-10-22T20:52:00-03:00  
+**Atualizado em:** 2026-10-22T22:22:00-03:00  
 **Fase do Projeto:** Produção / Deploy Vercel  
 **Compilação:** `npx tsc --noEmit` exit code 0
 
@@ -13,6 +13,7 @@
    - Usuário: `bragaweberlon@gmail.com`
    - Campo: `role = 'super_admin'` (atribuição manual persistida).
    - Efeito: Acesso irrestrito a `/superadmin` e permissão de impersonação segura de tenants em `/dashboard`.
+   - UX: Botão atualizado para "Acessar como Lojista ➔" no cabeçalho de `/superadmin/tenants/[id]/whatsapp`.
 
 2. **Schema de Agendamentos e Trava de Concorrência:**
    - A coluna `pin_validacao` em `public.agendamentos` é mantida estritamente como `VARCHAR(6)`.
@@ -20,6 +21,14 @@
 
 3. **Sincronização Autônoma (Service Role):**
    - As tabelas `public.configuracoes_robo` e `public.clientes` são gerenciadas de forma autônoma pelo runtime através do `createAdminClient()` (Supabase Service Role Key), contornando bloqueios de RLS para requisições públicas anônimas de clientes.
+
+4. **Homologação em Produção — Mensagens Transacionais Customizadas via JSONB:**
+   - Caminho: `public.lojistas.configuracoes.notificacoes.whatsapp` (`template_confirmacao` e `template_lembrete`).
+   - Status: **Homologado com Sucesso em Produção**.
+   - Garantias Arquiteturais:
+     - Persistência com deep merge defensivo (`salvarTemplatesWhatsAppAction`) que impede perda de chaves irmãs no JSONB.
+     - Motor de interpolação estrito (`compilarMensagemWhatsApp`) com fallbacks contra campos nulos/vazios e higienização contra tags HTML acidentais.
+     - Despacho síncrono com `await` garantindo entrega ao gateway da Evolution API antes do encerramento do ciclo de vida de funções serverless da Vercel.
 
 ---
 
