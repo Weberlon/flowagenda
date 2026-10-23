@@ -16,7 +16,7 @@ import { cookies } from 'next/headers';
 async function resolveCurrentLojista(
   supabase: any,
   userId: string,
-  selectFields = 'id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url'
+  selectFields = 'id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url, configuracoes'
 ) {
   // 1. Checa se o usuário é super_admin
   const { data: profile } = await supabase
@@ -66,7 +66,7 @@ export async function getConfiguracoesData(explicitLojistaId?: string) {
     if (profile?.role === 'super_admin') {
       const { data: targetLojista } = await supabase
         .from('lojistas')
-        .select('id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url')
+        .select('id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url, configuracoes')
         .eq('id', explicitLojistaId)
         .single();
       lojista = targetLojista;

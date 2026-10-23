@@ -9,6 +9,7 @@ import {
   restartWhatsAppAction,
   disconnectWhatsAppAction 
 } from '@/app/actions/configuracoes';
+import { MensagensWhatsAppForm } from './mensagens-form';
 
 interface ConfiguracoesClientProps {
   lojista: {
@@ -20,6 +21,7 @@ interface ConfiguracoesClientProps {
     tier: string;
     cor_primaria: string | null;
     google_review_url?: string | null;
+    configuracoes?: Record<string, any> | null;
   };
   configRobo: {
     instance_name: string;
@@ -411,6 +413,14 @@ export function ConfiguracoesClient({
               </button>
             </div>
           </div>
+
+          {/* Card Templates Customizados de WhatsApp (Confirmação & Lembrete) */}
+          <MensagensWhatsAppForm
+            lojistaId={lojista.id}
+            nomeEstabelecimento={lojista.nome_estabelecimento}
+            initialConfirmacao={(lojista.configuracoes as any)?.notificacoes?.whatsapp?.template_confirmacao}
+            initialLembrete={(lojista.configuracoes as any)?.notificacoes?.whatsapp?.template_lembrete}
+          />
         </div>
 
         {/* Coluna 3: Alertas Internos & Links */}
