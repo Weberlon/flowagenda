@@ -10,6 +10,8 @@ build/
 .vercel
 
 Asaas.txt
+Sflow.txt
+*.txt
 scratch_*.ts
 scratch/
 *.tsbuildinfo

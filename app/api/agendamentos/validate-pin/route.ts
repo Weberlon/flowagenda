@@ -37,10 +37,11 @@ function formatarDataHoraBRT(dataIso: string): string {
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as ValidatePinBody;
+    const cleanPin = String(body?.pin ?? '').replace(/\D/g, '').trim();
 
-    if (!body?.agendamentoId || !body?.pin) {
+    if (!body?.agendamentoId || cleanPin.length !== 6) {
       return NextResponse.json(
-        { success: false, error: 'Parâmetros "agendamentoId" e "pin" são obrigatórios.' },
+        { success: false, error: 'Parâmetros "agendamentoId" e "pin" (com exatamente 6 dígitos numéricos) são obrigatórios.' },
         { status: 400 }
       );
     }
@@ -122,28 +123,52 @@ export async function POST(req: Request) {
       );
     }
 
-    if (agendamento.pin_validacao !== body.pin.trim()) {
+    if (agendamento.pin_validacao !== cleanPin) {
       return NextResponse.json(
         { success: false, error: 'O PIN de validação digitado está incorreto.' },
         { status: 400 }
       );
     }
 
-    // 3. Atualizar agendamento para confirmado e limpar PIN
-    const { error: updateErr } = await adminSupabase
+    // 3. Atualizar agendamento para confirmado e limpar PIN de forma atômica (idempotência contra double-click)
+    const { data: updatedRows, error: updateErr } = await adminSupabase
       .from('agendamentos')
       .update({
         status: 'confirmado',
         pin_validacao: null,
         updated_at: agora.toISOString(),
       })
-      .eq('id', agendamento.id);
+      .eq('id', agendamento.id)
+      .in('status', ['locked', 'pendente_pin'])
+      .select('id');
 
     if (updateErr) {
       console.error('[ValidatePin] Erro ao confirmar agendamento:', updateErr);
       return NextResponse.json(
         { success: false, error: 'Falha ao gravar confirmação no banco de dados.' },
         { status: 500 }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      // Checagem defensiva de idempotência: se o agendamento já constar como 'confirmado', retorna sucesso
+      const { data: checkAtual } = await adminSupabase
+        .from('agendamentos')
+        .select('status')
+        .eq('id', agendamento.id)
+        .maybeSingle();
+
+      if (checkAtual?.status === 'confirmado') {
+        console.log(`[ValidatePin] Idempotência: Agendamento ${agendamento.id} já confirmado anteriormente por requisição concorrente.`);
+        return NextResponse.json(
+          { success: true, message: 'Agendamento já confirmado anteriormente.' },
+          { status: 200 }
+        );
+      }
+
+      return NextResponse.json(
+        { success: false, error: 'Esta reserva expirou ou já foi atualizada por outra sessão. Por favor, reinicie o agendamento.' },
+        { status: 400 }
       );
     }
 

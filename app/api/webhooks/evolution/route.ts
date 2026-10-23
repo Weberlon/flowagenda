@@ -1,30 +1,55 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendEvolutionTextMessage, maskPhoneNumber } from '@/lib/evolution';
+import crypto from 'crypto';
+
+// Comparação segura em tempo constante contra timing attacks com guarda defensiva de tamanho
+function timingSafeCompare(a: string, b: string): boolean {
+  try {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    const bufferA = Buffer.from(a, 'utf-8');
+    const bufferB = Buffer.from(b, 'utf-8');
+    // crypto.timingSafeEqual lança erro fatal se os comprimentos forem divergentes
+    if (bufferA.length !== bufferB.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(bufferA, bufferB);
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
     const receivedToken =
-      req.headers.get('x-hook-token') ||
       req.headers.get('apikey') ||
       req.headers.get('x-api-key') ||
-      req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+      req.headers.get('apiKey') ||
+      req.headers.get('x-hook-token') ||
+      req.headers.get('webhook-token') ||
+      req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ||
+      url.searchParams.get('apikey') ||
+      url.searchParams.get('apiKey') ||
       url.searchParams.get('token') ||
-      url.searchParams.get('secret') ||
-      url.searchParams.get('apikey');
+      url.searchParams.get('secret');
 
     const expectedTokens = [
       process.env.EVOLUTION_WEBHOOK_SECRET,
       process.env.EVOLUTION_API_KEY,
       process.env.HOOK_TOKEN,
-      'senha-segura-flowagenda-2026',
     ].filter(Boolean) as string[];
 
-    // Validação de token de segurança caso configurado
-    if (expectedTokens.length > 0 && receivedToken) {
-      if (!expectedTokens.includes(receivedToken)) {
-        console.warn(`[WEBHOOK EVOLUTION] Tentativa de acesso com token não autorizado.`);
+    // Validação estrita de autenticação: rejeita requisições sem token ou com token inválido
+    if (expectedTokens.length > 0) {
+      if (!receivedToken) {
+        console.warn('[WEBHOOK EVOLUTION] Tentativa de acesso não autorizada: token ausente nos cabeçalhos.');
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
+      const isValid = expectedTokens.some((expected) => timingSafeCompare(receivedToken, expected));
+      if (!isValid) {
+        console.warn('[WEBHOOK EVOLUTION] Tentativa de acesso com token inválido.');
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     }

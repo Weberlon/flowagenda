@@ -32,17 +32,32 @@ export const TEMPLATES_PADRAO: Record<TipoMensagemWhatsApp, string> = {
 };
 
 /**
+ * Sanitiza campos de texto de linha única fornecidos por usuários / clientes,
+ * removendo quebras de linha acidentais ou maliciosas, caracteres de controle
+ * e limitando o tamanho para evitar injeção de texto ou sobrecarga no WhatsApp.
+ */
+function sanitizarCampoLinhaUnica(valor: string | null | undefined, maxLen = 80): string {
+  if (!valor) return '';
+  return valor
+    .replace(/[\r\n\t]/g, ' ')                      // Impede injeção de novas linhas / parágrafos falsos
+    .replace(/[\u0000-\u001F\u202A-\u202E]/g, '')   // Remove caracteres não-imprimíveis e RTL override
+    .replace(/\s+/g, ' ')                           // Colapsa espaços redundantes
+    .trim()
+    .slice(0, maxLen);
+}
+
+/**
  * Normaliza e sanitiza valores para evitar que "undefined", "null" ou vazios
  * vazem para a mensagem final enviada ao cliente via WhatsApp.
  */
 function resolverValoresSeguros(dados: DadosTemplateAgendamento) {
   return {
-    cliente: dados.cliente?.trim() || 'Cliente',
-    data: dados.data?.trim() || 'Data agendada',
-    horario: dados.horario?.trim() || 'Horário agendado',
-    servico: dados.servico?.trim() || 'Serviço',
-    profissional: dados.profissional?.trim() || 'Equipe',
-    estabelecimento: dados.estabelecimento?.trim() || 'nosso estabelecimento',
+    cliente: sanitizarCampoLinhaUnica(dados.cliente, 60) || 'Cliente',
+    data: sanitizarCampoLinhaUnica(dados.data, 30) || 'Data agendada',
+    horario: sanitizarCampoLinhaUnica(dados.horario, 20) || 'Horário agendado',
+    servico: sanitizarCampoLinhaUnica(dados.servico, 60) || 'Serviço',
+    profissional: sanitizarCampoLinhaUnica(dados.profissional, 60) || 'Equipe',
+    estabelecimento: sanitizarCampoLinhaUnica(dados.estabelecimento, 80) || 'nosso estabelecimento',
   };
 }
 

@@ -66,20 +66,19 @@
 
 ## 3. Próximas Ações Imediatas (Backlog Priorizado para o Próximo Chat)
 
-### Fase 1: Correções de Segurança da Auditoria (Imediato)
-1. **Endurecer Isolamento em `app/actions/booking-lock.ts` e `/api/agendamentos/validate-pin`:**
-   - Adicionar `.eq('lojista_id', lojistaId)` em todas as queries de busca do agendamento por ID e na validação do PIN.
-   - Remover ou escopar por `lojista_id` o fallback de busca por telefone.
-   - Validar em `createBookingReservation` se `payload.profissional_id` pertence ao `lojistaId` do estabelecimento.
-2. **Higienização de Repositório e Segredos:**
-   - Adicionar `Sflow.txt` ao `.gitignore`.
-   - Remover o IP fixo de fallback em `scripts/test-e2e-flow.ts:71`.
-3. **Limpeza de Políticas RLS no Supabase:**
-   - Executar migration ou SQL descartando as políticas públicas permissivas obsoletas em `public.agendamentos`:
-     ```sql
-     DROP POLICY IF EXISTS "Public appointment reservation insert" ON public.agendamentos;
-     DROP POLICY IF EXISTS "Public appointment pin validation update" ON public.agendamentos;
-     ```
+### Fase 1: Correções de Segurança da Auditoria (CONCLUÍDO em 2026-10-23)
+1. **Endurecimento de PIN e Idempotência contra Double-Click:**
+   - Validação estrita de PIN numérico de 6 dígitos (`/^\d{6}$/`) em `booking-lock.ts` e `validate-pin/route.ts`.
+   - Update atômico com `in('status', ['locked', 'pendente_pin']).select('id')` eliminando race conditions, duplicidade de WhatsApp e contagem dupla no CRM.
+2. **Isolamento Multi-Tenant e Anti-IDOR:**
+   - `validarPinBookingAction` e `agendamento-client.tsx` escopados por `lojista_id`.
+   - `createBookingReservation` valida `payload.profissional_id` e `servico_id` contra o `lojistaId` ativo.
+3. **Autenticação Estrita do Webhook Evolution API:**
+   - Rejeição obrigatória de requisições sem token nos cabeçalhos e validação com `crypto.timingSafeEqual` em `app/api/webhooks/evolution/route.ts`.
+4. **Sanitização de Templates do WhatsApp:**
+   - `sanitizarCampoLinhaUnica` em `lib/whatsapp/template-engine.ts` bloqueia injeção de quebras de linha, parágrafos maliciosos e caracteres de controle.
+5. **Higiene de Segredos:**
+   - `Sflow.txt` e `*.txt` adicionados ao `.gitignore`; IP da VPS removido de `scripts/test-e2e-flow.ts`.
 
 ### Fase 2: Homologação Operacional do WhatsApp & E2E
 1. **Conexão Real do WhatsApp na VPS:**

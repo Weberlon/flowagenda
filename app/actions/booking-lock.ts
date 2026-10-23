@@ -283,6 +283,7 @@ export async function createBookingReservation(
         .from('servicos')
         .select('duracao_minutos, intervalo_minutos')
         .eq('id', payload.servico_id)
+        .eq('lojista_id', lojistaId)
         .single();
 
       const dMin = Number(servicoTemp?.duracao_minutos) || 30;
@@ -314,6 +315,22 @@ export async function createBookingReservation(
       }
 
       payload.profissional_id = profEscolhidoId;
+    } else {
+      // Validação estrita: garante que o profissional selecionado pertence ao estabelecimento atual (Anti-IDOR)
+      const { data: profValido } = await adminSupabase
+        .from('profissionais')
+        .select('id')
+        .eq('id', payload.profissional_id)
+        .eq('lojista_id', lojistaId)
+        .eq('ativo', true)
+        .maybeSingle();
+
+      if (!profValido) {
+        return {
+          success: false,
+          error: 'Profissional selecionado não encontrado ou inativo no estabelecimento.',
+        };
+      }
     }
 
     // Higienização estrita do telefone para formato internacional com DDI 55
@@ -531,6 +548,43 @@ export async function createBookingReservation(
   }
 }
 
+interface LojistaRelationalRecord {
+  id: string;
+  nome_estabelecimento?: string | null;
+  slug_subdominio?: string | null;
+  whatsapp_notificacao?: string | null;
+  whatsapp?: string | null;
+  configuracoes?: Record<string, any> | null;
+}
+
+interface ServicoRelationalRecord {
+  id: string;
+  nome_servico?: string | null;
+  preco?: number | string | null;
+}
+
+interface ProfissionalRelationalRecord {
+  id: string;
+  nome?: string | null;
+}
+
+interface AgendamentoLockRecord {
+  id: string;
+  lojista_id: string;
+  status: string;
+  pin_validacao: string | null;
+  expira_em: string;
+  cliente_telefone: string | null;
+  cliente_nome: string | null;
+  data_hora_inicio: string;
+  servico_id: string;
+  profissional_id: string;
+  cliente_id?: string | null;
+  lojistas?: LojistaRelationalRecord | LojistaRelationalRecord[] | null;
+  servicos?: ServicoRelationalRecord | ServicoRelationalRecord[] | null;
+  profissionais?: ProfissionalRelationalRecord | ProfissionalRelationalRecord[] | null;
+}
+
 /**
  * Validação segura de PIN do agendamento (transição locked/pendente_pin -> confirmado)
  * Executada com createAdminClient (bypass de RLS para usuário anônimo)
@@ -538,21 +592,45 @@ export async function createBookingReservation(
 export async function validarPinBookingAction(
   agendamentoId: string,
   pin: string,
-  telefone?: string
-): Promise<{ success: boolean; error?: string }> {
+  telefone?: string,
+  lojistaId?: string
+): Promise<{ success: boolean; error?: string; message?: string }> {
   const adminSupabase = createAdminClient();
 
   try {
-    const cleanPin = pin.trim();
-    if (!cleanPin) {
-      return { success: false, error: 'O código PIN de validação é obrigatório.' };
+    // Sanitização defensiva: expurga espaços e caracteres não numéricos antes da validação
+    const cleanPin = String(pin ?? '').replace(/\D/g, '').trim();
+    if (cleanPin.length !== 6) {
+      return { success: false, error: 'O código PIN de validação deve conter exatamente 6 dígitos numéricos.' };
     }
 
-    let agendamento: any = null;
+    // Resolução defensiva de lojistaId via headers se não enviado explicitamente pelo client
+    let activeLojistaId = lojistaId;
+    if (!activeLojistaId) {
+      try {
+        const { headers } = await import('next/headers');
+        const reqHeaders = await headers();
+        const host = reqHeaders.get('host') || '';
+        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'flowagenda.online';
+        if (host.includes(`.${rootDomain}`)) {
+          const sub = host.replace(`.${rootDomain}`, '').split(':')[0];
+          const { data: store } = await adminSupabase
+            .from('lojistas')
+            .select('id')
+            .eq('slug_subdominio', sub)
+            .maybeSingle();
+          if (store?.id) activeLojistaId = store.id;
+        }
+      } catch {
+        // Ignora caso headers não estejam disponíveis no contexto
+      }
+    }
+
+    let agendamento: AgendamentoLockRecord | null = null;
 
     // 1. Busca prioritária por ID da reserva (se fornecido)
     if (agendamentoId && agendamentoId.trim()) {
-      const { data, error: fetchErr } = await adminSupabase
+      let query = adminSupabase
         .from('agendamentos')
         .select(`
           id, lojista_id, status, pin_validacao, expira_em, cliente_telefone, cliente_nome, data_hora_inicio,
@@ -561,8 +639,13 @@ export async function validarPinBookingAction(
           servicos ( id, nome_servico, preco ),
           profissionais ( id, nome )
         `)
-        .eq('id', agendamentoId.trim())
-        .maybeSingle();
+        .eq('id', agendamentoId.trim());
+
+      if (activeLojistaId) {
+        query = query.eq('lojista_id', activeLojistaId);
+      }
+
+      const { data, error: fetchErr } = await query.maybeSingle();
 
       if (fetchErr) {
         console.error('[ConfirmBooking] Erro ao consultar agendamento por ID:', fetchErr);
@@ -581,7 +664,7 @@ export async function validarPinBookingAction(
 
         console.log(`[ConfirmBooking] Buscando reserva ativa por telefone: ${ddiPhone} / ${localPhone}`);
 
-        const { data: agendamentoByPhone, error: phoneErr } = await adminSupabase
+        let phoneQuery = adminSupabase
           .from('agendamentos')
           .select(`
             id, lojista_id, status, pin_validacao, expira_em, cliente_telefone, cliente_nome, data_hora_inicio,
@@ -591,7 +674,13 @@ export async function validarPinBookingAction(
             profissionais ( id, nome )
           `)
           .or(`cliente_telefone.eq.${ddiPhone},cliente_telefone.eq.${localPhone},telefone_contato.eq.${ddiPhone},telefone_contato.eq.${localPhone}`)
-          .in('status', ['locked', 'pendente_pin'])
+          .in('status', ['locked', 'pendente_pin']);
+
+        if (activeLojistaId) {
+          phoneQuery = phoneQuery.eq('lojista_id', activeLojistaId);
+        }
+
+        const { data: agendamentoByPhone, error: phoneErr } = await phoneQuery
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -604,7 +693,7 @@ export async function validarPinBookingAction(
     }
 
     if (!agendamento) {
-      console.warn('[ConfirmBooking] Agendamento não encontrado para os parâmetros:', { agendamentoId, telefone });
+      console.warn('[ConfirmBooking] Agendamento não encontrado para os parâmetros:', { agendamentoId, telefone, lojistaId });
       return { success: false, error: 'Reserva não encontrada ou expirada. Por favor, reinicie o agendamento.' };
     }
 
@@ -612,8 +701,8 @@ export async function validarPinBookingAction(
       return { success: true };
     }
 
-    if (agendamento.status === 'cancelado') {
-      return { success: false, error: 'Esta reserva foi cancelada. Por favor, selecione outro horário.' };
+    if (agendamento.status !== 'locked' && agendamento.status !== 'pendente_pin') {
+      return { success: false, error: 'Esta reserva não está mais disponível para validação.' };
     }
 
     // 3. Validação de Expiração do Lock Provisório (10 minutos)
@@ -703,10 +792,12 @@ export async function validarPinBookingAction(
       updateFields.cliente_id = clienteId;
     }
 
-    const { error: updateErr } = await adminSupabase
+    const { data: updatedRows, error: updateErr } = await adminSupabase
       .from('agendamentos')
       .update(updateFields)
-      .eq('id', agendamento.id);
+      .eq('id', agendamento.id)
+      .in('status', ['locked', 'pendente_pin'])
+      .select('id');
 
     if (updateErr) {
       console.error('[ConfirmBooking] Erro de banco ao confirmar agendamento:', updateErr);
@@ -716,13 +807,32 @@ export async function validarPinBookingAction(
       };
     }
 
+    if (!updatedRows || updatedRows.length === 0) {
+      // Checagem defensiva de idempotência: se o agendamento já constar como 'confirmado', retorna sucesso
+      const { data: checkAtual } = await adminSupabase
+        .from('agendamentos')
+        .select('status')
+        .eq('id', agendamento.id)
+        .maybeSingle();
+
+      if (checkAtual?.status === 'confirmado') {
+        console.log(`[ConfirmBooking] Idempotência: Agendamento ${agendamento.id} já confirmado anteriormente por requisição concorrente.`);
+        return { success: true, message: 'Agendamento já confirmado anteriormente.' };
+      }
+
+      return {
+        success: false,
+        error: 'Esta reserva expirou ou já foi atualizada por outra sessão. Por favor, reinicie o agendamento.',
+      };
+    }
+
     console.log(`[ConfirmBooking] Agendamento ${agendamento.id} confirmado com sucesso no banco de dados.`);
 
     // 7. Notificações Transacionais pós-confirmação via Evolution API (Não-impeditivas)
     try {
-      const lojista = agendamento.lojistas as any;
-      const servico = agendamento.servicos as any;
-      const profissional = agendamento.profissionais as any;
+      const lojista = Array.isArray(agendamento.lojistas) ? agendamento.lojistas[0] : agendamento.lojistas;
+      const servico = Array.isArray(agendamento.servicos) ? agendamento.servicos[0] : agendamento.servicos;
+      const profissional = Array.isArray(agendamento.profissionais) ? agendamento.profissionais[0] : agendamento.profissionais;
 
       const { data: configRobo } = await adminSupabase
         .from('configuracoes_robo')

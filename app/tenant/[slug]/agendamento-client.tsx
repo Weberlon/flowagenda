@@ -231,7 +231,7 @@ export default function AgendamentoClient({
 
     startTransitionPin(async () => {
       try {
-        const res = await validarPinBookingAction(reservaId, pin, telefone);
+        const res = await validarPinBookingAction(reservaId, pin, telefone, lojista.id);
         if (res.success) {
           setStep('sucesso');
         } else {

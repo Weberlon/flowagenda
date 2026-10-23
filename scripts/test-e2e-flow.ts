@@ -68,7 +68,7 @@ async function runE2ETestFlow() {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://179.236.70.181:8080';
+  const evolutionUrl = process.env.EVOLUTION_API_URL || 'http://localhost:8080';
   const evolutionApiKey = process.env.EVOLUTION_API_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
