@@ -58,9 +58,11 @@
    - Auto-provisionamento de instâncias tolerante a falhas na Evolution API.
    - Envio humanizado com presença (`composing`) e jitter anti-banimento (3s a 7s).
 
-5. **Trabalhadores Automatizados (Vercel Cron):**
-   - `whatsapp-healthcheck` (a cada 15 min): Monitoramento de saúde das instâncias na VPS.
-   - `appointment-lifecycle` (a cada 10 min): Disparo de lembretes anti-no-show 2h antes e solicitação de avaliação Google Meu Negócio 5★ 2h pós-atendimento.
+5. **Trabalhadores Automatizados (Vercel Cron & Lifecycle):**
+   - `whatsapp-healthcheck` (`*/15 * * * *` em `vercel.json`): Monitoramento de saúde das instâncias na VPS.
+   - `appointment-lifecycle` (`*/10 * * * *` em `vercel.json`): Homologado com janela deslizante segura de 105 a 135 minutos (2h UTC), processamento em lotes controlados (`processarEmLotes` com 3 concorrentes), isolamento multi-tenant de instâncias com cache e blindagem anti-spam via `lembrete_enviado_at` (TIMESTAMPTZ) e fallback retrocompatível.
+   - Migration adicionada: `supabase/migrations/20261023211500_add_lembrete_enviado_at.sql`.
+
 
 ---
 

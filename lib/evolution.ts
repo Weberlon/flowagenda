@@ -639,3 +639,137 @@ export async function setEvolutionWebhook(
   }
 }
 
+// ==============================================================================
+// Envio com Proteção Anti-Banimento e Presença (sendWhatsAppMessage)
+// ==============================================================================
+
+export interface SendWhatsAppMessagePayload {
+  instanceName: string;
+  number: string;
+  text: string;
+}
+
+export interface SendWhatsAppMessageResponse {
+  success: boolean;
+  messageId?: string;
+  data?: any;
+  error?: string;
+}
+
+/**
+ * Função utilitária interna para pausar a execução assíncrona
+ */
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Sanitiza e normaliza telefone garantindo DDI 55 e removendo caracteres especiais
+ */
+export function sanitizeWhatsAppPhone(rawPhone: string): string {
+  const clean = (rawPhone || '').replace(/\D/g, '');
+  if (!clean) return '';
+  if (!clean.startsWith('55') && (clean.length === 10 || clean.length === 11)) {
+    return `55${clean}`;
+  }
+  return clean;
+}
+
+/**
+ * Envia mensagem no WhatsApp com sanitização (DDI 55), presença 'composing' de 1000ms,
+ * jitter anti-ban aleatório entre 1000ms e 2000ms, e tratamento resiliente de erros.
+ */
+export async function sendWhatsAppMessage({
+  instanceName,
+  number,
+  text,
+}: SendWhatsAppMessagePayload): Promise<SendWhatsAppMessageResponse> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+
+    const cleanNumber = sanitizeWhatsAppPhone(number);
+    if (!cleanNumber || cleanNumber.length < 10) {
+      return {
+        success: false,
+        error: `Número de telefone inválido para envio: ${number}`,
+      };
+    }
+
+    const encodedInstance = encodeURIComponent(instanceName);
+
+    // 1. Simular presença "digitando..." ('composing') com duração de 1000ms
+    try {
+      await fetch(`${apiUrl}/chat/sendPresence/${encodedInstance}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: apiKey,
+        },
+        body: JSON.stringify({
+          number: cleanNumber,
+          presence: 'composing',
+          delay: 1000,
+        }),
+      });
+    } catch (presenceErr) {
+      console.warn('[Evolution API] Falha não impeditiva no envio de presença composing:', presenceErr);
+    }
+
+    // 2. Jitter anti-ban: delay aleatório entre 1000ms e 2000ms
+    const jitter = Math.floor(Math.random() * 1001) + 1000;
+    await sleepMs(jitter);
+
+    // 3. Disparo da mensagem de texto
+    const response = await fetch(
+      `${apiUrl}/message/sendText/${encodedInstance}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: apiKey,
+        },
+        body: JSON.stringify({
+          number: cleanNumber,
+          text,
+        }),
+      }
+    );
+
+    const resText = await response.text();
+    let data: any = {};
+    try {
+      data = JSON.parse(resText);
+    } catch {
+      data = { raw: resText };
+    }
+
+    if (!response.ok) {
+      const masked = maskPhoneNumber(cleanNumber);
+      console.warn(`[Evolution API] Falha no disparo para ${masked}:`, resText);
+      const errorMsg =
+        data?.response?.message ||
+        data?.message ||
+        `Falha no envio da mensagem WhatsApp (HTTP ${response.status})`;
+      return {
+        success: false,
+        error: errorMsg,
+      };
+    }
+
+    const messageId = data?.key?.id || data?.id;
+
+    return {
+      success: true,
+      messageId,
+      data,
+    };
+  } catch (error: any) {
+    // Falha resiliente: captura erros sem derrubar o processo
+    console.error('[Evolution API] sendWhatsAppMessage Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro inesperado ao enviar mensagem WhatsApp via Evolution API.',
+    };
+  }
+}
+
