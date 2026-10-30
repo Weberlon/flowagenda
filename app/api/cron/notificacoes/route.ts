@@ -185,21 +185,20 @@ export async function GET(req: Request) {
 
   try {
     // 1. Validação de Segurança Bearer Token
-    const authHeader = req.headers.get('authorization') || '';
-    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-    const cronSecret = process.env.CRON_SECRET || process.env.HOOK_TOKEN || '';
+    const authHeader = req.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
 
-    if (!cronSecret) {
-      console.error('[Cron Notificações] CRON_SECRET ausente no ambiente.');
-      return NextResponse.json(
-        { error: 'Configuração de autenticação ausente no servidor.' },
-        { status: 500 }
-      );
-    }
+    if (cronSecret) {
+      const isAuthorized =
+        authHeader === `Bearer ${cronSecret}` || authHeader === cronSecret;
 
-    if (!bearerToken || !timingSafeCompare(bearerToken, cronSecret)) {
-      console.warn('[Cron Notificações] Acesso não autorizado.');
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      if (!isAuthorized) {
+        console.warn(
+          '[Cron Notificações] Tentativa não autorizada. Header recebido:',
+          authHeader ? 'presente' : 'ausente'
+        );
+        return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+      }
     }
 
     const supabase = createAdminClient();
