@@ -115,8 +115,6 @@ export async function POST(req: Request) {
       .insert({
         message_id: dados.messageId,
         instance_name: instanceName,
-        telefone: dados.telefoneLimpo,
-        texto: dados.texto,
         created_at: new Date().toISOString(),
       });
 
