@@ -33,6 +33,14 @@ interface Lojista {
   whatsapp_notificacao?: string | null;
   cor_primaria?: string | null;
   logo_url?: string | null;
+  ticket_medio_padrao?: number;
+  modo_avaliacao?: 'automatico' | 'manual' | 'desativado';
+  google_review_url?: string | null;
+  is_founder?: boolean;
+  ai_credits?: number;
+  use_ai_agent?: boolean;
+  knowledge_base?: string | null;
+  business_niche?: string;
 }
 
 interface AgendamentoClientProps {

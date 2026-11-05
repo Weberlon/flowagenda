@@ -104,27 +104,27 @@ export default async function DashboardLayout({
     <div className="flex h-screen w-full bg-[#0F172A] text-slate-100 font-sans">
       
       {/* Sidebar Compacta (Nord Dark) */}
-      <aside className="w-64 flex-col border-r border-slate-800 bg-[#020617] hidden md:flex">
-        <div className="flex h-16 items-center px-6 border-b border-slate-800">
-          <span className="font-bold text-lg tracking-tight">FlowAgenda</span>
+      <aside className="w-64 flex-col border-r border-[#3B4252] bg-[#242933] hidden md:flex">
+        <div className="flex h-16 items-center px-6 border-b border-[#3B4252]">
+          <span className="font-bold text-lg tracking-tight text-[#ECEFF4]">FlowAgenda</span>
         </div>
         
         <nav className="flex-1 space-y-2 p-4 text-sm font-medium">
-          <Link href="/dashboard" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
             Agenda
           </Link>
-          <Link href="/dashboard/servicos" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard/servicos" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
             Serviços
           </Link>
-          <Link href="/dashboard/clientes" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard/clientes" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
             Clientes
           </Link>
-          <Link href="/dashboard/configuracoes" className="block rounded-md px-3 py-2 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+          <Link href="/dashboard/configuracoes" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
             Configurações
           </Link>
         </nav>
         
-        <div className="p-4 border-t border-slate-800 text-xs text-slate-500">
+        <div className="p-4 border-t border-[#3B4252] text-xs text-[#88C0D0]/80">
           <p>Plano: {lojista.tier}</p>
         </div>
       </aside>
@@ -152,7 +152,7 @@ export default async function DashboardLayout({
         )}
 
         {/* Header (Nord Dark) */}
-        <header className="flex h-16 items-center justify-between border-b border-[#3B4252] bg-[#2E3440] px-6 shadow-sm">
+        <header className="relative z-30 flex h-16 items-center justify-between border-b border-[#3B4252] bg-[#2E3440] px-6 shadow-sm">
           <h2 className="text-lg font-semibold tracking-tight text-[#ECEFF4]">
             {lojista.nome_estabelecimento}
           </h2>

@@ -21,6 +21,13 @@ interface ConfiguracoesClientProps {
     tier: string;
     cor_primaria: string | null;
     google_review_url?: string | null;
+    ticket_medio_padrao?: number;
+    modo_avaliacao?: 'automatico' | 'manual' | 'desativado';
+    is_founder?: boolean;
+    ai_credits?: number;
+    use_ai_agent?: boolean;
+    knowledge_base?: string | null;
+    business_niche?: string;
     configuracoes?: Record<string, any> | null;
   };
   configRobo: {
