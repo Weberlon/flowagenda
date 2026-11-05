@@ -1,23 +1,19 @@
 # Minuta Padrão de Prestação de Serviços de Software (SwaS) — FlowAgenda
 
 ## Das Partes
-- CONTRATADA: FlowAgenda Tecnologia, plataforma de automação e agendamentos.
-- CONTRATANTE: [Razão Social / Nome Fantasia], CNPJ/CPF [Número], com sede em [Endereço].
+- CONTRATADA: FlowAgenda Tecnologia.
+- CONTRATANTE: [Razão Social / Nome Fantasia], CNPJ/CPF [Número].
 
 ## Cláusula 1ª — Do Objeto
-A CONTRATADA concede ao CONTRATANTE o direito de uso de sua plataforma de agendamento digital (SaaS), incluindo página pública multi-tenant, integração de lembretes e confirmações automatizadas via WhatsApp (Evolution API) e painel administrativo de gestão.
+Licença de uso da plataforma FlowAgenda para gestão de agendamentos, disparo de lembretes transacionais via WhatsApp e painel administrativo.
 
-## Cláusula 2ª — Da Natureza do Serviço e Papéis LGPD (Lei nº 13.709/2018)
-2.1. O CONTRATANTE figura formal e exclusivamente como CONTROLADOR dos dados pessoais e dados de contato de seus clientes finais inseridos na plataforma.
-2.2. A CONTRATADA atua estritamente como OPERADORA, fornecendo a infraestrutura técnica necessária para o processamento e transmissão das notificações.
-2.3. O CONTRATANTE declara expressamente que possui base legal legítima (consentimento ou execução de contrato) para contatar os telefones cadastrados, isentando a CONTRATADA de qualquer responsabilidade por envios indevidos.
+## Cláusula 2ª — Papéis na LGPD e Vedação de Prontuário
+2.1. O CONTRATANTE é o CONTROLADOR dos dados cadastrais de seus clientes finais; a CONTRATADA atua estritamente como OPERADORA técnica da infraestrutura.
+2.2. Vedação Expressa de Dados Sensíveis de Saúde: O FlowAgenda destina-se exclusivamente à gestão de horários e presença. É terminantemente proibido o registro, envio ou armazenamento de prontuários clínicos, anamneses, prescrições ou históricos médicos na plataforma.
 
-## Cláusula 3ª — Da Proibição de Práticas de Spam
-É terminantemente proibido o uso da plataforma para disparo em massa de mensagens publicitárias não solicitadas (SPAM). A detecção de uso abusivo ensejará a rescisão imediata da conta sem direito a ressarcimento, visando resguardar a integridade dos servidores e o número de WhatsApp utilizado.
+## Cláusula 3ª — Da Proibição de SPAM
+Fica proibido o disparo de mensagens promocionais em massa não solicitadas. O descumprimento autoriza a suspensão cautelar da conta para resguardo da infraestrutura.
 
-## Cláusula 4ª — Dos Planos, Valores e Vigência
-4.1. O plano contratado é o [Essencial / Profissional / Autoridade], no valor de R$ [Valor]/mês, faturado via [Asaas / Boleto / PIX / Cartão].
-4.2. Planos Anuais com Bonificação de Setup: Caso o CONTRATANTE tenha optado pelo plano anual com isenção da taxa de configuração e treinamento (setup), vigorará fidelidade mínima de 12 (doze) meses.
-4.3. Em caso de cancelamento imotivado antes do prazo de 12 meses no plano com setup isento, será devida multa rescisória compensatória equivalente a 30% das mensalidades restantes.
-4.4. Nos planos mensais sem bonificação, o cancelamento é livre mediante aviso prévio de 30 dias, sem multa residual.
-
+## Cláusula 4ª — Planos, Fidelidade e Rescisão
+4.1. Nos planos anuais com bonificação de setup, aplica-se fidelidade mínima de 12 meses, com multa rescisória de 30% das mensalidades vincendas em caso de rescisão antecipada.
+4.2. Nos planos mensais, o cancelamento é livre mediante aviso prévio de 30 dias.
