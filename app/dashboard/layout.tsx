@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { getWhatsAppComercialUrl } from '@/lib/contact';
+import { NotificacoesFeed } from '@/components/dashboard/NotificacoesFeed';
 
 export default async function DashboardLayout({
   children,
@@ -96,6 +97,7 @@ export default async function DashboardLayout({
     );
   }
 
+  const lojistaId: string = lojista.id;
   const isInadimplente = lojista.status_pagamento === 'inadimplente' || lojista.status_pagamento === 'cancelado';
 
   return (
@@ -149,11 +151,16 @@ export default async function DashboardLayout({
           </div>
         )}
 
-        {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-800">{lojista.nome_estabelecimento}</h2>
-          <div className="text-sm font-medium text-slate-500">
-            {user.email}
+        {/* Header (Nord Dark) */}
+        <header className="flex h-16 items-center justify-between border-b border-[#3B4252] bg-[#2E3440] px-6 shadow-sm">
+          <h2 className="text-lg font-semibold tracking-tight text-[#ECEFF4]">
+            {lojista.nome_estabelecimento}
+          </h2>
+          <div className="flex items-center gap-4">
+            <NotificacoesFeed lojistaId={lojistaId} />
+            <div className="text-sm font-medium text-[#88C0D0]">
+              {user.email}
+            </div>
           </div>
         </header>
 
