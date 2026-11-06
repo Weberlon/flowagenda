@@ -10,6 +10,7 @@ import {
   disconnectWhatsAppAction 
 } from '@/app/actions/configuracoes';
 import { MensagensWhatsAppForm } from './mensagens-form';
+import { AiOnboardingWizard } from './ai-onboarding-wizard';
 
 interface ConfiguracoesClientProps {
   lojista: {
@@ -193,8 +194,19 @@ export function ConfiguracoesClient({
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* Coluna 1 & 2: WhatsApp & Mensagens */}
+        {/* Coluna 1 & 2: WhatsApp, Onboarding IA & Mensagens */}
         <div className="space-y-8 lg:col-span-2">
+
+          {/* Assistente de Configuração / Setup Wizard do Agente IA */}
+          <AiOnboardingWizard
+            lojistaId={lojista.id}
+            nomeEstabelecimento={lojista.nome_estabelecimento}
+            initialBusinessNiche={lojista.business_niche}
+            initialUseAiAgent={lojista.use_ai_agent}
+            initialKnowledgeBase={lojista.knowledge_base}
+            initialAiCredits={lojista.ai_credits}
+            initialOnboardingConfig={(lojista.configuracoes as any)?.ai_onboarding}
+          />
           
           {/* Card WhatsApp Connection */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

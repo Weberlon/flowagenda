@@ -30,6 +30,7 @@
     "eslint-config-next": "latest",
     "pg": "^8.23.1",
     "postcss": "latest",
+    "supabase": "^3.0.0",
     "tailwindcss": "latest",
     "tsx": "^4.23.15",
     "typescript": "latest"
