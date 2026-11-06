@@ -1,6 +1,11 @@
 import OpenAI from 'openai';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendWhatsAppMessage } from '@/lib/evolution';
+import {
+  checkContactAiPauseStatus,
+  runColdLeadsFollowUpRadar,
+  ColdLeadsFollowUpSummary,
+} from '@/lib/ai-handoff';
 
 /**
  * ==============================================================================
@@ -43,6 +48,7 @@ export interface ProcessChatQueueSummary {
   groups_succeeded: number;
   groups_failed: number;
   stale_recovered: number;
+  followup_radar?: ColdLeadsFollowUpSummary;
   duration_ms: number;
 }
 
@@ -188,6 +194,7 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
 
   const rows = (pendingMessages || []) as ChatQueueRecord[];
   if (rows.length === 0) {
+    const followupSummary = await runColdLeadsFollowUpRadar();
     return {
       success: true,
       total_pending_fetched: 0,
@@ -195,6 +202,7 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
       groups_succeeded: 0,
       groups_failed: 0,
       stale_recovered: staleRecovered,
+      followup_radar: followupSummary,
       duration_ms: Date.now() - startMs,
     };
   }
@@ -236,6 +244,19 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
 
       // Se outro worker já capturou essas mensagens, pula com segurança
       if (!lockedRows || lockedRows.length === 0) {
+        continue;
+      }
+
+      // 3.a.1) Verificar Handoff Humano: se o atendente pausou a IA para este remote_jid, não invocar DeepSeek
+      const pauseStatus = await checkContactAiPauseStatus(supabase, lojistaId, remoteJid);
+      if (pauseStatus.isPaused) {
+        await supabase
+          .from('chat_queue')
+          .update({
+            status: 'completed',
+            updated_at: new Date().toISOString(),
+          })
+          .in('id', rowIds);
         continue;
       }
 
@@ -398,6 +419,8 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
     }
   }
 
+  const followupSummary = await runColdLeadsFollowUpRadar();
+
   return {
     success: true,
     total_pending_fetched: rows.length,
@@ -405,6 +428,7 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
     groups_succeeded: groupsSucceeded,
     groups_failed: groupsFailed,
     stale_recovered: staleRecovered,
+    followup_radar: followupSummary,
     duration_ms: Date.now() - startMs,
   };
 }

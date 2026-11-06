@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendEvolutionTextMessage, maskPhoneNumber } from '@/lib/evolution';
+import { checkContactAiPauseStatus } from '@/lib/ai-handoff';
 import crypto from 'crypto';
 
 // Comparação segura em tempo constante contra timing attacks com guarda defensiva de tamanho
@@ -216,6 +217,24 @@ export async function POST(req: Request) {
     // 2. Proteção de Assinatura: Se inadimplente ou cancelado, o bot não atende
     if (lojista.status_pagamento === 'inadimplente' || lojista.status_pagamento === 'cancelado') {
       return NextResponse.json({ received: true, status: 'tenant_suspended' }, { status: 200 });
+    }
+
+    // 2.1 Verificar Handoff Humano por Contato (IA pausada para este remoteJid)
+    const pauseStatus = await checkContactAiPauseStatus(supabase, lojista.id, remoteJid);
+    if (pauseStatus.isPaused) {
+      await supabase.from('painel_notificacoes').insert({
+        lojista_id: lojista.id,
+        agendamento_id: null,
+        cliente_nome: dataItem?.pushName || payload?.pushName || 'Cliente',
+        cliente_telefone: clientPhone,
+        tipo_evento: 'atendimento_humano_ativo',
+        conteudo: messageText.trim() || '[Mídia recebida durante atendimento humano]',
+        created_at: new Date().toISOString(),
+      });
+      return NextResponse.json(
+        { received: true, status: 'ai_paused_for_contact', paused_until: pauseStatus.pausedUntil },
+        { status: 200 }
+      );
     }
 
     // 3. CASO 2: Se a mensagem recebida for mídia (áudio, imagem, vídeo, sticker), avisar educadamente

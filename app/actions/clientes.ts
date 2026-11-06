@@ -1,6 +1,9 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
+import { sendWhatsAppMessage } from '@/lib/evolution';
+import { setContactAiPauseState } from '@/lib/ai-handoff';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
@@ -15,6 +18,8 @@ export interface ClienteCRM {
   ultimo_agendamento?: string | null;
   observacoes?: string | null;
   tags?: string[] | null;
+  ai_paused_until?: string | null;
+  custom_metadata?: Record<string, any> | null;
   created_at: string;
   updated_at?: string | null;
 }
@@ -82,20 +87,30 @@ export async function getClientes() {
 
 // Helper para normalizar tipos e calcular KPIs e LTV
 function formatClientesResponse(lojista: any, rawClientes: any[]) {
-  const clientes: ClienteCRM[] = rawClientes.map((c) => ({
-    id: c.id,
-    lojista_id: c.lojista_id,
-    nome: c.nome,
-    telefone: (c.telefone || '').replace(/\D/g, ''),
-    etapa_kanban: c.etapa_kanban || 'lead',
-    total_gasto: Number(c.total_gasto || 0),
-    total_agendamentos: Number(c.total_agendamentos || 0),
-    ultimo_agendamento: c.ultimo_agendamento || null,
-    observacoes: c.observacoes || '',
-    tags: Array.isArray(c.tags) ? c.tags : [],
-    created_at: c.created_at,
-    updated_at: c.updated_at || c.created_at,
-  }));
+  const clientes: ClienteCRM[] = rawClientes.map((c) => {
+    const meta =
+      c.custom_metadata && typeof c.custom_metadata === 'object'
+        ? (c.custom_metadata as Record<string, any>)
+        : {};
+    const aiPausedUntil = meta.ai_paused_until || c.ai_paused_until || null;
+
+    return {
+      id: c.id,
+      lojista_id: c.lojista_id,
+      nome: c.nome,
+      telefone: (c.telefone || '').replace(/\D/g, ''),
+      etapa_kanban: c.etapa_kanban || 'lead',
+      total_gasto: Number(c.total_gasto || 0),
+      total_agendamentos: Number(c.total_agendamentos || 0),
+      ultimo_agendamento: c.ultimo_agendamento || null,
+      observacoes: c.observacoes || '',
+      tags: Array.isArray(c.tags) ? c.tags : [],
+      ai_paused_until: aiPausedUntil,
+      custom_metadata: meta,
+      created_at: c.created_at,
+      updated_at: c.updated_at || c.created_at,
+    };
+  });
 
   const totalClientes = clientes.length;
   const ltvTotal = clientes.reduce((acc, c) => acc + (c.total_gasto || 0), 0);
@@ -398,4 +413,170 @@ export async function deleteClienteHistoricoNota(notaId: string) {
 
 // Manter compatibilidade com getClientesData
 export const getClientesData = getClientes;
+
+/**
+ * Helper interno para resolver o lojista ativo na sessão (suportando impersonação Super Admin)
+ */
+async function resolveActiveLojistaForClientes(supabase: any, userId: string) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (profile?.role === 'super_admin') {
+    const cookieStore = await cookies();
+    const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
+    if (impersonateTenantId) {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id, nome_estabelecimento, slug_subdominio, whatsapp_instance_name')
+        .eq('id', impersonateTenantId)
+        .maybeSingle();
+      if (targetLojista) return targetLojista;
+    }
+  }
+
+  const { data: lojista } = await supabase
+    .from('lojistas')
+    .select('id, nome_estabelecimento, slug_subdominio, whatsapp_instance_name')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return lojista;
+}
+
+/**
+ * 8. toggleClienteAiPauseAction(): Alterna manualmente "Assumir Atendimento / Pausar IA" (24h) ou "Reativar IA"
+ */
+export async function toggleClienteAiPauseAction(params: {
+  clienteId?: string;
+  telefone?: string;
+  nomeCliente?: string;
+  pause: boolean;
+  hours?: number;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Não autorizado' };
+
+    const lojista = await resolveActiveLojistaForClientes(supabase, user.id);
+    if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+    const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : (supabase as any);
+
+    const res = await setContactAiPauseState(adminClient, {
+      lojistaId: lojista.id,
+      clienteId: params.clienteId,
+      telefone: params.telefone,
+      nomeCliente: params.nomeCliente,
+      pause: params.pause,
+      hours: params.hours ?? 24,
+    });
+
+    if (!res.success) {
+      return { success: false, error: res.error || 'Erro ao alterar estado da IA.' };
+    }
+
+    revalidatePath('/dashboard/clientes');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      pausedUntil: res.pausedUntil,
+      message: params.pause
+        ? 'Atendimento assumido! A IA foi pausada por 24h para este contato.'
+        : 'Agente de IA reativado para este contato.',
+    };
+  } catch (error: any) {
+    console.error('[toggleClienteAiPauseAction] Erro:', error);
+    return { success: false, error: error?.message || 'Erro inesperado ao alterar pausa da IA.' };
+  }
+}
+
+/**
+ * 9. sendManualInboxMessageAction(): Envia uma mensagem manual pelo Inbox/CRM e pausa automaticamente a IA por 24h
+ */
+export async function sendManualInboxMessageAction(params: {
+  clienteId?: string;
+  telefone: string;
+  nomeCliente?: string;
+  mensagem: string;
+}) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Não autorizado' };
+
+    const texto = (params.mensagem || '').trim();
+    if (!texto) {
+      return { success: false, error: 'Digite uma mensagem para enviar.' };
+    }
+
+    const lojista = await resolveActiveLojistaForClientes(supabase, user.id);
+    if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+    let instanceName = lojista.whatsapp_instance_name?.trim() || '';
+    if (!instanceName) {
+      const { data: configRobo } = await supabase
+        .from('configuracoes_robo')
+        .select('instance_name')
+        .eq('lojista_id', lojista.id)
+        .maybeSingle();
+      instanceName = configRobo?.instance_name?.trim() || '';
+    }
+
+    if (!instanceName && lojista.slug_subdominio) {
+      instanceName = `flowagenda_${lojista.slug_subdominio.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    }
+
+    if (!instanceName) {
+      return { success: false, error: 'Instância do WhatsApp não configurada.' };
+    }
+
+    // 1. Pausa automaticamente a IA por 24 horas para este contato (Regra de Handoff Automático)
+    const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : (supabase as any);
+
+    const pauseRes = await setContactAiPauseState(adminClient, {
+      lojistaId: lojista.id,
+      clienteId: params.clienteId,
+      telefone: params.telefone,
+      nomeCliente: params.nomeCliente,
+      pause: true,
+      hours: 24,
+    });
+
+    // 2. Dispara a mensagem manual pela Evolution API
+    const sendRes = await sendWhatsAppMessage({
+      instanceName,
+      number: params.telefone,
+      text: texto,
+    });
+
+    if (!sendRes.success) {
+      return {
+        success: false,
+        error: sendRes.error || 'Falha ao enviar mensagem pelo WhatsApp.',
+      };
+    }
+
+    revalidatePath('/dashboard/clientes');
+    revalidatePath('/dashboard');
+
+    return {
+      success: true,
+      pausedUntil: pauseRes.pausedUntil,
+      message: 'Mensagem enviada e IA pausada automaticamente por 24h para este contato!',
+    };
+  } catch (error: any) {
+    console.error('[sendManualInboxMessageAction] Erro:', error);
+    return { success: false, error: error?.message || 'Erro ao enviar mensagem manual.' };
+  }
+}
+
 

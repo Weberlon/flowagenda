@@ -1,7 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useNotificacoesFeed } from '@/hooks/useNotificacoesFeed';
+import {
+  toggleClienteAiPauseAction,
+  sendManualInboxMessageAction,
+} from '@/app/actions/clientes';
 
 interface NotificacoesFeedProps {
   lojistaId: string;
@@ -10,6 +14,80 @@ interface NotificacoesFeedProps {
 export function NotificacoesFeed({ lojistaId }: NotificacoesFeedProps) {
   const [aberto, setAberto] = useState(false);
   const { notificacoes, totalNaoLidas, marcarComoLida } = useNotificacoesFeed(lojistaId);
+  const [pausedContacts, setPausedContacts] = useState<Record<string, boolean>>({});
+  const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, string>>({});
+  const [isPending, startTransition] = useTransition();
+
+  const handleTogglePause = (item: {
+    id: string;
+    cliente_telefone: string | null;
+    cliente_nome: string | null;
+  }) => {
+    if (!item.cliente_telefone) return;
+    const key = item.cliente_telefone.replace(/\D/g, '');
+    const isPausedNow = Boolean(pausedContacts[key]);
+    const nextPause = !isPausedNow;
+
+    startTransition(async () => {
+      const res = await toggleClienteAiPauseAction({
+        telefone: key,
+        nomeCliente: item.cliente_nome || 'Cliente',
+        pause: nextPause,
+        hours: 24,
+      });
+
+      if (res.success) {
+        setPausedContacts((prev) => ({ ...prev, [key]: nextPause }));
+        setFeedbackMap((prev) => ({
+          ...prev,
+          [item.id]: nextPause ? '⏸ IA pausada por 24h' : '▶ IA reativada',
+        }));
+        setTimeout(() => {
+          setFeedbackMap((prev) => {
+            const copy = { ...prev };
+            delete copy[item.id];
+            return copy;
+          });
+        }, 4000);
+      }
+    });
+  };
+
+  const handleSendQuickReply = (item: {
+    id: string;
+    cliente_telefone: string | null;
+    cliente_nome: string | null;
+  }) => {
+    if (!item.cliente_telefone || !replyText.trim()) return;
+    const key = item.cliente_telefone.replace(/\D/g, '');
+    const msg = replyText.trim();
+
+    startTransition(async () => {
+      const res = await sendManualInboxMessageAction({
+        telefone: key,
+        nomeCliente: item.cliente_nome || 'Cliente',
+        mensagem: msg,
+      });
+
+      if (res.success) {
+        setPausedContacts((prev) => ({ ...prev, [key]: true }));
+        setReplyText('');
+        setReplyOpenId(null);
+        marcarComoLida(item.id);
+        setFeedbackMap((prev) => ({
+          ...prev,
+          [item.id]: '✓ Respondido e IA pausada (24h)',
+        }));
+      } else {
+        setFeedbackMap((prev) => ({
+          ...prev,
+          [item.id]: res.error || 'Erro ao enviar',
+        }));
+      }
+    });
+  };
 
   return (
     <div className="relative inline-block text-left">
@@ -84,26 +162,84 @@ export function NotificacoesFeed({ lojistaId }: NotificacoesFeedProps) {
                     {item.conteudo}
                   </p>
 
-                  <div className="mt-2.5 flex items-center justify-end gap-2">
+                  <div className="mt-2.5 flex flex-wrap items-center justify-end gap-2">
                     {item.cliente_telefone && (
-                      <a
-                        href={`https://wa.me/${item.cliente_telefone.replace(/\D/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[11px] font-medium text-[#A3BE8C] hover:underline"
-                      >
-                        Responder no WhatsApp →
-                      </a>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePause(item)}
+                          disabled={isPending}
+                          className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition ${
+                            pausedContacts[item.cliente_telefone.replace(/\D/g, '')]
+                              ? 'bg-[#A3BE8C]/20 text-[#A3BE8C] border-[#A3BE8C]/40'
+                              : 'bg-[#EBCB8B]/20 text-[#EBCB8B] border-[#EBCB8B]/40 hover:bg-[#EBCB8B]/30'
+                          }`}
+                        >
+                          {pausedContacts[item.cliente_telefone.replace(/\D/g, '')]
+                            ? '▶ Reativar IA'
+                            : '⏸ Assumir / Pausar IA'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReplyOpenId(replyOpenId === item.id ? null : item.id)
+                          }
+                          className="rounded-md bg-[#3B4252] border border-[#4C566A] px-2 py-0.5 text-[10px] font-semibold text-[#88C0D0] hover:bg-[#434C5E]"
+                        >
+                          Responder aqui
+                        </button>
+
+                        <a
+                          href={`https://wa.me/${item.cliente_telefone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            if (!pausedContacts[item.cliente_telefone!.replace(/\D/g, '')]) {
+                              handleTogglePause(item);
+                            }
+                          }}
+                          className="text-[11px] font-medium text-[#A3BE8C] hover:underline"
+                        >
+                          WhatsApp →
+                        </a>
+                      </>
                     )}
                     {!item.lida && (
                       <button
                         onClick={() => marcarComoLida(item.id)}
-                        className="text-[11px] font-medium text-[#D8DEE9]/70 hover:text-[#ECEFF4] ml-2"
+                        className="text-[11px] font-medium text-[#D8DEE9]/70 hover:text-[#ECEFF4] ml-1"
                       >
-                        Marcar como lida
+                        Lida
                       </button>
                     )}
                   </div>
+
+                  {replyOpenId === item.id && item.cliente_telefone && (
+                    <div className="mt-2.5 flex items-center gap-1.5 pt-2 border-t border-[#3B4252]">
+                      <input
+                        type="text"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Resposta manual (pausa IA 24h)..."
+                        className="flex-1 rounded-lg border border-[#4C566A] bg-[#242933] px-2.5 py-1 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={isPending || !replyText.trim()}
+                        onClick={() => handleSendQuickReply(item)}
+                        className="rounded-lg bg-[#88C0D0] px-2.5 py-1 text-[11px] font-bold text-[#242933] disabled:opacity-50"
+                      >
+                        Enviar
+                      </button>
+                    </div>
+                  )}
+
+                  {feedbackMap[item.id] && (
+                    <div className="mt-1.5 text-[10px] font-mono text-[#A3BE8C]">
+                      {feedbackMap[item.id]}
+                    </div>
+                  )}
                 </div>
               ))
             )}

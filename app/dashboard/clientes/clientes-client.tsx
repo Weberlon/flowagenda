@@ -9,6 +9,8 @@ import {
   deleteClienteAction,
   getClienteHistoricoNotas,
   deleteClienteHistoricoNota,
+  toggleClienteAiPauseAction,
+  sendManualInboxMessageAction,
   ClienteHistoricoNota
 } from '@/app/actions/clientes';
 import VoiceNoteRecorder from '@/components/crm/VoiceNoteRecorder';
@@ -61,6 +63,9 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [historicoNotas, setHistoricoNotas] = useState<ClienteHistoricoNota[]>([]);
   const [loadingNotas, setLoadingNotas] = useState(false);
   const [isRecorderOpen, setIsRecorderOpen] = useState(false);
+  const [manualMessageInput, setManualMessageInput] = useState('');
+  const [handoffFeedback, setHandoffFeedback] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+  const [isPendingHandoff, startTransitionHandoff] = useTransition();
 
   // Modal Novo Cliente
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -145,6 +150,8 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
     setDrawerNotas(c.observacoes || '');
     setDrawerTags(c.tags || []);
     setIsRecorderOpen(false);
+    setManualMessageInput('');
+    setHandoffFeedback(null);
 
     // Carregar histórico de notas de voz
     setLoadingNotas(true);
@@ -157,6 +164,98 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
     } finally {
       setLoadingNotas(false);
     }
+  };
+
+  // Verifica se a IA está pausada para o cliente especificado
+  const isAiPausedForCliente = (c: ClienteCRM | null) => {
+    if (!c?.ai_paused_until) return false;
+    const dt = new Date(c.ai_paused_until);
+    return !isNaN(dt.getTime()) && dt.getTime() > Date.now();
+  };
+
+  // Alternar Assumir Atendimento / Pausar IA (ou Reativar IA)
+  const handleToggleAiPause = () => {
+    if (!activeCliente) return;
+    const currentlyPaused = isAiPausedForCliente(activeCliente);
+    const shouldPause = !currentlyPaused;
+
+    setHandoffFeedback(null);
+    startTransitionHandoff(async () => {
+      const res = await toggleClienteAiPauseAction({
+        clienteId: activeCliente.id,
+        telefone: activeCliente.telefone,
+        nomeCliente: activeCliente.nome,
+        pause: shouldPause,
+        hours: 24,
+      });
+
+      if (res.success) {
+        const nextPausedUntil = res.pausedUntil || null;
+        setActiveCliente((prev) =>
+          prev ? { ...prev, ai_paused_until: nextPausedUntil } : null
+        );
+        setClientes((prev) =>
+          prev.map((item) =>
+            item.id === activeCliente.id
+              ? { ...item, ai_paused_until: nextPausedUntil }
+              : item
+          )
+        );
+        setHandoffFeedback({
+          tipo: 'sucesso',
+          texto: res.message || 'Status da IA atualizado!',
+        });
+      } else {
+        setHandoffFeedback({
+          tipo: 'erro',
+          texto: res.error || 'Erro ao alterar pausa da IA.',
+        });
+      }
+      setTimeout(() => setHandoffFeedback(null), 5000);
+    });
+  };
+
+  // Enviar mensagem manual pela interface (pausando automaticamente a IA por 24h)
+  const handleEnviarMensagemManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeCliente || !manualMessageInput.trim()) return;
+
+    const texto = manualMessageInput.trim();
+    setHandoffFeedback(null);
+
+    startTransitionHandoff(async () => {
+      const res = await sendManualInboxMessageAction({
+        clienteId: activeCliente.id,
+        telefone: activeCliente.telefone,
+        nomeCliente: activeCliente.nome,
+        mensagem: texto,
+      });
+
+      if (res.success) {
+        const nextPausedUntil = res.pausedUntil || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        setManualMessageInput('');
+        setActiveCliente((prev) =>
+          prev ? { ...prev, ai_paused_until: nextPausedUntil } : null
+        );
+        setClientes((prev) =>
+          prev.map((item) =>
+            item.id === activeCliente.id
+              ? { ...item, ai_paused_until: nextPausedUntil }
+              : item
+          )
+        );
+        setHandoffFeedback({
+          tipo: 'sucesso',
+          texto: res.message || 'Mensagem enviada! IA pausada por 24h.',
+        });
+      } else {
+        setHandoffFeedback({
+          tipo: 'erro',
+          texto: res.error || 'Erro ao enviar mensagem.',
+        });
+      }
+      setTimeout(() => setHandoffFeedback(null), 5000);
+    });
   };
 
   // Callback ao salvar nota no VoiceNoteRecorder
@@ -677,6 +776,74 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
               >
                 <span>💬 Abrir Conversa no WhatsApp</span>
               </a>
+
+              {/* Controle de Handoff Humano & Envio Direto pelo Inbox */}
+              <div className="rounded-xl border border-[#4C566A]/40 bg-[#242933] p-3.5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0] block">
+                      Controle do Agente IA (Inbox)
+                    </span>
+                    <span className="text-[11px] text-[#D8DEE9]/70">
+                      {isAiPausedForCliente(activeCliente)
+                        ? `⏸️ IA Pausada (Atendimento Humano até ${new Date(
+                            activeCliente.ai_paused_until!
+                          ).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`
+                        : '🤖 IA Ativa respondendo este contato'}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleAiPause}
+                    disabled={isPendingHandoff}
+                    className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition border ${
+                      isAiPausedForCliente(activeCliente)
+                        ? 'bg-[#A3BE8C]/20 text-[#A3BE8C] border-[#A3BE8C]/40 hover:bg-[#A3BE8C]/30'
+                        : 'bg-[#EBCB8B]/20 text-[#EBCB8B] border-[#EBCB8B]/40 hover:bg-[#EBCB8B]/30'
+                    }`}
+                  >
+                    {isAiPausedForCliente(activeCliente)
+                      ? '▶ Reativar IA'
+                      : '⏸ Assumir / Pausar IA'}
+                  </button>
+                </div>
+
+                {/* Envio de Mensagem Manual pelo Inbox (Pausa IA automaticamente por 24h) */}
+                <form onSubmit={handleEnviarMensagemManual} className="space-y-2 pt-2 border-t border-[#4C566A]/30">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[#D8DEE9]/60 block">
+                    Resposta Manual Rápida (Pausa IA por 24h automaticamente)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={manualMessageInput}
+                      onChange={(e) => setManualMessageInput(e.target.value)}
+                      placeholder="Escreva para responder ao cliente..."
+                      className="flex-1 rounded-lg border border-[#4C566A]/40 bg-[#2E3440] px-3 py-1.5 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isPendingHandoff || !manualMessageInput.trim()}
+                      className="rounded-lg bg-[#88C0D0] px-3 py-1.5 text-xs font-bold text-[#242933] hover:bg-[#88C0D0]/90 disabled:opacity-50 transition"
+                    >
+                      Enviar
+                    </button>
+                  </div>
+                </form>
+
+                {handoffFeedback && (
+                  <div
+                    className={`rounded-lg p-2 text-[11px] font-semibold border ${
+                      handoffFeedback.tipo === 'sucesso'
+                        ? 'bg-[#A3BE8C]/15 text-[#A3BE8C] border-[#A3BE8C]/30'
+                        : 'bg-[#BF616A]/15 text-[#BF616A] border-[#BF616A]/30'
+                    }`}
+                  >
+                    {handoffFeedback.texto}
+                  </div>
+                )}
+              </div>
 
               {/* Métricas de Fidelidade */}
               <div className="grid grid-cols-2 gap-3 pt-2">

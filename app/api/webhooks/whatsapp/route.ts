@@ -6,6 +6,7 @@ import timezone from 'dayjs/plugin/timezone';
 import { createClient } from '@supabase/supabase-js';
 import { sendWhatsAppMessage } from '@/lib/evolution';
 import { extrairDadosMensagem, classificarIntencao } from '@/lib/whatsapp-parser';
+import { checkContactAiPauseStatus } from '@/lib/ai-handoff';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -181,6 +182,24 @@ export async function POST(req: Request) {
     const isFounder = Boolean((lojista as any).is_founder);
     const aiCredits = typeof (lojista as any).ai_credits === 'number' ? (lojista as any).ai_credits : 0;
     const isAiEligible = useAiAgent && (isFounder || aiCredits > 0);
+
+    // 6.2 Verificar se a IA está pausada para este contato (Handoff Humano / Atendente assumiu no Inbox)
+    const pauseStatus = await checkContactAiPauseStatus(supabase as any, lojista.id, dados.remoteJid);
+    if (pauseStatus.isPaused) {
+      await supabase.from('painel_notificacoes').insert({
+        lojista_id: lojista.id,
+        agendamento_id: null,
+        cliente_nome: dados.pushName || 'Cliente',
+        cliente_telefone: dados.telefoneLimpo,
+        tipo_evento: 'atendimento_humano_ativo',
+        conteudo: dados.texto || `[Mídia recebida durante pausa da IA]`,
+        created_at: new Date().toISOString(),
+      });
+      return NextResponse.json(
+        { received: true, status: 'ai_paused_for_contact', paused_until: pauseStatus.pausedUntil },
+        { status: 200 }
+      );
+    }
 
     // CASO 2 & 3: Se o Agente de IA estiver ativo e elegível (créditos > 0 ou Membro Fundador)
     if (isAiEligible) {
