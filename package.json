@@ -17,6 +17,7 @@
     "dayjs": "^1.11.23",
     "framer-motion": "^14.1.0",
     "next": "latest",
+    "openai": "^7.53.0",
     "react": "latest",
     "react-dom": "latest"
   },
