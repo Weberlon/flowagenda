@@ -7,6 +7,7 @@ export type IntencaoResposta = 'CONFIRMAR' | 'REMARCAR_CANCELAR' | 'TEXTO_LIVRE'
 
 export interface MensagemProcessada {
   messageId: string;
+  remoteJid: string;
   telefoneLimpo: string;
   ultimosOitoDigitos: string;
   texto: string;
@@ -95,6 +96,7 @@ export function extrairDadosMensagem(body: any): MensagemProcessada | null {
 
   return {
     messageId,
+    remoteJid,
     telefoneLimpo: cleanPhone,
     ultimosOitoDigitos,
     texto: texto.trim(),

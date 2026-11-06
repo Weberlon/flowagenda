@@ -118,33 +118,38 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, ignored: 'group_or_broadcast' }, { status: 200 });
     }
 
-    // Extrair o texto da mensagem
-    const messageText: string =
-      messageObj?.message?.conversation ||
-      messageObj?.message?.extendedTextMessage?.text ||
-      messageObj?.conversation ||
-      messageObj?.text ||
-      '';
-
-    if (!messageText.trim()) {
-      return NextResponse.json({ received: true }, { status: 200 });
-    }
-
-    const instanceName = (payload.instance || payload.instanceName) as string;
+    const instanceName = (payload.instance || payload.instanceName || dataItem?.instanceName || dataItem?.instance) as string;
     if (!instanceName) {
       return NextResponse.json({ received: true, error: 'missing_instance' }, { status: 200 });
     }
 
-    // Extrair telefone do cliente sem sulfixo @s.whatsapp.net
-    const clientPhone = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+    // Extrair telefone do cliente sem sufixo @s.whatsapp.net
+    const clientPhone = remoteJid.replace(/@.*$/, '').replace(/\D/g, '');
     if (!clientPhone) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
+    // Detectar tipo de conteúdo (texto vs mídia)
+    const innerMessage = messageObj?.message || messageObj;
+    const isMediaMessage = Boolean(
+      innerMessage?.audioMessage ||
+      innerMessage?.imageMessage ||
+      innerMessage?.videoMessage ||
+      innerMessage?.stickerMessage ||
+      innerMessage?.documentMessage
+    );
+
+    const messageText: string =
+      innerMessage?.conversation ||
+      innerMessage?.extendedTextMessage?.text ||
+      messageObj?.conversation ||
+      messageObj?.text ||
+      '';
+
     const supabase = createAdminClient();
 
-    // 1. Buscar Lojista e Configurações do Robô
-    const { data: config, error } = await supabase
+    // 1. Buscar Lojista e Configurações do Robô (com fallback caso novas colunas de IA ainda não existam)
+    let { data: config, error } = await supabase
       .from('configuracoes_robo')
       .select(`
         id,
@@ -158,24 +163,54 @@ export async function POST(req: Request) {
           slug_subdominio,
           dominio_proprio,
           status_pagamento,
-          whatsapp_notificacao
+          whatsapp_notificacao,
+          use_ai_agent,
+          is_founder,
+          ai_credits
         )
       `)
       .eq('instance_name', instanceName)
-      .single();
+      .maybeSingle();
+
+    if (error && error.message?.includes('column')) {
+      const retry = await supabase
+        .from('configuracoes_robo')
+        .select(`
+          id,
+          lojista_id,
+          instance_name,
+          mensagem_boas_vindas,
+          bot_pausado_ate,
+          lojista:lojistas (
+            id,
+            nome_estabelecimento,
+            slug_subdominio,
+            dominio_proprio,
+            status_pagamento,
+            whatsapp_notificacao
+          )
+        `)
+        .eq('instance_name', instanceName)
+        .maybeSingle();
+      config = retry.data as any;
+      error = retry.error;
+    }
 
     if (error || !config || !config.lojista) {
       console.warn(`[WEBHOOK EVOLUTION] Instância não encontrada ou sem lojista vinculado: ${instanceName}`);
       return NextResponse.json({ received: true });
     }
 
-    const lojista = config.lojista as unknown as {
+    const lojista = (Array.isArray(config.lojista) ? config.lojista[0] : config.lojista) as unknown as {
       id: string;
       nome_estabelecimento: string;
       slug_subdominio: string;
       dominio_proprio: string | null;
       status_pagamento: string;
       whatsapp_notificacao: string | null;
+      use_ai_agent?: boolean | null;
+      is_founder?: boolean | null;
+      ai_credits?: number | null;
     };
 
     // 2. Proteção de Assinatura: Se inadimplente ou cancelado, o bot não atende
@@ -183,7 +218,64 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true, status: 'tenant_suspended' }, { status: 200 });
     }
 
-    const lowerMsg = messageText.toLowerCase();
+    // 3. CASO 2: Se a mensagem recebida for mídia (áudio, imagem, vídeo, sticker), avisar educadamente
+    if (isMediaMessage) {
+      await sendEvolutionTextMessage(
+        instanceName,
+        clientPhone,
+        'Olá! 😊 No momento nosso atendimento automático compreende apenas mensagens de *texto*. Poderia escrever sua dúvida ou solicitação por escrito, por favor?'
+      );
+      return NextResponse.json({ received: true, action: 'media_unsupported_replied' }, { status: 200 });
+    }
+
+    const cleanContent = messageText.trim();
+    if (!cleanContent) {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
+    // 4. Avaliação de Elegibilidade do Agente de IA + Bypass Fundador
+    const useAiAgent = Boolean(lojista.use_ai_agent);
+    const isFounder = Boolean(lojista.is_founder);
+    const aiCredits = typeof lojista.ai_credits === 'number' ? lojista.ai_credits : 0;
+    const isAiEligible = useAiAgent && (isFounder || aiCredits > 0);
+
+    // CASO 3 (IA Ativa): Enfileirar na chat_queue com janela de debounce de 8 segundos
+    if (isAiEligible) {
+      const messageId: string = key?.id || dataItem?.id || `msg_${Date.now()}`;
+      const senderName: string | null = dataItem?.pushName || payload?.pushName || null;
+      const scheduledForIso = new Date(Date.now() + 8000).toISOString();
+
+      // Empurra a janela de debounce de mensagens pendentes anteriores do mesmo remote_jid
+      await supabase
+        .from('chat_queue')
+        .update({
+          scheduled_for: scheduledForIso,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('lojista_id', lojista.id)
+        .eq('remote_jid', remoteJid)
+        .eq('status', 'pending');
+
+      // Insere a nova mensagem na fila de processamento da IA
+      const { error: queueError } = await supabase.from('chat_queue').insert({
+        lojista_id: lojista.id,
+        remote_jid: remoteJid,
+        message_id: messageId,
+        sender_name: senderName,
+        content: cleanContent,
+        status: 'pending',
+        scheduled_for: scheduledForIso,
+      });
+
+      if (queueError) {
+        console.error('[WEBHOOK EVOLUTION] Erro ao enfileirar mensagem na chat_queue:', queueError.message);
+      } else {
+        return NextResponse.json({ status: 'queued' }, { status: 200 });
+      }
+    }
+
+    // CASO 1 (Fallback Invisível): Se use_ai_agent for falso ou sem créditos (e não founder), segue o fluxo padrão
+    const lowerMsg = cleanContent.toLowerCase();
 
     // 3. Gatilhos de Transbordo Humano
     const isTransbordoTrigger =

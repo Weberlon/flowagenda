@@ -128,21 +128,45 @@ export async function POST(req: Request) {
     }
 
     // 6. Buscar o lojista em 'lojistas' onde whatsapp_instance_name == body.instance
-    let { data: lojista } = await supabase
+    const lojistaFieldsWithAi =
+      'id, nome_negocio, nome_estabelecimento, slug_subdominio, whatsapp_instance_name, status_pagamento, use_ai_agent, is_founder, ai_credits';
+    const lojistaFieldsFallback =
+      'id, nome_negocio, nome_estabelecimento, slug_subdominio, whatsapp_instance_name, status_pagamento';
+
+    let { data: lojista, error: lojistaFetchErr } = await supabase
       .from('lojistas')
-      .select('id, nome_negocio, nome_estabelecimento, slug_subdominio, whatsapp_instance_name, status_pagamento')
+      .select(lojistaFieldsWithAi)
       .eq('whatsapp_instance_name', instanceName)
       .maybeSingle();
+
+    if (lojistaFetchErr && lojistaFetchErr.message?.includes('column')) {
+      const retry = await supabase
+        .from('lojistas')
+        .select(lojistaFieldsFallback)
+        .eq('whatsapp_instance_name', instanceName)
+        .maybeSingle();
+      lojista = retry.data as any;
+    }
 
     if (!lojista) {
       // Fallback: tentar resolução pelo slug caso a instância seja nomeada flowagenda_{slug} ou flow_{slug}
       const slugCandidate = instanceName.replace(/^flowagenda_|^flow_/, '');
       if (slugCandidate) {
-        const { data: fallbackLojista } = await supabase
+        let { data: fallbackLojista, error: fallbackErr } = await supabase
           .from('lojistas')
-          .select('id, nome_negocio, nome_estabelecimento, slug_subdominio, whatsapp_instance_name, status_pagamento')
+          .select(lojistaFieldsWithAi)
           .eq('slug_subdominio', slugCandidate)
           .maybeSingle();
+
+        if (fallbackErr && fallbackErr.message?.includes('column')) {
+          const retryFallback = await supabase
+            .from('lojistas')
+            .select(lojistaFieldsFallback)
+            .eq('slug_subdominio', slugCandidate)
+            .maybeSingle();
+          fallbackLojista = retryFallback.data as any;
+        }
+
         lojista = fallbackLojista;
       }
     }
@@ -151,6 +175,62 @@ export async function POST(req: Request) {
       console.warn(`[WEBHOOK WHATSAPP] Nenhum lojista vinculado para a instância: ${instanceName}`);
       return NextResponse.json({ received: true, ignored: 'lojista_nao_encontrado' }, { status: 200 });
     }
+
+    // 6.1 Verificar parâmetros de IA do lojista: use_ai_agent, is_founder e ai_credits
+    const useAiAgent = Boolean((lojista as any).use_ai_agent);
+    const isFounder = Boolean((lojista as any).is_founder);
+    const aiCredits = typeof (lojista as any).ai_credits === 'number' ? (lojista as any).ai_credits : 0;
+    const isAiEligible = useAiAgent && (isFounder || aiCredits > 0);
+
+    // CASO 2 & 3: Se o Agente de IA estiver ativo e elegível (créditos > 0 ou Membro Fundador)
+    if (isAiEligible) {
+      // CASO 2: Se a mensagem recebida for mídia (áudio, imagem, vídeo, sticker), avisar educadamente
+      if (dados.tipoMidia) {
+        await sendWhatsAppMessage({
+          instanceName,
+          number: dados.telefoneLimpo,
+          text: 'Olá! 😊 No momento nosso atendimento automático compreende apenas mensagens de *texto*. Poderia escrever sua dúvida ou solicitação por escrito, por favor?',
+        });
+        return NextResponse.json({ received: true, action: 'media_unsupported_replied' }, { status: 200 });
+      }
+
+      // CASO 3 (IA Ativa): Mensagem de texto -> enfileirar em chat_queue com debounce de 8 segundos
+      const cleanContent = dados.texto.trim();
+      if (cleanContent) {
+        const scheduledForIso = new Date(Date.now() + 8000).toISOString();
+
+        // Empurra a janela de debounce de mensagens pendentes anteriores do mesmo remote_jid
+        await supabase
+          .from('chat_queue')
+          .update({
+            scheduled_for: scheduledForIso,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('lojista_id', lojista.id)
+          .eq('remote_jid', dados.remoteJid)
+          .eq('status', 'pending');
+
+        // Insere a nova mensagem na fila de processamento da IA
+        const { error: queueError } = await supabase.from('chat_queue').insert({
+          lojista_id: lojista.id,
+          remote_jid: dados.remoteJid,
+          message_id: dados.messageId,
+          sender_name: dados.pushName || null,
+          content: cleanContent,
+          status: 'pending',
+          scheduled_for: scheduledForIso,
+        });
+
+        if (queueError) {
+          console.error('[WEBHOOK WHATSAPP] Erro ao enfileirar na chat_queue:', queueError.message);
+        } else {
+          return NextResponse.json({ status: 'queued' }, { status: 200 });
+        }
+      }
+    }
+
+    // CASO 1 (Fallback Invisível): Se use_ai_agent for falso ou créditos zerados (ai_credits <= 0 e is_founder = false),
+    // mantém a execução do fluxo padrão de bot numérico existente no sistema.
 
     // 7. Localizar o agendamento mais relevante em 'agendamentos'
     // Critérios: lojista_id, status = 'confirmado', data_hora_inicio >= NOW() - 2h, cliente_telefone LIKE '%{ultimosOitoDigitos}'
