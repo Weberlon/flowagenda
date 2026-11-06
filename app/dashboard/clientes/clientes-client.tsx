@@ -14,12 +14,20 @@ import {
   ClienteHistoricoNota
 } from '@/app/actions/clientes';
 import VoiceNoteRecorder from '@/components/crm/VoiceNoteRecorder';
+import { getNicheDictionary } from '@/lib/niche-dictionary';
+
+const SYSTEM_METADATA_KEYS = new Set([
+  'ai_paused_until',
+  'ai_handoff_updated_at',
+  'last_followup_sent_at',
+]);
 
 interface ClientesClientProps {
   lojista: {
     id: string;
     nome_estabelecimento: string;
     slug_subdominio: string;
+    business_niche?: string | null;
   };
   initialClientes: ClienteCRM[];
   kpis: {
@@ -30,26 +38,25 @@ interface ClientesClientProps {
   };
 }
 
-const ETAPAS_CONFIG = [
-  { id: 'lead', label: 'Novos Contatos', cor: 'border-slate-500/50 text-slate-300', dot: 'bg-slate-400' },
-  { id: 'agendado', label: 'Agendados', cor: 'border-[#88C0D0]/60 text-[#88C0D0]', dot: 'bg-[#88C0D0]' },
-  { id: 'atendido', label: 'Atendidos', cor: 'border-[#A3BE8C]/60 text-[#A3BE8C]', dot: 'bg-[#A3BE8C]' },
-  { id: 'no_show', label: 'Faltas / No-Show', cor: 'border-[#BF616A]/60 text-[#BF616A]', dot: 'bg-[#BF616A]' },
-  { id: 'fidelizado', label: 'Fidelizados', cor: 'border-[#EBCB8B]/60 text-[#EBCB8B]', dot: 'bg-[#EBCB8B]' },
-];
-
-const TAGS_SUGERIDAS = [
-  'VIP',
-  'Barba Terapia',
-  'Corte Degradê',
-  'Sensível',
-  'Pontual',
-  'Loiro',
-  'Limpeza de Pele',
-  'Laser',
-];
-
 export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClientProps) {
+  const dict = useMemo(
+    () => getNicheDictionary(lojista.business_niche),
+    [lojista.business_niche]
+  );
+
+  const etapasConfig = useMemo(
+    () => [
+      { id: 'lead', label: dict.etapasKanban.lead, cor: 'border-slate-500/50 text-slate-300', dot: 'bg-slate-400' },
+      { id: 'agendado', label: dict.etapasKanban.agendado, cor: 'border-[#88C0D0]/60 text-[#88C0D0]', dot: 'bg-[#88C0D0]' },
+      { id: 'atendido', label: dict.etapasKanban.atendido, cor: 'border-[#A3BE8C]/60 text-[#A3BE8C]', dot: 'bg-[#A3BE8C]' },
+      { id: 'no_show', label: dict.etapasKanban.no_show, cor: 'border-[#BF616A]/60 text-[#BF616A]', dot: 'bg-[#BF616A]' },
+      { id: 'fidelizado', label: dict.etapasKanban.fidelizado, cor: 'border-[#EBCB8B]/60 text-[#EBCB8B]', dot: 'bg-[#EBCB8B]' },
+    ],
+    [dict]
+  );
+
+  const tagsSugeridas = dict.sugestoesTags;
+
   const [clientes, setClientes] = useState<ClienteCRM[]>(initialClientes);
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
   const [search, setSearch] = useState('');
@@ -60,6 +67,9 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [drawerNotas, setDrawerNotas] = useState('');
   const [drawerTags, setDrawerTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
+  const [drawerMetadata, setDrawerMetadata] = useState<{ key: string; value: string }[]>([]);
+  const [newMetaKey, setNewMetaKey] = useState('');
+  const [newMetaVal, setNewMetaVal] = useState('');
   const [historicoNotas, setHistoricoNotas] = useState<ClienteHistoricoNota[]>([]);
   const [loadingNotas, setLoadingNotas] = useState(false);
   const [isRecorderOpen, setIsRecorderOpen] = useState(false);
@@ -152,6 +162,20 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
     setIsRecorderOpen(false);
     setManualMessageInput('');
     setHandoffFeedback(null);
+    setNewMetaKey('');
+    setNewMetaVal('');
+
+    const rawMeta =
+      c.custom_metadata && typeof c.custom_metadata === 'object'
+        ? c.custom_metadata
+        : {};
+    const pairs = Object.entries(rawMeta)
+      .filter(([k]) => !SYSTEM_METADATA_KEYS.has(k))
+      .map(([k, v]) => ({
+        key: k,
+        value: typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v ?? ''),
+      }));
+    setDrawerMetadata(pairs);
 
     // Carregar histórico de notas de voz
     setLoadingNotas(true);
@@ -281,7 +305,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
     }
   };
 
-  // Salvar Notas & Tags do Drawer
+  // Salvar Notas, Tags & Custom Metadata do Drawer
   const handleSalvarNotas = () => {
     if (!activeCliente) return;
 
@@ -289,14 +313,82 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
     const notas = drawerNotas;
     const tags = drawerTags;
 
+    const customMetaRecord: Record<string, any> = {};
+    drawerMetadata.forEach((item) => {
+      const cleanKey = item.key.trim();
+      if (cleanKey && !SYSTEM_METADATA_KEYS.has(cleanKey)) {
+        customMetaRecord[cleanKey] = item.value;
+      }
+    });
+
+    const existingSysMeta: Record<string, any> = {};
+    if (activeCliente.custom_metadata && typeof activeCliente.custom_metadata === 'object') {
+      SYSTEM_METADATA_KEYS.forEach((sysKey) => {
+        if (activeCliente.custom_metadata?.[sysKey] !== undefined) {
+          existingSysMeta[sysKey] = activeCliente.custom_metadata[sysKey];
+        }
+      });
+    }
+
+    const mergedMeta = {
+      ...customMetaRecord,
+      ...existingSysMeta,
+    };
+
     setClientes((prev) =>
-      prev.map((c) => (c.id === clienteId ? { ...c, observacoes: notas, tags } : c))
+      prev.map((c) =>
+        c.id === clienteId
+          ? { ...c, observacoes: notas, tags, custom_metadata: mergedMeta }
+          : c
+      )
     );
-    setActiveCliente((prev) => (prev ? { ...prev, observacoes: notas, tags } : null));
+    setActiveCliente((prev) =>
+      prev ? { ...prev, observacoes: notas, tags, custom_metadata: mergedMeta } : null
+    );
 
     startTransition(async () => {
-      await updateClienteNotas(clienteId, notas, tags);
+      await updateClienteNotas(clienteId, notas, tags, customMetaRecord);
     });
+  };
+
+  // Manipulação de Custom Metadata (Chave / Valor)
+  const handleAddMetadataPair = (keyInput?: string) => {
+    const cleanKey = (keyInput ?? newMetaKey).trim();
+    if (!cleanKey || SYSTEM_METADATA_KEYS.has(cleanKey)) return;
+
+    const existsIdx = drawerMetadata.findIndex(
+      (m) => m.key.toLowerCase() === cleanKey.toLowerCase()
+    );
+
+    if (existsIdx >= 0) {
+      if (newMetaVal.trim()) {
+        setDrawerMetadata((prev) =>
+          prev.map((item, idx) =>
+            idx === existsIdx ? { ...item, value: newMetaVal.trim() } : item
+          )
+        );
+      }
+    } else {
+      setDrawerMetadata((prev) => [
+        ...prev,
+        { key: cleanKey, value: newMetaVal.trim() },
+      ]);
+    }
+
+    if (!keyInput) {
+      setNewMetaKey('');
+      setNewMetaVal('');
+    }
+  };
+
+  const handleUpdateMetadataValue = (idx: number, val: string) => {
+    setDrawerMetadata((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
+    );
+  };
+
+  const handleRemoveMetadataPair = (idx: number) => {
+    setDrawerMetadata((prev) => prev.filter((_, i) => i !== idx));
   };
 
   // Adicionar Tag
@@ -364,11 +456,11 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
             <div className="flex items-center gap-2">
               <span className="text-xl">👥</span>
               <h1 className="text-xl sm:text-2xl font-black text-[#ECEFF4] tracking-tight">
-                Gestão de Clientes & CRM
+                Gestão de {dict.clientePlural} & CRM
               </h1>
             </div>
             <p className="text-xs text-[#D8DEE9]/60 mt-1">
-              Kanban de relacionamento, histórico de atendimento e métricas de LTV para {lojista.nome_estabelecimento}.
+              Kanban de relacionamento, {dict.agendamentoPlural.toLowerCase()} com {dict.profissionalPlural.toLowerCase()} e métricas de LTV para {lojista.nome_estabelecimento}.
             </p>
           </div>
 
@@ -376,7 +468,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-xl border border-[#4C566A]/40 bg-[#3B4252]/60 px-3.5 py-2">
               <span className="text-[10px] text-[#D8DEE9]/60 uppercase tracking-wider block font-bold">
-                Total de Clientes
+                Total de {dict.clientePlural}
               </span>
               <span className="text-base sm:text-lg font-black text-[#ECEFF4]">
                 {clientes.length}
@@ -409,7 +501,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
             <div className="relative w-full">
               <input
                 type="text"
-                placeholder="Buscar por nome ou WhatsApp..."
+                placeholder={`Buscar ${dict.clienteSingular.toLowerCase()} por nome ou WhatsApp...`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] px-3.5 py-2 text-xs sm:text-sm text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
@@ -462,7 +554,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
               className="inline-flex items-center gap-2 rounded-xl bg-[#88C0D0] px-4 py-2 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition"
             >
               <span>+</span>
-              <span>Novo Cliente</span>
+              <span>Novo {dict.clienteSingular}</span>
             </button>
           </div>
         </div>
@@ -475,7 +567,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
           /* MODO KANBAN (5 COLUNAS RESPONSIVAS)                  */
           /* ==================================================== */
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start overflow-x-auto pb-6">
-            {ETAPAS_CONFIG.map((etapa) => {
+            {etapasConfig.map((etapa) => {
               const itensColuna = colunasKanban[etapa.id] || [];
 
               return (
@@ -503,7 +595,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                     {itensColuna.length === 0 ? (
                       <div className="h-32 flex items-center justify-center rounded-xl border border-dashed border-[#4C566A]/30 text-center p-3">
                         <span className="text-[11px] text-[#D8DEE9]/40 italic">
-                          Arraste clientes para esta etapa
+                          Arraste {dict.clientePlural.toLowerCase()} para esta etapa
                         </span>
                       </div>
                     ) : (
@@ -568,7 +660,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                             {/* Métricas: LTV & Agendamentos */}
                             <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[#4C566A]/20 text-[#D8DEE9]/70">
                               <span>
-                                {cliente.total_agendamentos} {cliente.total_agendamentos === 1 ? 'visita' : 'visitas'}
+                                {cliente.total_agendamentos} {cliente.total_agendamentos === 1 ? dict.visitaSingular : dict.visitaPlural}
                               </span>
                               <span className="font-mono font-bold text-[#88C0D0]">
                                 {formatMoney(cliente.total_gasto)}
@@ -593,7 +685,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                 onChange={(e) => handleMudarEtapa(cliente.id, e.target.value)}
                                 className="rounded bg-[#3B4252] border border-[#4C566A]/40 px-1.5 py-0.5 text-[10px] text-[#D8DEE9] focus:outline-none"
                               >
-                                {ETAPAS_CONFIG.map((et) => (
+                                {etapasConfig.map((et) => (
                                   <option key={et.id} value={et.id}>
                                     &rarr; {et.label}
                                   </option>
@@ -627,7 +719,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
               >
                 Todos ({clientes.length})
               </button>
-              {ETAPAS_CONFIG.map((et) => (
+              {etapasConfig.map((et) => (
                 <button
                   key={et.id}
                   type="button"
@@ -649,10 +741,10 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                 <table className="w-full text-left text-xs sm:text-sm">
                   <thead className="bg-[#242933] border-b border-[#4C566A]/30 text-[11px] font-bold text-[#D8DEE9]/60 uppercase tracking-wider">
                     <tr>
-                      <th className="py-3.5 px-4">Cliente</th>
+                      <th className="py-3.5 px-4">{dict.clienteSingular}</th>
                       <th className="py-3.5 px-4">WhatsApp</th>
                       <th className="py-3.5 px-4">Etapa</th>
-                      <th className="py-3.5 px-4">Visitas</th>
+                      <th className="py-3.5 px-4">{dict.agendamentoPlural}</th>
                       <th className="py-3.5 px-4">LTV (Gasto)</th>
                       <th className="py-3.5 px-4 text-right">Ações</th>
                     </tr>
@@ -661,7 +753,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                     {clientesFiltrados.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-8 text-center text-xs text-[#D8DEE9]/40 italic">
-                          Nenhum cliente encontrado com os filtros atuais.
+                          Nenhum {dict.clienteSingular.toLowerCase()} encontrado com os filtros atuais.
                         </td>
                       </tr>
                     ) : (
@@ -693,7 +785,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                 onChange={(e) => handleMudarEtapa(cliente.id, e.target.value)}
                                 className="rounded-lg bg-[#3B4252] border border-[#4C566A]/40 px-2 py-1 text-xs text-[#ECEFF4] focus:outline-none"
                               >
-                                {ETAPAS_CONFIG.map((et) => (
+                                {etapasConfig.map((et) => (
                                   <option key={et.id} value={et.id}>
                                     {et.label}
                                   </option>
@@ -858,10 +950,10 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
 
                 <div className="rounded-xl border border-[#4C566A]/30 bg-[#242933] p-3 text-center">
                   <span className="text-[10px] text-[#D8DEE9]/60 uppercase tracking-wider block">
-                    Agendamentos
+                    {dict.agendamentoPlural}
                   </span>
                   <span className="text-base font-black text-[#ECEFF4] font-mono">
-                    {activeCliente.total_agendamentos} visitas
+                    {activeCliente.total_agendamentos} {activeCliente.total_agendamentos === 1 ? dict.visitaSingular : dict.visitaPlural}
                   </span>
                 </div>
               </div>
@@ -876,7 +968,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                   onChange={(e) => handleMudarEtapa(activeCliente.id, e.target.value)}
                   className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] font-semibold focus:outline-none"
                 >
-                  {ETAPAS_CONFIG.map((et) => (
+                  {etapasConfig.map((et) => (
                     <option key={et.id} value={et.id}>
                       {et.label}
                     </option>
@@ -935,7 +1027,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
 
                 {/* Sugestões Rápidas */}
                 <div className="flex flex-wrap gap-1 pt-1">
-                  {TAGS_SUGERIDAS.map((sugestao) => (
+                  {tagsSugeridas.map((sugestao) => (
                     <button
                       key={sugestao}
                       type="button"
@@ -943,6 +1035,98 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                       className="rounded bg-[#242933] hover:bg-[#3B4252] px-2 py-0.5 text-[10px] text-[#D8DEE9]/60 border border-[#4C566A]/20 transition"
                     >
                       +{sugestao}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Metadata (JSONB) — Dados Contextuais do Cliente / IA */}
+              <div className="space-y-2.5 pt-2 border-t border-[#4C566A]/30">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#88C0D0]">
+                    🧩 Metadados Contextuais (IA / Nicho)
+                  </label>
+                  <span className="text-[10px] font-mono text-[#D8DEE9]/50">
+                    custom_metadata
+                  </span>
+                </div>
+
+                {drawerMetadata.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[#4C566A]/30 bg-[#242933]/60 p-2.5 text-center text-[11px] text-[#D8DEE9]/50 italic">
+                    Nenhum metadado contextual registado. Adicione campos abaixo ou clique numa sugestão do nicho.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {drawerMetadata.map((item, idx) => (
+                      <div
+                        key={`${item.key}-${idx}`}
+                        className="flex items-center gap-2 rounded-xl border border-[#4C566A]/40 bg-[#242933] p-2"
+                      >
+                        <span className="rounded-md bg-[#3B4252] px-2 py-1 text-[10px] font-mono font-bold text-[#88C0D0] shrink-0">
+                          {item.key}
+                        </span>
+                        <input
+                          type="text"
+                          value={item.value}
+                          onChange={(e) => handleUpdateMetadataValue(idx, e.target.value)}
+                          placeholder="Valor..."
+                          className="flex-1 bg-transparent text-xs text-[#ECEFF4] focus:outline-none border-b border-transparent focus:border-[#88C0D0]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMetadataPair(idx)}
+                          className="text-xs text-[#D8DEE9]/50 hover:text-[#BF616A] px-1"
+                          title="Remover campo"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Adicionar Novo Par Chave / Valor */}
+                <div className="grid grid-cols-12 gap-1.5 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Campo (ex: convenio)"
+                    value={newMetaKey}
+                    onChange={(e) => setNewMetaKey(e.target.value)}
+                    className="col-span-5 rounded-xl border border-[#4C566A]/40 bg-[#242933] px-2.5 py-1.5 text-xs font-mono text-[#ECEFF4] focus:outline-none focus:border-[#88C0D0]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Valor (ex: Unimed)"
+                    value={newMetaVal}
+                    onChange={(e) => setNewMetaVal(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddMetadataPair();
+                      }
+                    }}
+                    className="col-span-5 rounded-xl border border-[#4C566A]/40 bg-[#242933] px-2.5 py-1.5 text-xs text-[#ECEFF4] focus:outline-none focus:border-[#88C0D0]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddMetadataPair()}
+                    className="col-span-2 rounded-xl bg-[#3B4252] text-xs font-bold text-[#88C0D0] hover:bg-[#4C566A] transition"
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                {/* Sugestões de Chaves por Nicho */}
+                <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                  <span className="text-[10px] text-[#D8DEE9]/50 mr-1">Sugestões ({dict.profissionalSingular}):</span>
+                  {dict.sugestoesMetadataKeys.map((sugKey) => (
+                    <button
+                      key={sugKey}
+                      type="button"
+                      onClick={() => handleAddMetadataPair(sugKey)}
+                      className="rounded bg-[#242933] hover:bg-[#3B4252] px-2 py-0.5 text-[10px] font-mono text-[#88C0D0]/80 border border-[#4C566A]/30 transition"
+                    >
+                      +{sugKey}
                     </button>
                   ))}
                 </div>
@@ -957,7 +1141,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                   rows={3}
                   value={drawerNotas}
                   onChange={(e) => setDrawerNotas(e.target.value)}
-                  placeholder="Ex: Prefere corte na tesoura, sensibilidade a lâmina, cafezinho sem açúcar..."
+                  placeholder="Ex: Preferências de atendimento, observações rápidas..."
                   className="w-full rounded-xl border border-[#4C566A]/40 bg-[#242933] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
                 />
               </div>
@@ -999,7 +1183,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold text-[#D8DEE9]/60 uppercase tracking-wider">
-                      Histórico Clínico / Procedimentos ({historicoNotas.length})
+                      {dict.historicoLabel} ({historicoNotas.length})
                     </span>
                     {loadingNotas && (
                       <span className="text-[10px] text-[#88C0D0] animate-pulse">
@@ -1115,7 +1299,9 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl border border-[#4C566A]/50 bg-[#2E3440] p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#4C566A]/30">
-              <h3 className="text-base font-bold text-[#ECEFF4]">Cadastrar Novo Cliente</h3>
+              <h3 className="text-base font-bold text-[#ECEFF4]">
+                Cadastrar Novo {dict.clienteSingular}
+              </h3>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
@@ -1170,7 +1356,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                     onChange={(e) => setNovaEtapa(e.target.value)}
                     className="w-full rounded-xl border border-[#4C566A]/40 bg-[#3B4252] p-2.5 text-xs text-[#ECEFF4] focus:outline-none"
                   >
-                    {ETAPAS_CONFIG.map((et) => (
+                    {etapasConfig.map((et) => (
                       <option key={et.id} value={et.id}>
                         {et.label}
                       </option>

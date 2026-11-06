@@ -45,7 +45,7 @@ export async function getClientes() {
     if (impersonateTenantId) {
       const { data: targetLojista } = await supabase
         .from('lojistas')
-        .select('id, nome_estabelecimento, slug_subdominio')
+        .select('*')
         .eq('id', impersonateTenantId)
         .single();
       if (targetLojista) lojista = targetLojista;
@@ -55,7 +55,7 @@ export async function getClientes() {
   if (!lojista) {
     const { data: userLojista, error: lojistaErr } = await supabase
       .from('lojistas')
-      .select('id, nome_estabelecimento, slug_subdominio')
+      .select('*')
       .eq('user_id', user.id)
       .single();
 
@@ -263,28 +263,61 @@ export async function updateClienteEtapa(clienteId: string, novaEtapa: string) {
   return { success: true };
 }
 
-// 4. updateClienteNotas(): Atualiza observações internas e tags
-export async function updateClienteNotas(clienteId: string, observacoes: string, tags: string[]) {
+// 4. updateClienteNotas(): Atualiza observações internas, tags e custom_metadata (JSONB)
+export async function updateClienteNotas(
+  clienteId: string,
+  observacoes: string,
+  tags: string[],
+  customMetadata?: Record<string, any>
+) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return { success: false, error: 'Não autorizado' };
 
-  const { data: lojista } = await supabase
-    .from('lojistas')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-
+  const lojista = await resolveActiveLojistaForClientes(supabase, user.id);
   if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+  const updatePayload: Record<string, any> = {
+    observacoes: observacoes || '',
+    tags: Array.isArray(tags) ? tags : [],
+    updated_at: new Date().toISOString(),
+  };
+
+  if (customMetadata && typeof customMetadata === 'object') {
+    const { data: currentCliente } = await supabase
+      .from('clientes')
+      .select('custom_metadata')
+      .eq('id', clienteId)
+      .eq('lojista_id', lojista.id)
+      .maybeSingle();
+
+    const existingMeta =
+      currentCliente?.custom_metadata && typeof currentCliente.custom_metadata === 'object'
+        ? (currentCliente.custom_metadata as Record<string, any>)
+        : {};
+
+    // Preserva chaves reservadas do sistema (ai_paused_until, ai_handoff_updated_at, last_followup_sent_at)
+    const systemKeys: Record<string, any> = {};
+    if (existingMeta.ai_paused_until !== undefined) {
+      systemKeys.ai_paused_until = existingMeta.ai_paused_until;
+    }
+    if (existingMeta.ai_handoff_updated_at !== undefined) {
+      systemKeys.ai_handoff_updated_at = existingMeta.ai_handoff_updated_at;
+    }
+    if (existingMeta.last_followup_sent_at !== undefined) {
+      systemKeys.last_followup_sent_at = existingMeta.last_followup_sent_at;
+    }
+
+    updatePayload.custom_metadata = {
+      ...customMetadata,
+      ...systemKeys,
+    };
+  }
 
   const { error } = await supabase
     .from('clientes')
-    .update({
-      observacoes: observacoes || '',
-      tags: Array.isArray(tags) ? tags : [],
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq('id', clienteId)
     .eq('lojista_id', lojista.id);
 
