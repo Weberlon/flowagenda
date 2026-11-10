@@ -130,6 +130,68 @@ export function OnboardingForm() {
             <option value="institucional_completo">Site Institucional Completo</option>
           </select>
         </div>
+
+        <div className="space-y-2">
+          <label htmlFor="business_niche" className="text-sm font-medium text-slate-900">
+            Nicho do Negócio (Dicionário CRM & IA)
+          </label>
+          <select
+            id="business_niche"
+            name="business_niche"
+            defaultValue="barbearia"
+            className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          >
+            <option value="barbearia">Barbearia / Salão</option>
+            <option value="estetica">Clínica de Estética / Spa</option>
+            <option value="odontologia">Consultório Odontológico / Clínica</option>
+            <option value="advocacia">Escritório de Advocacia / Consultoria</option>
+            <option value="assistencia_tecnica">Assistência Técnica / Oficina</option>
+            <option value="outros">Outros Serviços</option>
+          </select>
+        </div>
+
+        <div className="space-y-2 md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-6">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-900 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="use_ai_agent"
+                  defaultChecked={true}
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <span>Ativar Secretária IA (DeepSeek)</span>
+              </label>
+
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-900 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="is_founder"
+                  defaultChecked={true}
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <span>Parceiro Micro-Beta / Membro Fundador</span>
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label htmlFor="ai_credits" className="text-xs font-semibold text-slate-600 whitespace-nowrap">
+                Franquia Inicial IA:
+              </label>
+              <input
+                id="ai_credits"
+                name="ai_credits"
+                type="number"
+                defaultValue={200}
+                min={0}
+                className="h-8 w-24 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1.5">
+            Cria automaticamente a instância <code className="font-mono text-slate-700">flowagenda_[slug]</code> em <code className="font-mono text-slate-700">lojistas.whatsapp_instance_name</code> e <code className="font-mono text-slate-700">configuracoes_robo</code>.
+          </p>
+        </div>
       </div>
 
       <button

@@ -328,10 +328,31 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         ? `https://${lojista.slug_subdominio}.${rootDomain}`
         : `https://${rootDomain}`;
 
+      // Complementa a knowledge_base com o catálogo ativo de serviços e preços do lojista
+      const { data: servicosAtivos } = await supabase
+        .from('servicos')
+        .select('nome_servico, preco, duracao_minutos')
+        .eq('lojista_id', lojistaId)
+        .eq('ativo', true)
+        .order('nome_servico', { ascending: true });
+
+      let enrichedKnowledgeBase = lojista.knowledge_base || '';
+      if (servicosAtivos && servicosAtivos.length > 0) {
+        const catalogoTexto = servicosAtivos
+          .map(
+            (s: any) =>
+              `- ${s.nome_servico}: R$ ${Number(s.preco || 0)
+                .toFixed(2)
+                .replace('.', ',')} (${s.duracao_minutos} min)`
+          )
+          .join('\n');
+        enrichedKnowledgeBase = `${enrichedKnowledgeBase}\n\n## Catálogo Atualizado de Serviços e Preços\n${catalogoTexto}`.trim();
+      }
+
       const systemPrompt = buildDeskcommSystemPrompt({
         nomeEstabelecimento,
         businessNiche,
-        knowledgeBase: lojista.knowledge_base || '',
+        knowledgeBase: enrichedKnowledgeBase,
         linkAgendamento,
         senderName,
       });
@@ -353,6 +374,19 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         role: 'user',
         content: consolidatedUserText,
       });
+
+      // 3.c.2) Dupla verificação final de Handoff antes de invocar a DeepSeek (caso tenha sido pausado nos últimos segundos)
+      const finalPauseCheck = await checkContactAiPauseStatus(supabase, lojistaId, remoteJid);
+      if (finalPauseCheck.isPaused) {
+        await supabase
+          .from('chat_queue')
+          .update({
+            status: 'completed',
+            updated_at: new Date().toISOString(),
+          })
+          .in('id', rowIds);
+        continue;
+      }
 
       // 3.d) Invocar o modelo deepseek-chat via SDK oficial OpenAI
       const deepseek = createDeepSeekClient();

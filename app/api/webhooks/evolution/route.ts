@@ -232,7 +232,7 @@ export async function POST(req: Request) {
         created_at: new Date().toISOString(),
       });
       return NextResponse.json(
-        { received: true, status: 'ai_paused_for_contact', paused_until: pauseStatus.pausedUntil },
+        { status: 'ignored_ai_paused', received: true, paused_until: pauseStatus.pausedUntil },
         { status: 200 }
       );
     }

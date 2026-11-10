@@ -177,16 +177,20 @@ export async function setContactAiPauseState(
       };
     }
 
-    // Se pausou a IA, remove/cancela eventuais itens pendentes desse contato na chat_queue
+    // Se pausou a IA, remove/deleta eventuais itens pendentes desse contato na chat_queue via remote_jid
     if (pause && cleanPhone) {
+      await supabase
+        .from('chat_queue')
+        .delete()
+        .eq('lojista_id', lojistaId)
+        .eq('status', 'pending')
+        .like('remote_jid', `${cleanPhone}%`);
+
       const last8 = extractLastEightDigits(cleanPhone);
-      if (last8) {
+      if (last8 && !cleanPhone.startsWith('55')) {
         await supabase
           .from('chat_queue')
-          .update({
-            status: 'completed',
-            updated_at: new Date().toISOString(),
-          })
+          .delete()
           .eq('lojista_id', lojistaId)
           .eq('status', 'pending')
           .like('remote_jid', `%${last8}%`);

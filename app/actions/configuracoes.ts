@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { 
   fetchInstanceConnectionStatus, 
   restartEvolutionInstance, 
@@ -16,7 +17,7 @@ import { cookies } from 'next/headers';
 async function resolveCurrentLojista(
   supabase: any,
   userId: string,
-  selectFields = 'id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, tier, cor_primaria, google_review_url, configuracoes, business_niche, use_ai_agent, knowledge_base, ai_credits, is_founder, modo_avaliacao, ticket_medio_padrao'
+  selectFields = 'id, nome_estabelecimento, slug_subdominio, dominio_proprio, whatsapp_notificacao, whatsapp_instance_name, tier, cor_primaria, google_review_url, configuracoes, business_niche, use_ai_agent, knowledge_base, ai_credits, is_founder, modo_avaliacao, ticket_medio_padrao'
 ) {
   // 1. Checa se o usuário é super_admin
   const { data: profile } = await supabase
@@ -122,6 +123,14 @@ export async function getConfiguracoesData(explicitLojistaId?: string) {
 
   let whatsappStatus = null;
   if (configRobo?.instance_name) {
+    if (!lojista.whatsapp_instance_name || lojista.whatsapp_instance_name !== configRobo.instance_name) {
+      await supabase
+        .from('lojistas')
+        .update({ whatsapp_instance_name: configRobo.instance_name })
+        .eq('id', lojista.id);
+      lojista.whatsapp_instance_name = configRobo.instance_name;
+    }
+
     whatsappStatus = await fetchInstanceConnectionStatus(configRobo.instance_name);
 
     // Sincroniza o status do banco
@@ -451,31 +460,63 @@ export async function saveAiOnboardingSetupAction(params: SaveAiOnboardingSetupP
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Não autorizado. Faça login novamente.' };
 
-    let lojista: any = null;
-    if (params.explicitLojistaId) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+    const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : (supabase as any);
 
-      if (profile?.role === 'super_admin') {
-        const { data: targetLojista } = await supabase
-          .from('lojistas')
-          .select('id, nome_estabelecimento, configuracoes')
-          .eq('id', params.explicitLojistaId)
-          .single();
-        lojista = targetLojista;
-      }
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const isSuperAdmin =
+      profile?.role === 'super_admin' ||
+      profile?.role === 'superadmin' ||
+      profile?.role === 'admin';
+
+    let lojista: any = null;
+    if (params.explicitLojistaId && isSuperAdmin) {
+      const { data: targetLojista } = await adminClient
+        .from('lojistas')
+        .select('id, nome_estabelecimento, configuracoes')
+        .eq('id', params.explicitLojistaId)
+        .maybeSingle();
+      lojista = targetLojista;
     }
 
     if (!lojista) {
-      lojista = await resolveCurrentLojista(supabase, user.id, 'id, nome_estabelecimento, configuracoes');
+      lojista = await resolveCurrentLojista(
+        isSuperAdmin ? adminClient : supabase,
+        user.id,
+        'id, nome_estabelecimento, configuracoes'
+      );
     }
 
     if (!lojista) {
       return { success: false, error: 'Estabelecimento não encontrado.' };
     }
+
+    // Busca os serviços e preços ativos do estabelecimento para compilar na knowledge_base
+    const dbClient = isSuperAdmin ? adminClient : supabase;
+    const { data: servicosAtivos } = await dbClient
+      .from('servicos')
+      .select('nome_servico, preco, duracao_minutos')
+      .eq('lojista_id', lojista.id)
+      .eq('ativo', true)
+      .order('nome_servico', { ascending: true });
+
+    const catalogoServicosMarkdown =
+      servicosAtivos && servicosAtivos.length > 0
+        ? servicosAtivos
+            .map(
+              (s: any) =>
+                `- **${s.nome_servico}:** R$ ${Number(s.preco || 0)
+                  .toFixed(2)
+                  .replace('.', ',')} (Duração: ${s.duracao_minutos} min)`
+            )
+            .join('\n')
+        : '- Consulte os serviços e valores atualizados diretamente no link oficial de agendamento.';
 
     const businessNiche = (params.businessNiche || 'Barbearia').trim();
     const toneOfVoice = (params.toneOfVoice || 'Amigável e descontraído').trim();
@@ -498,19 +539,22 @@ export async function saveAiOnboardingSetupAction(params: SaveAiOnboardingSetupP
           `- **Nicho de Atuação:** ${businessNiche}`,
           `- **Tom de Voz do Agente:** ${toneOfVoice}`,
           ``,
-          `## 2. Regras de Atendimento e Agenda`,
+          `## 2. Serviços e Preços`,
+          `${catalogoServicosMarkdown}`,
+          ``,
+          `## 3. Regras de Atendimento e Agenda`,
           `- **Horário de Funcionamento:** ${horario}`,
           `- **Tolerância de Atraso:** ${tolerancia}`,
           `- **Política de Cancelamento e Reagendamento:** ${cancelamento}`,
           ``,
-          `## 3. Pagamentos e Política de Sinal`,
+          `## 4. Pagamentos e Política de Sinal`,
           `- **Formas de Pagamento Aceitas:** ${pagamento}`,
           `- **Exigência de Sinal / Reserva:** ${sinalTexto}`,
           ``,
-          `## 4. Instruções Adicionais e Perguntas Frequentes (FAQ)`,
+          `## 5. Instruções Adicionais e Perguntas Frequentes (FAQ)`,
           `${instrucoes}`,
           ``,
-          `## 5. Diretrizes de Segurança e Conformidade (LGPD)`,
+          `## 6. Diretrizes de Segurança e Conformidade (LGPD)`,
           `- Atuar exclusivamente na orientação de horários, serviços, preços e dúvidas operacionais do estabelecimento.`,
           `- Nunca solicitar, processar ou armazenar prontuários médicos, anamneses ou dados clínicos sensíveis.`,
         ].join('\n');
@@ -536,7 +580,7 @@ export async function saveAiOnboardingSetupAction(params: SaveAiOnboardingSetupP
       },
     };
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await dbClient
       .from('lojistas')
       .update({
         business_niche: businessNiche,
@@ -551,7 +595,6 @@ export async function saveAiOnboardingSetupAction(params: SaveAiOnboardingSetupP
     }
 
     revalidatePath('/dashboard/configuracoes');
-    revalidatePath('/dashboard');
 
     return {
       success: true,

@@ -27,13 +27,18 @@ export async function createTenantAction(formData: FormData) {
     }
 
     // 2. Extrair dados
-    const nome_estabelecimento = formData.get('nome_estabelecimento') as string;
-    const slug_subdominio = formData.get('slug_subdominio') as string;
-    const dominio_proprio = (formData.get('dominio_proprio') as string) || null;
+    const nome_estabelecimento = (formData.get('nome_estabelecimento') as string)?.trim();
+    const slug_subdominio = (formData.get('slug_subdominio') as string)?.trim().toLowerCase();
+    const dominio_proprio = (formData.get('dominio_proprio') as string)?.trim() || null;
     const tier = formData.get('tier') as string;
     const tipo_site = formData.get('tipo_site') as string;
-    const whatsapp_notificacao = (formData.get('whatsapp_notificacao') as string) || null;
-    const google_review_url = (formData.get('google_review_url') as string) || null;
+    const whatsapp_notificacao = (formData.get('whatsapp_notificacao') as string)?.replace(/\D/g, '') || null;
+    const google_review_url = (formData.get('google_review_url') as string)?.trim() || null;
+    const business_niche = (formData.get('business_niche') as string) || 'barbearia';
+    const use_ai_agent = formData.get('use_ai_agent') === 'on' || formData.get('use_ai_agent') === 'true';
+    const is_founder = formData.get('is_founder') === 'on' || formData.get('is_founder') === 'true';
+    const ai_credits_raw = Number(formData.get('ai_credits'));
+    const ai_credits = Number.isFinite(ai_credits_raw) && ai_credits_raw >= 0 ? ai_credits_raw : 200;
 
     if (!nome_estabelecimento || !slug_subdominio || !tier || !tipo_site) {
       return { success: false, error: 'Preencha todos os campos obrigatórios.' };
@@ -41,7 +46,7 @@ export async function createTenantAction(formData: FormData) {
 
     // 3. Chamadas de API tolerantes a falha (Evolution e Asaas)
     let evolutionToken = 'mock_evolution_token';
-    const evolutionInstanceName = `flowagenda_${slug_subdominio.replace(/[^a-zA-Z0-9]/g, '')}`;
+    const evolutionInstanceName = `flowagenda_${slug_subdominio.replace(/[^a-zA-Z0-9]/g, '_')}`;
     try {
       const evolutionData = await createEvolutionInstance(evolutionInstanceName);
       if (evolutionData?.token) {
@@ -82,8 +87,13 @@ export async function createTenantAction(formData: FormData) {
       tier,
       tipo_site,
       whatsapp_notificacao,
+      whatsapp_instance_name: evolutionInstanceName,
       google_review_url,
       asaas_customer_id: asaasCustomerId,
+      business_niche,
+      use_ai_agent,
+      is_founder,
+      ai_credits,
       configuracoes: {
         mostrar_badge_plataforma: tier === 'tier_1',
         cor_primaria: '#0F172A',

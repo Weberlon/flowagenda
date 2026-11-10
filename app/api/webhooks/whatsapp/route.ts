@@ -173,6 +173,32 @@ export async function POST(req: Request) {
     }
 
     if (!lojista) {
+      // Fallback 2: buscar via configuracoes_robo.instance_name (caso o slug possua hífens convertidos em underscore)
+      const { data: roboMatch } = await supabase
+        .from('configuracoes_robo')
+        .select('lojista_id')
+        .eq('instance_name', instanceName)
+        .maybeSingle();
+
+      if (roboMatch?.lojista_id) {
+        const { data: roboLojista } = await supabase
+          .from('lojistas')
+          .select(lojistaFieldsWithAi)
+          .eq('id', roboMatch.lojista_id)
+          .maybeSingle();
+
+        if (roboLojista) {
+          lojista = roboLojista as any;
+          // Auto-sincroniza whatsapp_instance_name na tabela lojistas
+          await supabase
+            .from('lojistas')
+            .update({ whatsapp_instance_name: instanceName })
+            .eq('id', roboMatch.lojista_id);
+        }
+      }
+    }
+
+    if (!lojista) {
       console.warn(`[WEBHOOK WHATSAPP] Nenhum lojista vinculado para a instância: ${instanceName}`);
       return NextResponse.json({ received: true, ignored: 'lojista_nao_encontrado' }, { status: 200 });
     }
@@ -196,7 +222,7 @@ export async function POST(req: Request) {
         created_at: new Date().toISOString(),
       });
       return NextResponse.json(
-        { received: true, status: 'ai_paused_for_contact', paused_until: pauseStatus.pausedUntil },
+        { status: 'ignored_ai_paused', received: true, paused_until: pauseStatus.pausedUntil },
         { status: 200 }
       );
     }

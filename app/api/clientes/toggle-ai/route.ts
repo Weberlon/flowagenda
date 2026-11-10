@@ -144,19 +144,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // 6. Se pausou a IA, cancela eventuais mensagens pendentes na chat_queue para este contato
-    if (novoValor && cliente.telefone) {
-      const last8 = extractLastEightDigits(cliente.telefone);
-      if (last8) {
+    // 6. Se pausou a IA, remove os itens pendentes na chat_queue daquele cliente usando remote_jid
+    if (novoValor !== null && cliente.telefone) {
+      const digitos = cliente.telefone.replace(/\D/g, '');
+      if (digitos) {
         await adminClient
           .from('chat_queue')
-          .update({
-            status: 'completed',
-            updated_at: new Date().toISOString(),
-          })
+          .delete()
           .eq('lojista_id', cliente.lojista_id)
           .eq('status', 'pending')
-          .like('remote_jid', `%${last8}%`);
+          .like('remote_jid', `${digitos}%`);
+
+        const last8 = extractLastEightDigits(digitos);
+        if (last8 && !digitos.startsWith('55')) {
+          await adminClient
+            .from('chat_queue')
+            .delete()
+            .eq('lojista_id', cliente.lojista_id)
+            .eq('status', 'pending')
+            .like('remote_jid', `%${last8}%`);
+        }
       }
     }
 
