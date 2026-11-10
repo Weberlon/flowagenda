@@ -1138,7 +1138,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
 
                 {drawerMetadata.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-[#4C566A]/30 bg-[#242933]/60 p-2.5 text-center text-[11px] text-[#D8DEE9]/50 italic">
-                    Nenhum metadado contextual registado. Adicione campos abaixo ou clique numa sugestão do nicho.
+                    Nenhum metadado contextual registrado. Adicione campos abaixo ou clique em uma sugestão do nicho.
                   </div>
                 ) : (
                   <div className="space-y-2">
