@@ -86,17 +86,28 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl;
   const pathname = url.pathname;
 
-  // 1.1 Interceptação e gestão de Impersonação Segura para Super Admin
-  if (url.searchParams.has('exit_impersonation')) {
-    const redirectRes = NextResponse.redirect(new URL('/superadmin', request.url));
-    response.cookies.getAll().forEach((cookie) => {
-      redirectRes.cookies.set(cookie.name, cookie.value, cookie);
-    });
-    redirectRes.cookies.delete('flow_impersonate_tenant_id');
-    return redirectRes;
+  // 1.0 Bypass estrito para Server Actions (cabeçalho next-action) e rotas /api/*
+  // Garante que nenhuma Server Action ou chamada de API sofra redirecionamento de rota pelo middleware
+  const isServerAction =
+    request.headers.has('next-action') ||
+    request.headers.has('x-action');
+
+  if (isServerAction || pathname.startsWith('/api')) {
+    return response;
   }
 
-  if (url.searchParams.has('impersonate_tenant_id')) {
+  // 1.1 Gestão de Impersonação Segura para Super Admin (sem redirecionar rotas /dashboard para /superadmin)
+  const isPrefetch =
+    request.headers.get('purpose') === 'prefetch' ||
+    request.headers.get('sec-purpose') === 'prefetch' ||
+    request.headers.has('next-router-prefetch') ||
+    request.headers.has('x-middleware-prefetch');
+
+  if (!isPrefetch && url.searchParams.has('exit_impersonation')) {
+    response.cookies.delete('flow_impersonate_tenant_id');
+  }
+
+  if (!isPrefetch && url.searchParams.has('impersonate_tenant_id')) {
     const tenantId = url.searchParams.get('impersonate_tenant_id');
     if (tenantId) {
       const cleanUrl = new URL(request.url);

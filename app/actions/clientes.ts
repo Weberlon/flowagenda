@@ -31,39 +31,61 @@ export async function getClientes() {
 
   if (!user) throw new Error('Não autorizado');
 
+  const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : (supabase as any);
+
   let lojista: any = null;
 
-  const { data: profile } = await supabase
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (profile?.role === 'super_admin') {
+  const isSuperAdmin =
+    profile?.role === 'super_admin' ||
+    profile?.role === 'superadmin' ||
+    profile?.role === 'admin';
+
+  if (isSuperAdmin) {
     const cookieStore = await cookies();
     const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
     if (impersonateTenantId) {
-      const { data: targetLojista } = await supabase
+      const { data: targetLojista } = await adminClient
         .from('lojistas')
         .select('*')
         .eq('id', impersonateTenantId)
-        .single();
+        .maybeSingle();
       if (targetLojista) lojista = targetLojista;
     }
   }
 
   if (!lojista) {
-    const { data: userLojista, error: lojistaErr } = await supabase
+    const { data: userLojista } = await adminClient
       .from('lojistas')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (lojistaErr || !userLojista) throw new Error('Lojista não encontrado');
-    lojista = userLojista;
+    if (userLojista) {
+      lojista = userLojista;
+    } else if (isSuperAdmin) {
+      const { data: firstLojista } = await adminClient
+        .from('lojistas')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (firstLojista) lojista = firstLojista;
+    }
   }
 
-  const { data: clientes, error: clientesErr } = await supabase
+  if (!lojista) throw new Error('Lojista não encontrado');
+
+  const queryClient = isSuperAdmin ? adminClient : supabase;
+
+  const { data: clientes, error: clientesErr } = await queryClient
     .from('clientes')
     .select('*')
     .eq('lojista_id', lojista.id)
@@ -71,7 +93,7 @@ export async function getClientes() {
 
   if (clientesErr) {
     // Fallback caso updated_at ainda não exista
-    const retry = await supabase
+    const retry = await queryClient
       .from('clientes')
       .select('*')
       .eq('lojista_id', lojista.id)
@@ -451,17 +473,26 @@ export const getClientesData = getClientes;
  * Helper interno para resolver o lojista ativo na sessão (suportando impersonação Super Admin)
  */
 async function resolveActiveLojistaForClientes(supabase: any, userId: string) {
-  const { data: profile } = await supabase
+  const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : (supabase as any);
+
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('role')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
-  if (profile?.role === 'super_admin') {
+  const isSuperAdmin =
+    profile?.role === 'super_admin' ||
+    profile?.role === 'superadmin' ||
+    profile?.role === 'admin';
+
+  if (isSuperAdmin) {
     const cookieStore = await cookies();
     const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
     if (impersonateTenantId) {
-      const { data: targetLojista } = await supabase
+      const { data: targetLojista } = await adminClient
         .from('lojistas')
         .select('id, nome_estabelecimento, slug_subdominio, whatsapp_instance_name')
         .eq('id', impersonateTenantId)
@@ -470,17 +501,30 @@ async function resolveActiveLojistaForClientes(supabase: any, userId: string) {
     }
   }
 
-  const { data: lojista } = await supabase
+  const { data: lojista } = await adminClient
     .from('lojistas')
     .select('id, nome_estabelecimento, slug_subdominio, whatsapp_instance_name')
     .eq('user_id', userId)
     .maybeSingle();
 
-  return lojista;
+  if (lojista) return lojista;
+
+  if (isSuperAdmin) {
+    const { data: firstLojista } = await adminClient
+      .from('lojistas')
+      .select('id, nome_estabelecimento, slug_subdominio, whatsapp_instance_name')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (firstLojista) return firstLojista;
+  }
+
+  return null;
 }
 
 /**
  * 8. toggleClienteAiPauseAction(): Alterna manualmente "Assumir Atendimento / Pausar IA" (24h) ou "Reativar IA"
+ * Sem redirecionamentos (redirect). Retorna exclusivamente { success, data, pausedUntil, message, error }.
  */
 export async function toggleClienteAiPauseAction(params: {
   clienteId?: string;
@@ -494,15 +538,55 @@ export async function toggleClienteAiPauseAction(params: {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Não autorizado' };
 
-    const lojista = await resolveActiveLojistaForClientes(supabase, user.id);
-    if (!lojista) return { success: false, error: 'Lojista não encontrado' };
-
     const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
       ? createAdminClient()
       : (supabase as any);
 
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const isSuperAdmin =
+      profile?.role === 'super_admin' ||
+      profile?.role === 'superadmin' ||
+      profile?.role === 'admin';
+
+    let targetLojistaId: string | null = null;
+
+    if (params.clienteId) {
+      const { data: clienteRow } = await adminClient
+        .from('clientes')
+        .select('id, lojista_id')
+        .eq('id', params.clienteId)
+        .maybeSingle();
+
+      if (clienteRow) {
+        if (isSuperAdmin) {
+          targetLojistaId = clienteRow.lojista_id;
+        } else {
+          const lojista = await resolveActiveLojistaForClientes(supabase, user.id);
+          if (!lojista || lojista.id !== clienteRow.lojista_id) {
+            return { success: false, error: 'Sem permissão para alterar este cliente.' };
+          }
+          targetLojistaId = clienteRow.lojista_id;
+        }
+      }
+    }
+
+    if (!targetLojistaId) {
+      const lojista = await resolveActiveLojistaForClientes(supabase, user.id);
+      if (!lojista?.id) return { success: false, error: 'Lojista não encontrado' };
+      targetLojistaId = lojista.id;
+    }
+
+    if (!targetLojistaId) {
+      return { success: false, error: 'Lojista não encontrado' };
+    }
+
     const res = await setContactAiPauseState(adminClient, {
-      lojistaId: lojista.id,
+      lojistaId: targetLojistaId,
       clienteId: params.clienteId,
       telefone: params.telefone,
       nomeCliente: params.nomeCliente,
@@ -514,12 +598,13 @@ export async function toggleClienteAiPauseAction(params: {
       return { success: false, error: res.error || 'Erro ao alterar estado da IA.' };
     }
 
-    revalidatePath('/dashboard/clientes');
-    revalidatePath('/dashboard');
-
     return {
       success: true,
       pausedUntil: res.pausedUntil,
+      data: {
+        pausedUntil: res.pausedUntil,
+        isPaused: params.pause,
+      },
       message: params.pause
         ? 'Atendimento assumido! A IA foi pausada por 24h para este contato.'
         : 'Agente de IA reativado para este contato.',
@@ -527,6 +612,104 @@ export async function toggleClienteAiPauseAction(params: {
   } catch (error: any) {
     console.error('[toggleClienteAiPauseAction] Erro:', error);
     return { success: false, error: error?.message || 'Erro inesperado ao alterar pausa da IA.' };
+  }
+}
+
+/**
+ * 8b. toggleAiHandoffAction(clienteId): Alterna o estado de pausa da IA pelo ID do cliente.
+ * NUNCA dispara redirect(). Busca o cliente primeiro e valida permissão (permitindo superadmin ou lojista dono).
+ */
+export async function toggleAiHandoffAction(clienteId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Não autorizado' };
+
+    const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : (supabase as any);
+
+    // 1. Busca o registro do cliente primeiro
+    const { data: cliente, error: clienteErr } = await adminClient
+      .from('clientes')
+      .select('id, nome, telefone, lojista_id, custom_metadata')
+      .eq('id', clienteId)
+      .maybeSingle();
+
+    if (clienteErr) {
+      return { success: false, error: clienteErr.message };
+    }
+    if (!cliente) {
+      return { success: false, error: 'Cliente não encontrado.' };
+    }
+
+    // 2. Validação de permissão (superadmin pode alterar qualquer cliente; lojista comum valida lojista_id)
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const isSuperAdmin =
+      profile?.role === 'super_admin' ||
+      profile?.role === 'superadmin' ||
+      profile?.role === 'admin';
+
+    if (!isSuperAdmin) {
+      const { data: userLojista } = await adminClient
+        .from('lojistas')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const userLojistaId = userLojista?.id || (profile as any)?.lojista_id;
+      if (!userLojistaId || userLojistaId !== cliente.lojista_id) {
+        return { success: false, error: 'Sem permissão para alterar este cliente.' };
+      }
+    }
+
+    const meta =
+      cliente.custom_metadata && typeof cliente.custom_metadata === 'object'
+        ? (cliente.custom_metadata as Record<string, any>)
+        : {};
+
+    const rawPausedUntil = meta.ai_paused_until || (cliente as any).ai_paused_until || null;
+    const isCurrentlyPaused =
+      Boolean(rawPausedUntil) &&
+      !isNaN(new Date(rawPausedUntil).getTime()) &&
+      new Date(rawPausedUntil).getTime() > Date.now();
+
+    const shouldPause = !isCurrentlyPaused;
+
+    const res = await setContactAiPauseState(adminClient, {
+      lojistaId: cliente.lojista_id,
+      clienteId: cliente.id,
+      telefone: cliente.telefone,
+      nomeCliente: cliente.nome,
+      pause: shouldPause,
+      hours: 24,
+    });
+
+    if (!res.success) {
+      return { success: false, error: res.error || 'Erro ao alterar estado da IA.' };
+    }
+
+    return {
+      success: true,
+      pausedUntil: res.pausedUntil,
+      data: {
+        clienteId: cliente.id,
+        lojistaId: cliente.lojista_id,
+        pausedUntil: res.pausedUntil,
+        isPaused: shouldPause,
+      },
+      message: shouldPause
+        ? 'Atendimento assumido! A IA foi pausada por 24h para este contato.'
+        : 'Agente de IA reativado para este contato.',
+    };
+  } catch (error: any) {
+    console.error('[toggleAiHandoffAction] Erro:', error);
+    return { success: false, error: error?.message || 'Erro ao alternar pausa da IA.' };
   }
 }
 
@@ -549,12 +732,34 @@ export async function sendManualInboxMessageAction(params: {
       return { success: false, error: 'Digite uma mensagem para enviar.' };
     }
 
-    const lojista = await resolveActiveLojistaForClientes(supabase, user.id);
+    const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : (supabase as any);
+
+    let lojista = await resolveActiveLojistaForClientes(supabase, user.id);
+
+    if (params.clienteId) {
+      const { data: clienteRow } = await adminClient
+        .from('clientes')
+        .select('lojista_id')
+        .eq('id', params.clienteId)
+        .maybeSingle();
+
+      if (clienteRow?.lojista_id && (!lojista || lojista.id !== clienteRow.lojista_id)) {
+        const { data: targetLojista } = await adminClient
+          .from('lojistas')
+          .select('id, nome_estabelecimento, slug_subdominio, whatsapp_instance_name')
+          .eq('id', clienteRow.lojista_id)
+          .maybeSingle();
+        if (targetLojista) lojista = targetLojista;
+      }
+    }
+
     if (!lojista) return { success: false, error: 'Lojista não encontrado' };
 
     let instanceName = lojista.whatsapp_instance_name?.trim() || '';
     if (!instanceName) {
-      const { data: configRobo } = await supabase
+      const { data: configRobo } = await adminClient
         .from('configuracoes_robo')
         .select('instance_name')
         .eq('lojista_id', lojista.id)
@@ -571,10 +776,6 @@ export async function sendManualInboxMessageAction(params: {
     }
 
     // 1. Pausa automaticamente a IA por 24 horas para este contato (Regra de Handoff Automático)
-    const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
-      ? createAdminClient()
-      : (supabase as any);
-
     const pauseRes = await setContactAiPauseState(adminClient, {
       lojistaId: lojista.id,
       clienteId: params.clienteId,
@@ -598,12 +799,13 @@ export async function sendManualInboxMessageAction(params: {
       };
     }
 
-    revalidatePath('/dashboard/clientes');
-    revalidatePath('/dashboard');
-
     return {
       success: true,
       pausedUntil: pauseRes.pausedUntil,
+      data: {
+        pausedUntil: pauseRes.pausedUntil,
+        isPaused: true,
+      },
       message: 'Mensagem enviada e IA pausada automaticamente por 24h para este contato!',
     };
   } catch (error: any) {

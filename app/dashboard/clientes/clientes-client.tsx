@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useTransition, useMemo } from 'react';
+import React, { useState, useTransition, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   ClienteCRM, 
   upsertCliente, 
@@ -10,6 +11,7 @@ import {
   getClienteHistoricoNotas,
   deleteClienteHistoricoNota,
   toggleClienteAiPauseAction,
+  toggleAiHandoffAction,
   sendManualInboxMessageAction,
   ClienteHistoricoNota
 } from '@/app/actions/clientes';
@@ -39,6 +41,8 @@ interface ClientesClientProps {
 }
 
 export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClientProps) {
+  const router = useRouter();
+
   const dict = useMemo(
     () => getNicheDictionary(lojista.business_niche),
     [lojista.business_niche]
@@ -58,6 +62,10 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const tagsSugeridas = dict.sugestoesTags;
 
   const [clientes, setClientes] = useState<ClienteCRM[]>(initialClientes);
+
+  useEffect(() => {
+    setClientes(initialClientes);
+  }, [initialClientes]);
   const [viewMode, setViewMode] = useState<'kanban' | 'lista'>('kanban');
   const [search, setSearch] = useState('');
   const [selectedEtapaFilter, setSelectedEtapaFilter] = useState<string>('todos');
@@ -75,7 +83,8 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [isRecorderOpen, setIsRecorderOpen] = useState(false);
   const [manualMessageInput, setManualMessageInput] = useState('');
   const [handoffFeedback, setHandoffFeedback] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
-  const [isPendingHandoff, startTransitionHandoff] = useTransition();
+  const [isTogglingAi, setIsTogglingAi] = useState(false);
+  const [isPendingHandoff, setIsPendingHandoff] = useState(false);
 
   // Modal Novo Cliente
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -190,64 +199,102 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
     }
   };
 
+  // Helper de feedback visual (Toast inline Nord Dark)
+  const toast = {
+    error: (msg: string) => {
+      setHandoffFeedback({ tipo: 'erro', texto: msg });
+      setTimeout(() => setHandoffFeedback(null), 5000);
+    },
+    success: (msg: string) => {
+      setHandoffFeedback({ tipo: 'sucesso', texto: msg });
+      setTimeout(() => setHandoffFeedback(null), 5000);
+    },
+  };
+
   // Verifica se a IA está pausada para o cliente especificado
   const isAiPausedForCliente = (c: ClienteCRM | null) => {
-    if (!c?.ai_paused_until) return false;
-    const dt = new Date(c.ai_paused_until);
+    const rawPause =
+      c?.custom_metadata && 'ai_paused_until' in c.custom_metadata
+        ? c.custom_metadata.ai_paused_until
+        : c?.ai_paused_until;
+    if (!rawPause) return false;
+    const dt = new Date(rawPause);
     return !isNaN(dt.getTime()) && dt.getTime() > Date.now();
   };
 
-  // Alternar Assumir Atendimento / Pausar IA (ou Reativar IA)
-  const handleToggleAiPause = () => {
-    if (!activeCliente) return;
-    const currentlyPaused = isAiPausedForCliente(activeCliente);
-    const shouldPause = !currentlyPaused;
+  // Alternar Assumir Atendimento / Pausar IA (ou Reativar IA) via Route Handler REST (/api/clientes/toggle-ai)
+  const handleToggleAiPause = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-    setHandoffFeedback(null);
-    startTransitionHandoff(async () => {
-      const res = await toggleClienteAiPauseAction({
-        clienteId: activeCliente.id,
-        telefone: activeCliente.telefone,
-        nomeCliente: activeCliente.nome,
-        pause: shouldPause,
-        hours: 24,
+    if (!activeCliente?.id) return;
+
+    setIsTogglingAi(true);
+    try {
+      const res = await fetch('/api/clientes/toggle-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId: activeCliente.id }),
       });
 
-      if (res.success) {
-        const nextPausedUntil = res.pausedUntil || null;
-        setActiveCliente((prev) =>
-          prev ? { ...prev, ai_paused_until: nextPausedUntil } : null
-        );
-        setClientes((prev) =>
-          prev.map((item) =>
-            item.id === activeCliente.id
-              ? { ...item, ai_paused_until: nextPausedUntil }
-              : item
-          )
-        );
-        setHandoffFeedback({
-          tipo: 'sucesso',
-          texto: res.message || 'Status da IA atualizado!',
-        });
-      } else {
-        setHandoffFeedback({
-          tipo: 'erro',
-          texto: res.error || 'Erro ao alterar pausa da IA.',
-        });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        toast.error(data.error || 'Erro ao alterar status da IA');
+        return;
       }
-      setTimeout(() => setHandoffFeedback(null), 5000);
-    });
+
+      // Atualiza exclusivamente o estado local no React
+      setActiveCliente((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ai_paused_until: data.ai_paused_until,
+          custom_metadata: {
+            ...(prev.custom_metadata || {}),
+            ai_paused_until: data.ai_paused_until,
+          },
+        };
+      });
+
+      // Atualiza também na lista geral de clientes em memória
+      setClientes((prevList) =>
+        prevList.map((c) =>
+          c.id === activeCliente.id
+            ? {
+                ...c,
+                ai_paused_until: data.ai_paused_until,
+                custom_metadata: {
+                  ...(c.custom_metadata || {}),
+                  ai_paused_until: data.ai_paused_until,
+                },
+              }
+            : c
+        )
+      );
+
+      toast.success(
+        data.ai_paused_until
+          ? 'Atendimento assumido (IA pausada por 24h)'
+          : 'Atendimento da IA reativado'
+      );
+    } catch (err: any) {
+      toast.error('Falha na comunicação com o servidor');
+    } finally {
+      setIsTogglingAi(false);
+    }
   };
 
   // Enviar mensagem manual pela interface (pausando automaticamente a IA por 24h)
-  const handleEnviarMensagemManual = (e: React.FormEvent) => {
+  const handleEnviarMensagemManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeCliente || !manualMessageInput.trim()) return;
+    if (!activeCliente || !manualMessageInput.trim() || isPendingHandoff) return;
 
     const texto = manualMessageInput.trim();
     setHandoffFeedback(null);
+    setIsPendingHandoff(true);
 
-    startTransitionHandoff(async () => {
+    try {
       const res = await sendManualInboxMessageAction({
         clienteId: activeCliente.id,
         telefone: activeCliente.telefone,
@@ -259,12 +306,28 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
         const nextPausedUntil = res.pausedUntil || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         setManualMessageInput('');
         setActiveCliente((prev) =>
-          prev ? { ...prev, ai_paused_until: nextPausedUntil } : null
+          prev
+            ? {
+                ...prev,
+                ai_paused_until: nextPausedUntil,
+                custom_metadata: {
+                  ...(prev.custom_metadata || {}),
+                  ai_paused_until: nextPausedUntil,
+                },
+              }
+            : null
         );
         setClientes((prev) =>
           prev.map((item) =>
             item.id === activeCliente.id
-              ? { ...item, ai_paused_until: nextPausedUntil }
+              ? {
+                  ...item,
+                  ai_paused_until: nextPausedUntil,
+                  custom_metadata: {
+                    ...(item.custom_metadata || {}),
+                    ai_paused_until: nextPausedUntil,
+                  },
+                }
               : item
           )
         );
@@ -279,7 +342,9 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
         });
       }
       setTimeout(() => setHandoffFeedback(null), 5000);
-    });
+    } finally {
+      setIsPendingHandoff(false);
+    }
   };
 
   // Callback ao salvar nota no VoiceNoteRecorder
@@ -430,12 +495,29 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
       });
 
       if (res.success) {
+        const nowIso = new Date().toISOString();
+        setClientes((prev) => [
+          {
+            id: `temp-${Date.now()}`,
+            lojista_id: lojista.id,
+            nome: novoNome.trim(),
+            telefone: cleanTelefone,
+            etapa_kanban: novaEtapa,
+            total_gasto: valorAdicional,
+            total_agendamentos: valorAdicional > 0 ? 1 : 0,
+            observacoes: '',
+            tags: [],
+            custom_metadata: {},
+            created_at: nowIso,
+            updated_at: nowIso,
+          },
+          ...prev,
+        ]);
         setIsModalOpen(false);
         setNovoNome('');
         setNovoTelefone('');
         setNovoValor('');
         setNovaEtapa('lead');
-        window.location.reload();
       } else {
         setFormError(res.error || 'Erro ao cadastrar cliente.');
       }
@@ -879,7 +961,8 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                     <span className="text-[11px] text-[#D8DEE9]/70">
                       {isAiPausedForCliente(activeCliente)
                         ? `⏸️ IA Pausada (Atendimento Humano até ${new Date(
-                            activeCliente.ai_paused_until!
+                            (activeCliente.custom_metadata?.ai_paused_until ||
+                              activeCliente.ai_paused_until)!
                           ).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})`
                         : '🤖 IA Ativa respondendo este contato'}
                     </span>
@@ -888,16 +971,18 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                   <button
                     type="button"
                     onClick={handleToggleAiPause}
-                    disabled={isPendingHandoff}
+                    disabled={isTogglingAi || isPendingHandoff}
                     className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition border ${
                       isAiPausedForCliente(activeCliente)
                         ? 'bg-[#A3BE8C]/20 text-[#A3BE8C] border-[#A3BE8C]/40 hover:bg-[#A3BE8C]/30'
                         : 'bg-[#EBCB8B]/20 text-[#EBCB8B] border-[#EBCB8B]/40 hover:bg-[#EBCB8B]/30'
                     }`}
                   >
-                    {isAiPausedForCliente(activeCliente)
-                      ? '▶ Reativar IA'
-                      : '⏸ Assumir / Pausar IA'}
+                    {isTogglingAi
+                      ? '⏳ Aguarde...'
+                      : isAiPausedForCliente(activeCliente)
+                        ? '▶️ Reativar IA'
+                        : '⏸️ Assumir / Pausar IA'}
                   </button>
                 </div>
 

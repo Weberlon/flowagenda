@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { getWhatsAppComercialUrl } from '@/lib/contact';
@@ -17,14 +18,21 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
+  const adminClient = process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? createAdminClient()
+    : (supabase as any);
+
   // Validação de Role
-  const { data: profile } = await supabase
+  const { data: profile } = await adminClient
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  const isSuperAdmin = profile?.role === 'super_admin';
+  const isSuperAdmin =
+    profile?.role === 'super_admin' ||
+    profile?.role === 'superadmin' ||
+    profile?.role === 'admin';
   let lojista: any = null;
   let isImpersonating = false;
 
@@ -33,11 +41,11 @@ export default async function DashboardLayout({
     const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
 
     if (impersonateTenantId) {
-      const { data: targetLojista } = await supabase
+      const { data: targetLojista } = await adminClient
         .from('lojistas')
         .select('*')
         .eq('id', impersonateTenantId)
-        .single();
+        .maybeSingle();
 
       if (targetLojista) {
         lojista = targetLojista;
@@ -45,9 +53,28 @@ export default async function DashboardLayout({
       }
     }
 
-    // Se é Super Admin e não possui lojista para impersonar, vai para a gestão central
+    // Se Super Admin não está impersonando, tenta buscar lojista próprio ou o primeiro ativo (nunca redireciona forçadamente para /superadmin)
     if (!lojista) {
-      redirect('/superadmin');
+      const { data: ownLojista } = await adminClient
+        .from('lojistas')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (ownLojista) {
+        lojista = ownLojista;
+      } else {
+        const { data: firstLojista } = await adminClient
+          .from('lojistas')
+          .select('*')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (firstLojista) {
+          lojista = firstLojista;
+        }
+      }
     }
   } else {
     // Buscar lojista associado diretamente ao user_id (Lojista padrão)
@@ -55,7 +82,7 @@ export default async function DashboardLayout({
       .from('lojistas')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     lojista = userLojista;
   }
@@ -142,12 +169,12 @@ export default async function DashboardLayout({
                 Gerenciando estabelecimento: <strong>{lojista.nome_estabelecimento}</strong> ({lojista.slug_subdominio})
               </span>
             </div>
-            <Link
-              href="/dashboard?exit_impersonation=true"
+            <a
+              href="/superadmin?exit_impersonation=true"
               className="inline-flex items-center gap-1 font-bold underline hover:text-slate-900 transition-colors"
             >
               Sair da Impersonação ➔
-            </Link>
+            </a>
           </div>
         )}
 

@@ -1,11 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useNotificacoesFeed } from '@/hooks/useNotificacoesFeed';
-import {
-  toggleClienteAiPauseAction,
-  sendManualInboxMessageAction,
-} from '@/app/actions/clientes';
+import { sendManualInboxMessageAction } from '@/app/actions/clientes';
 
 interface NotificacoesFeedProps {
   lojistaId: string;
@@ -18,31 +15,41 @@ export function NotificacoesFeed({ lojistaId }: NotificacoesFeedProps) {
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [feedbackMap, setFeedbackMap] = useState<Record<string, string>>({});
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
 
-  const handleTogglePause = (item: {
-    id: string;
-    cliente_telefone: string | null;
-    cliente_nome: string | null;
-  }) => {
-    if (!item.cliente_telefone) return;
+  const handleTogglePause = async (
+    item: {
+      id: string;
+      cliente_telefone: string | null;
+      cliente_nome: string | null;
+    },
+    e?: React.MouseEvent<HTMLElement>
+  ) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!item.cliente_telefone || isPending) return;
     const key = item.cliente_telefone.replace(/\D/g, '');
-    const isPausedNow = Boolean(pausedContacts[key]);
-    const nextPause = !isPausedNow;
+    setIsPending(true);
 
-    startTransition(async () => {
-      const res = await toggleClienteAiPauseAction({
-        telefone: key,
-        nomeCliente: item.cliente_nome || 'Cliente',
-        pause: nextPause,
-        hours: 24,
+    try {
+      const response = await fetch('/api/clientes/toggle-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telefone: key,
+          nomeCliente: item.cliente_nome || 'Cliente',
+        }),
       });
+      const res = await response.json();
 
-      if (res.success) {
+      if (response.ok && res?.success) {
+        const nextPause = Boolean(res.isPaused ?? res.pausedUntil);
         setPausedContacts((prev) => ({ ...prev, [key]: nextPause }));
         setFeedbackMap((prev) => ({
           ...prev,
-          [item.id]: nextPause ? '⏸ IA pausada por 24h' : '▶ IA reativada',
+          [item.id]: nextPause ? '⏸️ IA pausada por 24h' : '▶️ IA reativada',
         }));
         setTimeout(() => {
           setFeedbackMap((prev) => {
@@ -52,19 +59,24 @@ export function NotificacoesFeed({ lojistaId }: NotificacoesFeedProps) {
           });
         }, 4000);
       }
-    });
+    } catch (err) {
+      console.error('Erro ao alternar IA:', err);
+    } finally {
+      setIsPending(false);
+    }
   };
 
-  const handleSendQuickReply = (item: {
+  const handleSendQuickReply = async (item: {
     id: string;
     cliente_telefone: string | null;
     cliente_nome: string | null;
   }) => {
-    if (!item.cliente_telefone || !replyText.trim()) return;
+    if (!item.cliente_telefone || !replyText.trim() || isPending) return;
     const key = item.cliente_telefone.replace(/\D/g, '');
     const msg = replyText.trim();
+    setIsPending(true);
 
-    startTransition(async () => {
+    try {
       const res = await sendManualInboxMessageAction({
         telefone: key,
         nomeCliente: item.cliente_nome || 'Cliente',
@@ -86,7 +98,9 @@ export function NotificacoesFeed({ lojistaId }: NotificacoesFeedProps) {
           [item.id]: res.error || 'Erro ao enviar',
         }));
       }
-    });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -167,7 +181,7 @@ export function NotificacoesFeed({ lojistaId }: NotificacoesFeedProps) {
                       <>
                         <button
                           type="button"
-                          onClick={() => handleTogglePause(item)}
+                          onClick={(e) => handleTogglePause(item, e)}
                           disabled={isPending}
                           className={`rounded-md px-2 py-0.5 text-[10px] font-bold border transition ${
                             pausedContacts[item.cliente_telefone.replace(/\D/g, '')]
@@ -176,8 +190,8 @@ export function NotificacoesFeed({ lojistaId }: NotificacoesFeedProps) {
                           }`}
                         >
                           {pausedContacts[item.cliente_telefone.replace(/\D/g, '')]
-                            ? '▶ Reativar IA'
-                            : '⏸ Assumir / Pausar IA'}
+                            ? '▶️ Reativar IA'
+                            : '⏸️ Assumir / Pausar IA'}
                         </button>
 
                         <button
