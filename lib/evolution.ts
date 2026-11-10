@@ -152,12 +152,15 @@ export async function createInstance(
     }
 
     if (!response.ok) {
-      // Se a instância já existe, trata com tolerância e recupera o status atual
+      // Se a instância já existe, trata com tolerância, garante o webhook e recupera o status atual
       if (
         response.status === 403 ||
         data?.response?.message?.includes('already exists') ||
         resText.includes('already exists')
       ) {
+        await setEvolutionWebhook(instanceName).catch((err) =>
+          console.warn('[Evolution API] Aviso ao sincronizar webhook em instância existente:', err)
+        );
         return {
           success: true,
           data: {
@@ -178,6 +181,11 @@ export async function createInstance(
     const qrcodeBase64 = data?.qrcode?.base64 || data?.base64 || null;
     const instanceId = data?.instance?.instanceId || data?.instance?.id || undefined;
     const token = data?.hash?.apikey || data?.instance?.token || instanceName;
+
+    // Configura automaticamente o Webhook da instância recém-criada na Evolution API v2
+    await setEvolutionWebhook(instanceName).catch((err) =>
+      console.warn('[Evolution API] Aviso ao configurar webhook após createInstance:', err)
+    );
 
     return {
       success: true,
@@ -585,13 +593,17 @@ export async function setEvolutionWebhook(
   try {
     const { apiUrl, apiKey } = getEvolutionConfig();
 
-    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'flowagenda.online';
-    const defaultWebhookUrl = process.env.NEXT_PUBLIC_APP_URL 
-      ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, '')}/api/webhooks/evolution`
-      : `https://${rootDomain}/api/webhooks/evolution`;
+    const defaultWebhookUrl =
+      process.env.EVOLUTION_WEBHOOK_URL ||
+      'https://www.flowagenda.online/api/webhooks/whatsapp';
 
     const targetUrl = webhookUrl || defaultWebhookUrl;
-    const targetToken = hookToken || process.env.EVOLUTION_WEBHOOK_SECRET || process.env.HOOK_TOKEN || process.env.EVOLUTION_API_KEY || '';
+    const targetToken =
+      hookToken ||
+      process.env.WEBHOOK_SECRET ||
+      process.env.EVOLUTION_WEBHOOK_SECRET ||
+      process.env.HOOK_TOKEN ||
+      'senha-segura-flowagenda-2026';
 
     const payload = {
       webhook: {

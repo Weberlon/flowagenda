@@ -1,8 +1,68 @@
 'use server';
 
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { fetchInstanceConnectionStatus } from '@/lib/evolution';
 import { cookies } from 'next/headers';
+
+const DURACOES_PERMITIDAS = [15, 30, 45, 60] as const;
+
+async function syncKnowledgeBaseServicos(dbClient: any, lojistaId: string) {
+  try {
+    const { data: lojista } = await dbClient
+      .from('lojistas')
+      .select('id, knowledge_base')
+      .eq('id', lojistaId)
+      .maybeSingle();
+
+    if (!lojista?.knowledge_base) return;
+
+    const { data: servicosAtivos } = await dbClient
+      .from('servicos')
+      .select('nome_servico, preco, duracao_minutos')
+      .eq('lojista_id', lojistaId)
+      .eq('ativo', true)
+      .order('nome_servico', { ascending: true });
+
+    const catalogoTexto =
+      servicosAtivos && servicosAtivos.length > 0
+        ? servicosAtivos
+            .map(
+              (s: any) =>
+                `- **${s.nome_servico}**: R$ ${Number(s.preco || 0)
+                  .toFixed(2)
+                  .replace('.', ',')} (${s.duracao_minutos} min)`
+            )
+            .join('\n')
+        : '- Consultar tabela de serviços e valores no link de agendamento.';
+
+    const kbAtual: string = lojista.knowledge_base;
+    let kbNova = kbAtual;
+
+    if (/## 2\. Serviços e Preços/i.test(kbAtual)) {
+      kbNova = kbAtual.replace(
+        /(## 2\. Serviços e Preços\r?\n)([\s\S]*?)(?=\r?\n## \d+\.|$)/i,
+        `$1${catalogoTexto}\n`
+      );
+    } else if (/## Catálogo Atualizado de Serviços e Preços/i.test(kbAtual)) {
+      kbNova = kbAtual.replace(
+        /(## Catálogo Atualizado de Serviços e Preços\r?\n)([\s\S]*?)(?=\r?\n## |$)/i,
+        `$1${catalogoTexto}\n`
+      );
+    } else {
+      kbNova = `${kbAtual.trim()}\n\n## Catálogo Atualizado de Serviços e Preços\n${catalogoTexto}`;
+    }
+
+    if (kbNova !== kbAtual) {
+      await dbClient
+        .from('lojistas')
+        .update({ knowledge_base: kbNova })
+        .eq('id', lojistaId);
+    }
+  } catch (err) {
+    console.warn('[syncKnowledgeBaseServicos] Aviso ao sincronizar serviços na knowledge_base:', err);
+  }
+}
 
 async function resolveDashboardLojista(supabase: any, userId: string) {
   const { data: profile } = await supabase
@@ -98,12 +158,27 @@ export async function addServicoAction(formData: FormData) {
   const lojista = await resolveDashboardLojista(supabase, user.id);
   if (!lojista) throw new Error('Tenant not found');
 
-  const nome_servico = formData.get('nome_servico') as string;
-  const duracao_minutos = parseInt(formData.get('duracao_minutos') as string);
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const dbClient =
+    profile?.role === 'super_admin' && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : supabase;
+
+  const nome_servico = (formData.get('nome_servico') as string)?.trim();
+  const duracao_minutos = parseInt(formData.get('duracao_minutos') as string, 10);
   const preco = parseFloat(formData.get('preco') as string);
   const ativo = formData.get('ativo') === 'on';
 
-  const { error } = await supabase.from('servicos').insert({
+  if (!DURACOES_PERMITIDAS.includes(duracao_minutos as any)) {
+    throw new Error('Duração inválida. Valores permitidos: 15, 30, 45 ou 60 minutos.');
+  }
+
+  const { error } = await dbClient.from('servicos').insert({
     lojista_id: lojista.id,
     nome_servico,
     duracao_minutos,
@@ -112,5 +187,9 @@ export async function addServicoAction(formData: FormData) {
   });
 
   if (error) throw new Error(error.message);
+
+  // Sincroniza automaticamente o catálogo atualizado dentro de lojistas.knowledge_base
+  await syncKnowledgeBaseServicos(dbClient, lojista.id);
+
   return { success: true };
 }

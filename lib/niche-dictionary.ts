@@ -147,12 +147,96 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
     };
   }
 
-  // 3. Estética & Spa / Salão de Beleza
+  // 3. Salão de Beleza
+  if (
+    normalized.includes('salao') ||
+    normalized.includes('beleza') ||
+    normalized.includes('cabeleireir') ||
+    normalized.includes('manicure')
+  ) {
+    return {
+      nicheKey: 'salao_beleza',
+      clienteSingular: 'Cliente',
+      clientePlural: 'Clientes',
+      profissionalSingular: 'Profissional',
+      profissionalPlural: 'Profissionais',
+      agendamentoSingular: 'Agendamento',
+      agendamentoPlural: 'Agendamentos',
+      visitaSingular: 'atendimento',
+      visitaPlural: 'atendimentos',
+      historicoLabel: 'Histórico de Procedimentos & Beleza',
+      etapasKanban: {
+        lead: 'Novos Contatos',
+        agendado: 'Horários Marcados',
+        atendido: 'Atendidas',
+        no_show: 'Faltas / No-Show',
+        fidelizado: 'Fidelizadas / Recorrentes',
+      },
+      sugestoesTags: [
+        'VIP',
+        'Mechas / Loiro',
+        'Escova / Hidratação',
+        'Manicure & Pedicure',
+        'Design de Sobrancelha',
+        'Dia da Noiva',
+        'Pontual',
+      ],
+      sugestoesMetadataKeys: [
+        'procedimento_preferido',
+        'profissional_preferida',
+        'tipo_cabelo_quimica',
+        'frequencia_retorno',
+      ],
+    };
+  }
+
+  // 4. Pet Shop / Clínica Veterinária
+  if (
+    normalized.includes('pet') ||
+    normalized.includes('vet') ||
+    normalized.includes('banho') ||
+    normalized.includes('tosa')
+  ) {
+    return {
+      nicheKey: 'pet_shop',
+      clienteSingular: 'Tutor / Pet',
+      clientePlural: 'Tutores / Pets',
+      profissionalSingular: 'Groomer / Veterinário',
+      profissionalPlural: 'Groomers / Veterinários',
+      agendamentoSingular: 'Atendimento Pet',
+      agendamentoPlural: 'Atendimentos Pet',
+      visitaSingular: 'banho/consulta',
+      visitaPlural: 'banhos/consultas',
+      historicoLabel: 'Histórico de Banho, Tosa & Veterinária',
+      etapasKanban: {
+        lead: 'Novos Tutores',
+        agendado: 'Banhos / Consultas Marcadas',
+        atendido: 'Pets Atendidos',
+        no_show: 'Faltas / No-Show',
+        fidelizado: 'Clube / Pacote Mensal',
+      },
+      sugestoesTags: [
+        'Banho & Tosa',
+        'Tosa Higiênica',
+        'Pacote Mensal',
+        'Consulta Veterinária',
+        'Vacinação',
+        'Porte Pequeno',
+        'Porte Grande',
+      ],
+      sugestoesMetadataKeys: [
+        'nome_pet',
+        'raca_porte',
+        'temperamento_observacoes',
+        'pacote_banho',
+      ],
+    };
+  }
+
+  // 5. Estética & Spa
   if (
     normalized.includes('estetica') ||
     normalized.includes('spa') ||
-    normalized.includes('salao') ||
-    normalized.includes('beleza') ||
     normalized.includes('studio')
   ) {
     return {

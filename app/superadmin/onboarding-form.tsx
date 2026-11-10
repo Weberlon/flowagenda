@@ -141,7 +141,9 @@ export function OnboardingForm() {
             defaultValue="barbearia"
             className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
           >
-            <option value="barbearia">Barbearia / Salão</option>
+            <option value="barbearia">Barbearia</option>
+            <option value="salao_beleza">Salão de Beleza</option>
+            <option value="pet_shop">Pet Shop / Clínica Veterinária</option>
             <option value="estetica">Clínica de Estética / Spa</option>
             <option value="odontologia">Consultório Odontológico / Clínica</option>
             <option value="advocacia">Escritório de Advocacia / Consultoria</option>

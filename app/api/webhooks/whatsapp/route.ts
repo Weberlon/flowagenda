@@ -52,8 +52,8 @@ function getSupabaseAdmin() {
 
 export async function POST(req: Request) {
   try {
-    // 1. Validação opcional de segurança se EVOLUTION_WEBHOOK_SECRET estiver configurado
-    const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET;
+    // 1. Validação opcional de segurança se EVOLUTION_WEBHOOK_SECRET ou WEBHOOK_SECRET estiver configurado
+    const webhookSecret = process.env.EVOLUTION_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
     if (webhookSecret) {
       const headerKey =
         req.headers.get('apikey') ||

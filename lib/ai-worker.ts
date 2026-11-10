@@ -328,7 +328,7 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         ? `https://${lojista.slug_subdominio}.${rootDomain}`
         : `https://${rootDomain}`;
 
-      // Complementa a knowledge_base com o catálogo ativo de serviços e preços do lojista
+      // Sincroniza em tempo real a knowledge_base com o catálogo ativo da tabela 'servicos'
       const { data: servicosAtivos } = await supabase
         .from('servicos')
         .select('nome_servico, preco, duracao_minutos')
@@ -341,12 +341,20 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         const catalogoTexto = servicosAtivos
           .map(
             (s: any) =>
-              `- ${s.nome_servico}: R$ ${Number(s.preco || 0)
+              `- **${s.nome_servico}**: R$ ${Number(s.preco || 0)
                 .toFixed(2)
                 .replace('.', ',')} (${s.duracao_minutos} min)`
           )
           .join('\n');
-        enrichedKnowledgeBase = `${enrichedKnowledgeBase}\n\n## Catálogo Atualizado de Serviços e Preços\n${catalogoTexto}`.trim();
+
+        if (/## 2\. Serviços e Preços/i.test(enrichedKnowledgeBase)) {
+          enrichedKnowledgeBase = enrichedKnowledgeBase.replace(
+            /(## 2\. Serviços e Preços\r?\n)([\s\S]*?)(?=\r?\n## \d+\.|$)/i,
+            `$1${catalogoTexto}\n`
+          );
+        } else {
+          enrichedKnowledgeBase = `${enrichedKnowledgeBase}\n\n## Catálogo Atualizado de Serviços e Preços\n${catalogoTexto}`.trim();
+        }
       }
 
       const systemPrompt = buildDeskcommSystemPrompt({

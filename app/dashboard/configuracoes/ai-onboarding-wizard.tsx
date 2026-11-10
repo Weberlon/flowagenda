@@ -24,12 +24,12 @@ interface AiOnboardingWizardProps {
 }
 
 const NICHOS_DISPONIVEIS = [
-  { id: 'Barbearia', label: 'Barbearia', icon: '💈', desc: 'Cortes, barba terapia e estética masculina' },
-  { id: 'Clínica / Dentista', label: 'Clínica / Dentista', icon: '🦷', desc: 'Consultório odontológico e saúde' },
-  { id: 'Salão de Beleza', label: 'Salão de Beleza', icon: '💇‍♀️', desc: 'Cabelo, manicure, maquiagem e químicas' },
-  { id: 'Estética & Spa', label: 'Estética & Spa', icon: '✨', desc: 'Procedimentos faciais, corporais e laser' },
-  { id: 'Oficina / Estética Automotiva', label: 'Oficina / Automotivo', icon: '🚗', desc: 'Revisão, lavagem detalhada e polimento' },
-  { id: 'Outro Serviço Local', label: 'Outro Serviço', icon: '🏢', desc: 'Atendimento geral com hora marcada' },
+  { id: 'barbearia', label: 'Barbearia', icon: '💈', desc: 'Cortes, barba terapia e estética masculina' },
+  { id: 'salao_beleza', label: 'Salão de Beleza', icon: '💇‍♀️', desc: 'Cabelo, manicure, maquiagem e químicas' },
+  { id: 'pet_shop', label: 'Pet Shop / Veterinária', icon: '🐾', desc: 'Banho e tosa, consultas veterinárias e estética pet' },
+  { id: 'estetica', label: 'Estética & Spa', icon: '✨', desc: 'Procedimentos faciais, corporais e laser' },
+  { id: 'odontologia', label: 'Clínica / Dentista', icon: '🦷', desc: 'Consultório odontológico e saúde' },
+  { id: 'outros', label: 'Outro Serviço Local', icon: '🏢', desc: 'Atendimento geral com hora marcada' },
 ];
 
 const TONS_DE_VOZ = [
@@ -64,7 +64,7 @@ export function AiOnboardingWizard({
 
   // Estado dos campos do Wizard
   const [businessNiche, setBusinessNiche] = useState<string>(
-    initialBusinessNiche || initialOnboardingConfig?.business_niche || 'Barbearia'
+    initialBusinessNiche || initialOnboardingConfig?.business_niche || 'barbearia'
   );
   const [toneOfVoice, setToneOfVoice] = useState<string>(
     initialOnboardingConfig?.tone_of_voice || TONS_DE_VOZ[0].id
