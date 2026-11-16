@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const ASAAS_API_URL = (process.env.ASAAS_API_URL || 'https://api.asaas.com/v3').replace(/\/+$/, '');
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY!;
+const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
 // Tabela de preços alinhada à landing page
 const PLANOS_CONFIG: Record<
@@ -40,8 +34,50 @@ const PLANOS_CONFIG: Record<
   },
 };
 
+async function parseAsaasResponse(res: Response, stepLabel: string): Promise<{ ok: boolean; status: number; data?: any; error?: string }> {
+  const rawText = await res.text();
+  try {
+    const parsed = rawText ? JSON.parse(rawText) : {};
+    if (!res.ok) {
+      const apiErrMsg =
+        parsed?.errors?.[0]?.description ||
+        parsed?.message ||
+        `Erro Asaas (${stepLabel} - HTTP ${res.status})`;
+      return { ok: false, status: res.status, data: parsed, error: apiErrMsg };
+    }
+    return { ok: true, status: res.status, data: parsed };
+  } catch {
+    const snippet = rawText.replace(/\s+/g, ' ').slice(0, 180);
+    console.error(`[ASAAS_NON_JSON_RESPONSE] (${stepLabel} - HTTP ${res.status}):`, snippet);
+    return {
+      ok: false,
+      status: res.status || 502,
+      error: `Resposta inesperada do Asaas em ${stepLabel} (HTTP ${res.status}): ${snippet}`,
+    };
+  }
+}
+
 export async function POST(req: Request) {
   try {
+    const asaasApiKey = process.env.ASAAS_API_KEY?.trim();
+    if (!asaasApiKey) {
+      return NextResponse.json(
+        { error: 'Variável de ambiente ASAAS_API_KEY não configurada no servidor.' },
+        { status: 500 }
+      );
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceRole) {
+      return NextResponse.json(
+        { error: 'Credenciais Supabase Admin ausentes no servidor.' },
+        { status: 500 }
+      );
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
+
     const { lojistaId, cycle = 'YEARLY', cpfCnpj } = await req.json();
 
     if (!lojistaId) {
@@ -71,6 +107,13 @@ export async function POST(req: Request) {
         ? lojista.asaas_customer_id
         : null;
 
+    const asaasHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'FlowAgenda/1.0',
+      'access_token': asaasApiKey,
+    };
+
     // 2. Criar cliente no Asaas caso ainda não exista vínculo
     if (!customerId) {
       const documentoLimpo = (cpfCnpj || lojista.cpf_cnpj || '').replace(/\D/g, '');
@@ -87,29 +130,26 @@ export async function POST(req: Request) {
 
       const customerRes = await fetch(`${ASAAS_API_URL}/customers`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          access_token: ASAAS_API_KEY,
-        },
+        headers: asaasHeaders,
         body: JSON.stringify({
           name: lojista.nome_estabelecimento || lojista.nome_negocio,
-          email: lojista.email,
-          mobilePhone: telefoneLimpo,
+          email: lojista.email || undefined,
+          mobilePhone: telefoneLimpo || undefined,
           cpfCnpj: documentoLimpo,
           externalReference: lojista.id,
           notificationDisabled: false,
         }),
       });
 
-      const customerData = await customerRes.json();
-      if (!customerRes.ok) {
+      const customerParsed = await parseAsaasResponse(customerRes, 'criar cliente');
+      if (!customerParsed.ok) {
         return NextResponse.json(
-          { error: customerData.errors?.[0]?.description || 'Erro ao criar cliente no Asaas.' },
+          { error: customerParsed.error || 'Erro ao criar cliente no Asaas.' },
           { status: 400 }
         );
       }
 
-      customerId = customerData.id;
+      customerId = customerParsed.data.id;
     }
 
     // 3. Criar assinatura recorrente no Asaas
@@ -117,10 +157,7 @@ export async function POST(req: Request) {
 
     const subRes = await fetch(`${ASAAS_API_URL}/subscriptions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        access_token: ASAAS_API_KEY,
-      },
+      headers: asaasHeaders,
       body: JSON.stringify({
         customer: customerId,
         billingType: 'UNDEFINED', // Permite Pix, Boleto ou Cartão na invoiceUrl
@@ -132,20 +169,24 @@ export async function POST(req: Request) {
       }),
     });
 
-    const subData = await subRes.json();
-    if (!subRes.ok) {
+    const subParsed = await parseAsaasResponse(subRes, 'criar assinatura');
+    if (!subParsed.ok) {
       return NextResponse.json(
-        { error: subData.errors?.[0]?.description || 'Erro ao criar assinatura no Asaas.' },
+        { error: subParsed.error || 'Erro ao criar assinatura no Asaas.' },
         { status: 400 }
       );
     }
 
+    const subData = subParsed.data;
+
     // 4. Buscar a primeira cobrança gerada pela assinatura para pegar a invoiceUrl
     const paymentsRes = await fetch(`${ASAAS_API_URL}/subscriptions/${subData.id}/payments`, {
-      headers: { access_token: ASAAS_API_KEY },
+      method: 'GET',
+      headers: asaasHeaders,
     });
-    const paymentsData = await paymentsRes.json();
-    const primeiraCobranca = paymentsData.data?.[0];
+
+    const paymentsParsed = await parseAsaasResponse(paymentsRes, 'listar cobranças da assinatura');
+    const primeiraCobranca = paymentsParsed.ok ? paymentsParsed.data?.data?.[0] : null;
     const invoiceUrl = primeiraCobranca?.invoiceUrl || null;
 
     // 5. Atualizar registro no Supabase
@@ -176,7 +217,9 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error('[ASAAS_SUBSCRIBE_ERROR]:', err);
-    return NextResponse.json({ error: 'Erro interno ao processar assinatura.' }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || 'Erro interno ao processar assinatura.' },
+      { status: 500 }
+    );
   }
 }
-
