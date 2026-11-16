@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { OnboardingForm } from './onboarding-form';
+import { AsaasSubscribeButton } from './asaas-subscribe-button';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ export default async function SuperAdminPage() {
   // Busca todos os lojistas cadastrados para gestão centralizada
   const { data: lojistas } = await supabase
     .from('lojistas')
-    .select('id, nome_estabelecimento, slug_subdominio, dominio_proprio, tier, whatsapp_notificacao, status_pagamento, configuracoes_robo(instance_name, status_conexao)')
+    .select('*, configuracoes_robo(instance_name, status_conexao)')
     .order('created_at', { ascending: false });
 
   return (
@@ -111,9 +112,24 @@ export default async function SuperAdminPage() {
                           </a>
                         </td>
                         <td className="py-3 px-3">
-                          <span className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-800">
-                            {item.tier || 'tier_1'}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold bg-slate-100 text-slate-800">
+                              {item.tier || 'tier_1'}
+                            </span>
+                            {item.status_pagamento && (
+                              <span
+                                className={`inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold ${
+                                  item.status_pagamento === 'ativo'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : item.status_pagamento === 'inadimplente'
+                                    ? 'bg-red-50 text-red-700 border border-red-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {item.status_pagamento}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-3 font-mono text-[11px]">
                           {robo?.instance_name ? (
@@ -125,7 +141,8 @@ export default async function SuperAdminPage() {
                             <span className="text-slate-400 italic">Pendente</span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-right space-x-2">
+                        <td className="py-3 px-3 text-right space-x-2 whitespace-nowrap">
+                          <AsaasSubscribeButton lojista={item} />
                           <Link
                             href={`/superadmin/tenants/${item.id}/whatsapp`}
                             className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors shadow-sm"
