@@ -3,38 +3,72 @@ import { createClient } from '@supabase/supabase-js';
 
 const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
-// Tabela de preços alinhada à landing page
-const PLANOS_CONFIG: Record<
-  string,
-  { nome: string; MONTHLY: number; SEMIANNUALLY: number; YEARLY: number }
-> = {
+export type AsaasCycle = 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY';
+
+export interface PlanoConfigItem {
+  nome: string;
+  MONTHLY: number;
+  SEMIANNUALLY: number;
+  YEARLY: number;
+  taxaSetup: {
+    MONTHLY: number;
+    SEMIANNUALLY: number;
+    YEARLY: number;
+  };
+}
+
+// Tabela de preços 100% sincronizada com components/landing/PricingTiers.tsx
+export const PLANOS_CONFIG: Record<string, PlanoConfigItem> = {
   tier_1: {
     nome: 'FlowAgenda Essencial',
-    MONTHLY: 59.90,      // Ajuste caso o valor mensal avulso seja diferente
-    SEMIANNUALLY: 329.40, // Ajuste conforme sua regra semestral
-    YEARLY: 598.80,
+    MONTHLY: 59.90,
+    SEMIANNUALLY: 329.40, // 6x R$ 54,90
+    YEARLY: 598.80,       // 12x R$ 49,90
+    taxaSetup: {
+      MONTHLY: 99.90,
+      SEMIANNUALLY: 49.90, // 50% OFF
+      YEARLY: 0,           // Setup 100% Grátis no Anual
+    },
   },
   tier_2: {
     nome: 'FlowAgenda Profissional',
     MONTHLY: 99.90,
-    SEMIANNUALLY: 549.40,
-    YEARLY: 1018.80,
+    SEMIANNUALLY: 539.40, // 6x R$ 89,90
+    YEARLY: 1018.80,      // 12x R$ 84,90
+    taxaSetup: {
+      MONTHLY: 149.90,
+      SEMIANNUALLY: 74.90, // 50% OFF
+      YEARLY: 0,           // Setup 100% Grátis no Anual
+    },
   },
   tier_3: {
     nome: 'FlowAgenda Autoridade',
     MONTHLY: 189.90,
-    SEMIANNUALLY: 1049.40,
-    YEARLY: 1918.80,
+    SEMIANNUALLY: 1019.40, // 6x R$ 169,90
+    YEARLY: 1918.80,       // 12x R$ 159,90
+    taxaSetup: {
+      MONTHLY: 349.90,
+      SEMIANNUALLY: 174.90, // 50% OFF
+      YEARLY: 0,            // Setup 100% Grátis no Anual
+    },
   },
   tier_3_institucional: {
     nome: 'FlowAgenda Autoridade',
     MONTHLY: 189.90,
-    SEMIANNUALLY: 1049.40,
-    YEARLY: 1918.80,
+    SEMIANNUALLY: 1019.40, // 6x R$ 169,90
+    YEARLY: 1918.80,       // 12x R$ 159,90
+    taxaSetup: {
+      MONTHLY: 349.90,
+      SEMIANNUALLY: 174.90, // 50% OFF
+      YEARLY: 0,            // Setup 100% Grátis no Anual
+    },
   },
 };
 
-async function parseAsaasResponse(res: Response, stepLabel: string): Promise<{ ok: boolean; status: number; data?: any; error?: string }> {
+async function parseAsaasResponse(
+  res: Response,
+  stepLabel: string
+): Promise<{ ok: boolean; status: number; data?: any; error?: string }> {
   const rawText = await res.text();
   try {
     const parsed = rawText ? JSON.parse(rawText) : {};
@@ -78,11 +112,25 @@ export async function POST(req: Request) {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole);
 
-    const { lojistaId, cycle = 'YEARLY', cpfCnpj } = await req.json();
+    const body = await req.json();
+    const {
+      lojistaId,
+      cycle = 'YEARLY',
+      cpfCnpj,
+      incluirSetup = false,
+    }: {
+      lojistaId?: string;
+      cycle?: AsaasCycle;
+      cpfCnpj?: string;
+      incluirSetup?: boolean;
+    } = body;
 
     if (!lojistaId) {
       return NextResponse.json({ error: 'ID do lojista é obrigatório.' }, { status: 400 });
     }
+
+    const validCycles: AsaasCycle[] = ['MONTHLY', 'SEMIANNUALLY', 'YEARLY'];
+    const selectedCycle: AsaasCycle = validCycles.includes(cycle) ? cycle : 'YEARLY';
 
     // 1. Buscar dados do lojista no Supabase
     const { data: lojista, error: fetchError } = await supabaseAdmin
@@ -101,7 +149,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Tier inválido: ${tierKey}` }, { status: 400 });
     }
 
-    const valorCobranca = plano[cycle as keyof typeof plano] as number;
+    const valorCobranca = plano[selectedCycle];
+    const valorSetup =
+      incluirSetup && selectedCycle !== 'YEARLY' ? plano.taxaSetup[selectedCycle] : 0;
+
     let customerId =
       lojista.asaas_customer_id && !String(lojista.asaas_customer_id).startsWith('cus_mock_')
         ? lojista.asaas_customer_id
@@ -152,9 +203,39 @@ export async function POST(req: Request) {
       customerId = customerParsed.data.id;
     }
 
-    // 3. Criar assinatura recorrente no Asaas
     const hoje = new Date().toISOString().split('T')[0]; // Vencimento inicial hoje
 
+    // 3. Se incluirSetup === true e valorSetup > 0, cria cobrança avulsa de Taxa de Implantação (Setup)
+    let setupPaymentId: string | null = null;
+    let setupInvoiceUrl: string | null = null;
+
+    if (incluirSetup && valorSetup > 0) {
+      const setupRes = await fetch(`${ASAAS_API_URL}/payments`, {
+        method: 'POST',
+        headers: asaasHeaders,
+        body: JSON.stringify({
+          customer: customerId,
+          billingType: 'UNDEFINED',
+          value: valorSetup,
+          dueDate: hoje,
+          description: `Taxa de Implantação (Setup) - ${plano.nome} - ${lojista.nome_estabelecimento}`,
+          externalReference: `setup_${lojista.id}`,
+        }),
+      });
+
+      const setupParsed = await parseAsaasResponse(setupRes, 'criar cobrança de setup');
+      if (!setupParsed.ok) {
+        return NextResponse.json(
+          { error: setupParsed.error || 'Erro ao criar cobrança de Taxa de Implantação no Asaas.' },
+          { status: 400 }
+        );
+      }
+
+      setupPaymentId = setupParsed.data?.id || null;
+      setupInvoiceUrl = setupParsed.data?.invoiceUrl || null;
+    }
+
+    // 4. Criar assinatura recorrente no Asaas
     const subRes = await fetch(`${ASAAS_API_URL}/subscriptions`, {
       method: 'POST',
       headers: asaasHeaders,
@@ -163,8 +244,8 @@ export async function POST(req: Request) {
         billingType: 'UNDEFINED', // Permite Pix, Boleto ou Cartão na invoiceUrl
         value: valorCobranca,
         nextDueDate: hoje,
-        cycle: cycle, // 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY'
-        description: `Assinatura ${plano.nome} (${cycle}) - ${lojista.nome_estabelecimento}`,
+        cycle: selectedCycle, // 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY'
+        description: `Assinatura ${plano.nome} (${selectedCycle}) - ${lojista.nome_estabelecimento}`,
         externalReference: lojista.id,
       }),
     });
@@ -179,7 +260,7 @@ export async function POST(req: Request) {
 
     const subData = subParsed.data;
 
-    // 4. Buscar a primeira cobrança gerada pela assinatura para pegar a invoiceUrl
+    // 5. Buscar a primeira cobrança gerada pela assinatura para pegar a invoiceUrl
     const paymentsRes = await fetch(`${ASAAS_API_URL}/subscriptions/${subData.id}/payments`, {
       method: 'GET',
       headers: asaasHeaders,
@@ -189,7 +270,7 @@ export async function POST(req: Request) {
     const primeiraCobranca = paymentsParsed.ok ? paymentsParsed.data?.data?.[0] : null;
     const invoiceUrl = primeiraCobranca?.invoiceUrl || null;
 
-    // 5. Atualizar registro no Supabase
+    // 6. Atualizar registro no Supabase
     const { error: updateErr } = await supabaseAdmin
       .from('lojistas')
       .update({
@@ -214,6 +295,10 @@ export async function POST(req: Request) {
       customerId,
       subscriptionId: subData.id,
       invoiceUrl,
+      setupPaymentId,
+      setupInvoiceUrl,
+      valorAssinatura: valorCobranca,
+      valorSetup,
     });
   } catch (err: any) {
     console.error('[ASAAS_SUBSCRIBE_ERROR]:', err);
