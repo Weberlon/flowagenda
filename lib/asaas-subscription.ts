@@ -388,3 +388,66 @@ export async function processAsaasTenantSubscription(params: {
     valorSetup,
   };
 }
+
+/**
+ * Busca a invoiceUrl da cobrança pendente ou vencida mais recente de uma assinatura (ou cliente) no Asaas
+ * Usado pela trava de status_pagamento em app/dashboard/layout.tsx
+ */
+export async function fetchPendingAsaasInvoiceUrl(
+  subscriptionId?: string | null,
+  customerId?: string | null
+): Promise<string | null> {
+  const asaasApiKey = process.env.ASAAS_API_KEY?.trim();
+  if (!asaasApiKey) return null;
+
+  const headers = getAsaasHeaders(asaasApiKey);
+
+  try {
+    if (subscriptionId) {
+      const res = await fetch(
+        `${ASAAS_API_URL}/subscriptions/${encodeURIComponent(subscriptionId)}/payments`,
+        {
+          method: 'GET',
+          headers,
+          cache: 'no-store',
+        }
+      );
+      const parsed = await parseAsaasResponse(res, 'buscar fatura da assinatura');
+      if (parsed.ok && Array.isArray(parsed.data?.data)) {
+        const payments = parsed.data.data as any[];
+        const pendingOrOverdue =
+          payments.find((p) => p.status === 'OVERDUE' || p.status === 'PENDING') ||
+          payments[0];
+        if (pendingOrOverdue?.invoiceUrl) {
+          return pendingOrOverdue.invoiceUrl as string;
+        }
+      }
+    }
+
+    if (customerId && !String(customerId).startsWith('cus_mock_')) {
+      const res = await fetch(
+        `${ASAAS_API_URL}/payments?customer=${encodeURIComponent(customerId)}&limit=5`,
+        {
+          method: 'GET',
+          headers,
+          cache: 'no-store',
+        }
+      );
+      const parsed = await parseAsaasResponse(res, 'buscar fatura do cliente');
+      if (parsed.ok && Array.isArray(parsed.data?.data)) {
+        const payments = parsed.data.data as any[];
+        const pendingOrOverdue =
+          payments.find((p) => p.status === 'OVERDUE' || p.status === 'PENDING') ||
+          payments[0];
+        if (pendingOrOverdue?.invoiceUrl) {
+          return pendingOrOverdue.invoiceUrl as string;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[fetchPendingAsaasInvoiceUrl] Aviso ao consultar fatura no Asaas:', err);
+  }
+
+  return null;
+}
+

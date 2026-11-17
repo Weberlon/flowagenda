@@ -252,14 +252,12 @@ export function OnboardingForm() {
             defaultValue="barbearia"
             className="flex h-10 w-full rounded-xl border border-[#3B4252] bg-[#2E3440] px-3.5 py-2 text-sm text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
           >
-            <option value="barbearia">Barbearia</option>
-            <option value="salao_beleza">Salão de Beleza</option>
-            <option value="pet_shop">Pet Shop / Clínica Veterinária</option>
-            <option value="estetica">Clínica de Estética / Spa</option>
-            <option value="odontologia">Consultório Odontológico / Clínica</option>
-            <option value="advocacia">Escritório de Advocacia / Consultoria</option>
-            <option value="assistencia_tecnica">Assistência Técnica / Oficina</option>
-            <option value="outros">Outros Serviços</option>
+            <option value="barbearia">Barbearia (barbearia)</option>
+            <option value="salao_beleza">Salão de Beleza (salao_beleza)</option>
+            <option value="clinica_estetica">Clínica de Estética / Spa (clinica_estetica)</option>
+            <option value="dentista">Dentista / Odontologia (dentista)</option>
+            <option value="pet_shop">Pet Shop / Veterinária (pet_shop)</option>
+            <option value="tatuagem">Estúdio de Tatuagem / Piercing (tatuagem)</option>
           </select>
         </div>
 

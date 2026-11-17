@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { getWhatsAppComercialUrl } from '@/lib/contact';
 import { NotificacoesFeed } from '@/components/dashboard/NotificacoesFeed';
+import { fetchPendingAsaasInvoiceUrl } from '@/lib/asaas-subscription';
 
 export default async function DashboardLayout({
   children,
@@ -125,10 +126,20 @@ export default async function DashboardLayout({
   }
 
   const lojistaId: string = lojista.id;
-  const isInadimplente = lojista.status_pagamento === 'inadimplente' || lojista.status_pagamento === 'cancelado';
+  const isFounder = Boolean(lojista.is_founder);
+  const isExemptFromPaymentLock = isFounder || isImpersonating || isSuperAdmin;
+  const isPaymentBlocked = !isExemptFromPaymentLock && lojista.status_pagamento !== 'ativo';
+
+  let pendingInvoiceUrl: string | null = null;
+  if (isPaymentBlocked) {
+    pendingInvoiceUrl = await fetchPendingAsaasInvoiceUrl(
+      lojista.asaas_subscription_id,
+      lojista.asaas_customer_id
+    );
+  }
 
   return (
-    <div className="flex h-screen w-full bg-[#0F172A] text-slate-100 font-sans">
+    <div className="flex h-screen w-full bg-[#242933] text-[#ECEFF4] font-sans">
       
       {/* Sidebar Compacta (Nord Dark) */}
       <aside className="w-64 flex-col border-r border-[#3B4252] bg-[#242933] hidden md:flex">
@@ -191,40 +202,65 @@ export default async function DashboardLayout({
           </div>
         </header>
 
-        {/* Inadimplência Banner */}
-        {isInadimplente && (
-          <div className="bg-red-600 px-6 py-3 text-center text-sm font-medium text-white shadow-sm">
-            Sua assinatura está suspensa por falta de pagamento. Regularize para reativar os agendamentos online.
+        {/* Banner Superior de Pendência Financeira */}
+        {isPaymentBlocked && (
+          <div className="bg-[#BF616A] px-6 py-2.5 text-center text-xs sm:text-sm font-semibold text-[#ECEFF4] shadow-sm">
+            Sua assinatura está aguardando confirmação de pagamento ({lojista.status_pagamento || 'pendente'}). Regularize para liberar o acesso completo ao painel.
           </div>
         )}
 
         {/* Scrollable Main */}
-        <main className="flex-1 overflow-y-auto p-6">
-          {isInadimplente ? (
-            <div className="flex h-full items-center justify-center p-6">
-              <div className="max-w-md text-center bg-white p-8 rounded-2xl border border-red-200 shadow-sm space-y-5">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+        <main className={`flex-1 overflow-y-auto ${isPaymentBlocked ? 'bg-[#242933] p-6' : 'p-6'}`}>
+          {isPaymentBlocked ? (
+            <div className="flex h-full items-center justify-center p-4">
+              <div className="w-full max-w-lg text-center bg-[#2E3440] p-8 rounded-2xl border border-[#3B4252] shadow-2xl space-y-6 text-[#ECEFF4]">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#3B4252] text-[#88C0D0] border border-[#4C566A]">
                   <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2">Assinatura Suspensa</h3>
-                  <p className="text-slate-600 text-sm">
-                    Identificamos uma pendência financeira na sua conta FlowAgenda. Seus agendamentos online foram temporariamente pausados.
+
+                <div className="space-y-2">
+                  <span className="inline-flex items-center rounded-full bg-[#BF616A]/20 border border-[#BF616A]/40 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#BF616A]">
+                    Status: {lojista.status_pagamento || 'pendente'}
+                  </span>
+                  <h3 className="text-2xl font-bold text-[#ECEFF4]">
+                    Aguardando Confirmação de Pagamento
+                  </h3>
+                  <p className="text-[#D8DEE9]/80 text-sm leading-relaxed">
+                    Para liberar o acesso ao painel de gestão de <strong>{lojista.nome_estabelecimento}</strong>, conclua o pagamento da sua assinatura FlowAgenda (Pix, Boleto ou Cartão).
                   </p>
                 </div>
+
                 <div className="space-y-3 pt-2">
+                  {pendingInvoiceUrl && (
+                    <a
+                      href={pendingInvoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3BE8C] px-5 py-3 text-sm font-black text-[#242933] hover:bg-[#A3BE8C]/90 transition-colors shadow-md"
+                    >
+                      <span>💳 Abrir Fatura / Regularizar Pagamento</span>
+                    </a>
+                  )}
+
                   <a
-                    href={getWhatsAppComercialUrl('Olá, gostaria de regularizar a assinatura do meu estabelecimento no FlowAgenda')}
+                    href={getWhatsAppComercialUrl(
+                      `Olá, gostaria de regularizar ou ativar a assinatura do estabelecimento "${lojista.nome_estabelecimento}" no FlowAgenda.`
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full rounded-xl bg-slate-900 px-4 py-3 text-center text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-sm"
+                    className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs sm:text-sm font-bold transition-colors ${
+                      pendingInvoiceUrl
+                        ? 'border border-[#4C566A] bg-[#3B4252] text-[#ECEFF4] hover:bg-[#434C5E]'
+                        : 'bg-[#88C0D0] text-[#242933] hover:bg-[#88C0D0]/90 shadow-md'
+                    }`}
                   >
-                    Falar com o Financeiro no WhatsApp
+                    <span>💬 Falar com o Suporte no WhatsApp</span>
                   </a>
-                  <p className="text-[11px] text-slate-400">
-                    Assim que o pagamento for identificado pelo Asaas, seu painel e os agendamentos online serão reativados automaticamente em segundos.
+
+                  <p className="text-[11px] text-[#D8DEE9]/60 pt-1">
+                    Assim que o pagamento for confirmado pelo Asaas, seu acesso será liberado automaticamente em segundos.
                   </p>
                 </div>
               </div>

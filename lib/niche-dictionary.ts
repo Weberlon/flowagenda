@@ -275,6 +275,48 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
     };
   }
 
+  // 6. Estúdio de Tatuagem / Body Piercing
+  if (
+    normalized.includes('tatuag') ||
+    normalized.includes('tattoo') ||
+    normalized.includes('piercing')
+  ) {
+    return {
+      nicheKey: 'tatuagem',
+      clienteSingular: 'Cliente',
+      clientePlural: 'Clientes',
+      profissionalSingular: 'Tatuador / Artista',
+      profissionalPlural: 'Tatuadores / Artistas',
+      agendamentoSingular: 'Sessão',
+      agendamentoPlural: 'Sessões',
+      visitaSingular: 'sessão',
+      visitaPlural: 'sessões',
+      historicoLabel: 'Histórico de Projetos & Sessões',
+      etapasKanban: {
+        lead: 'Orçamentos / Ideias',
+        agendado: 'Sessões Marcadas',
+        atendido: 'Sessões Realizadas',
+        no_show: 'Faltas / No-Show',
+        fidelizado: 'Colecionadores / Retorno',
+      },
+      sugestoesTags: [
+        'Fine Line',
+        'Realismo',
+        'Old School',
+        'Fechamento',
+        'Cobertura (Cover-up)',
+        'Piercing',
+        'Sinal Pago',
+      ],
+      sugestoesMetadataKeys: [
+        'estilo_tattoo',
+        'local_corpo_tamanho',
+        'artista_preferido',
+        'referencia_projeto',
+      ],
+    };
+  }
+
   // 4. Oficina / Estética Automotiva
   if (
     normalized.includes('oficina') ||

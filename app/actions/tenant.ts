@@ -107,6 +107,9 @@ export async function createTenantAction(formData: FormData) {
       }
     }
 
+    const initialPaymentStatus =
+      !isSubscriptionRequested && is_founder ? 'ativo' : 'pendente';
+
     const insertData: Record<string, any> = {
       user_id: user.id,
       nome_estabelecimento,
@@ -118,6 +121,7 @@ export async function createTenantAction(formData: FormData) {
       whatsapp_instance_name: evolutionInstanceName,
       google_review_url,
       asaas_customer_id: null,
+      status_pagamento: initialPaymentStatus,
       business_niche,
       ticket_medio_padrao,
       use_ai_agent,
