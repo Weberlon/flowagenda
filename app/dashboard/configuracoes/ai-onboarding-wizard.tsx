@@ -187,7 +187,7 @@ export function AiOnboardingWizard({
                 ✨
               </span>
               <h2 className="text-lg font-bold tracking-tight text-[#ECEFF4]">
-                Assistente de Onboarding IA (Setup Wizard)
+                Assistente de Configuração da Secretária IA
               </h2>
               <span
                 className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${

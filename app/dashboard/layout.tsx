@@ -184,7 +184,7 @@ export default async function DashboardLayout({
               href="/superadmin?exit_impersonation=true"
               className="inline-flex items-center gap-1 font-bold underline hover:text-slate-900 transition-colors"
             >
-              Sair da Impersonação ➔
+              Voltar ao Super Admin ➔
             </a>
           </div>
         )}

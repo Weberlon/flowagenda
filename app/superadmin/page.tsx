@@ -46,7 +46,7 @@ export default async function SuperAdminPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">Painel Super Admin</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Gestão global de Lojistas, Pareamento de WhatsApp (Evolution API) e Impersonação.
+              Gestão global de Lojistas, Pareamento de WhatsApp (Evolution API) e Acesso Administrativo.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -61,9 +61,9 @@ export default async function SuperAdminPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Estabelecimentos Cadastrados (Tenants)</h2>
+              <h2 className="text-lg font-bold text-slate-900">Estabelecimentos Cadastrados</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Acesse o QR Code do robô Evolution API ou impersone o painel administrativo da barbearia/clínica.
+                Acesse o QR Code do robô Evolution API ou entre no painel administrativo do estabelecimento.
               </p>
             </div>
             <span className="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded">
@@ -153,7 +153,7 @@ export default async function SuperAdminPage() {
                             href={`/dashboard/configuracoes?impersonate_tenant_id=${item.id}`}
                             className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
                           >
-                            Impersonar Painel
+                            Acessar Painel
                           </Link>
                         </td>
                       </tr>

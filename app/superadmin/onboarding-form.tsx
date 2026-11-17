@@ -169,11 +169,11 @@ export function OnboardingForm() {
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight text-[#ECEFF4]">Novo Lojista</h2>
           <p className="text-xs sm:text-sm text-[#D8DEE9]/70">
-            Onboarding automatizado no Supabase, Evolution API v2 e Asaas Billing.
+            Cadastro automatizado no Supabase, Evolution API v2 e Asaas.
           </p>
         </div>
         <span className="inline-flex items-center self-start sm:self-center rounded-lg bg-[#2E3440] px-3 py-1 text-xs font-mono font-semibold text-[#88C0D0] border border-[#3B4252]">
-          Nord Dark • Multi-Tenant
+          Gestão Centralizada
         </span>
       </div>
 

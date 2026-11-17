@@ -99,7 +99,7 @@ export function MensagensWhatsAppForm({
       if (res.success) {
         setFeedback({ tipo: 'sucesso', texto: res.message || 'Configurações salvas com sucesso!' });
       } else {
-        setFeedback({ tipo: 'erro', texto: res.error || 'Falha ao salvar templates de mensagens.' });
+        setFeedback({ tipo: 'erro', texto: res.error || 'Falha ao salvar modelos de mensagens.' });
       }
 
       setTimeout(() => setFeedback(null), 5000);
@@ -128,7 +128,7 @@ export function MensagensWhatsAppForm({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-5">
         <div>
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span>💬</span> Templates de Mensagens no WhatsApp
+            <span>💬</span> Modelos de Mensagens no WhatsApp
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             Personalize os textos automáticos enviados aos seus clientes com tags inteligentes.
@@ -208,7 +208,7 @@ export function MensagensWhatsAppForm({
               rows={6}
               value={templateConfirmacao}
               onChange={(e) => setTemplateConfirmacao(e.target.value)}
-              placeholder="Digite o template de confirmação..."
+              placeholder="Digite o modelo de confirmação..."
               className="w-full rounded-xl border border-slate-300 p-3.5 text-xs text-slate-900 font-sans focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed shadow-xs"
             />
           ) : (
@@ -217,7 +217,7 @@ export function MensagensWhatsAppForm({
               rows={6}
               value={templateLembrete}
               onChange={(e) => setTemplateLembrete(e.target.value)}
-              placeholder="Digite o template de lembrete..."
+              placeholder="Digite o modelo de lembrete..."
               className="w-full rounded-xl border border-slate-300 p-3.5 text-xs text-slate-900 font-sans focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 leading-relaxed shadow-xs"
             />
           )}
@@ -270,10 +270,10 @@ export function MensagensWhatsAppForm({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                 </svg>
-                Salvando Templates...
+                Salvando Modelos...
               </>
             ) : (
-              'Salvar Templates de Mensagens'
+              'Salvar Modelos de Mensagens'
             )}
           </button>
         </div>
