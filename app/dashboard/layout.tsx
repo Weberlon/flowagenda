@@ -127,7 +127,7 @@ export default async function DashboardLayout({
 
   const lojistaId: string = lojista.id;
   const isFounder = Boolean(lojista.is_founder);
-  const isExemptFromPaymentLock = isFounder || isImpersonating || isSuperAdmin;
+  const isExemptFromPaymentLock = isFounder || isImpersonating;
   const isPaymentBlocked = !isExemptFromPaymentLock && lojista.status_pagamento !== 'ativo';
 
   let pendingInvoiceUrl: string | null = null;

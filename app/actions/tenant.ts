@@ -107,7 +107,7 @@ export async function createTenantAction(formData: FormData) {
       }
     }
 
-    const initialPaymentStatus =
+    const initialPaymentStatus: 'ativo' | 'pendente' =
       !isSubscriptionRequested && is_founder ? 'ativo' : 'pendente';
 
     const insertData: Record<string, any> = {
@@ -125,7 +125,7 @@ export async function createTenantAction(formData: FormData) {
       business_niche,
       ticket_medio_padrao,
       use_ai_agent,
-      is_founder,
+      is_founder: !isSubscriptionRequested && is_founder,
       ai_credits,
       configuracoes: {
         mostrar_badge_plataforma: tier === 'tier_1',
@@ -162,6 +162,17 @@ export async function createTenantAction(formData: FormData) {
         error: `Erro no banco ao criar lojista: ${lojistaError?.message || 'Falha desconhecida'}`,
       };
     }
+
+    // Garante sobrescrita explícita de status_pagamento pós-insert contra qualquer default/trigger 'ativo' do banco
+    await dbClient
+      .from('lojistas')
+      .update({
+        status_pagamento: initialPaymentStatus,
+        is_founder: !isSubscriptionRequested && is_founder,
+      })
+      .eq('id', lojista.id);
+    lojista.status_pagamento = initialPaymentStatus;
+    lojista.is_founder = !isSubscriptionRequested && is_founder;
 
     const { error: roboError } = await dbClient.from('configuracoes_robo').insert({
       lojista_id: lojista.id,

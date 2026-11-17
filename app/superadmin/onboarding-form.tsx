@@ -65,6 +65,7 @@ export function OnboardingForm() {
   const [cpfCnpj, setCpfCnpj] = useState<string>('');
   const [asaasAction, setAsaasAction] = useState<InitialAsaasAction>('NONE');
   const [incluirSetup, setIncluirSetup] = useState<boolean>(true);
+  const [isFounder, setIsFounder] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<{
     text: string;
     isError: boolean;
@@ -109,6 +110,7 @@ export function OnboardingForm() {
     formData.set('cpf_cnpj', docDigits);
     formData.set('asaas_initial_action', asaasAction);
     formData.set('incluir_setup', showSetupCheckbox && incluirSetup ? 'true' : 'false');
+    formData.set('is_founder', isFounder && asaasAction === 'NONE' ? 'true' : 'false');
 
     try {
       const result = await createTenantAction(formData);
@@ -419,10 +421,12 @@ export function OnboardingForm() {
                 <input
                   type="checkbox"
                   name="is_founder"
-                  defaultChecked={true}
-                  className="h-4 w-4 rounded border-[#4C566A] bg-[#242933] text-[#88C0D0] focus:ring-[#88C0D0]"
+                  checked={asaasAction !== 'NONE' ? false : isFounder}
+                  disabled={asaasAction !== 'NONE'}
+                  onChange={(e) => setIsFounder(e.target.checked)}
+                  className="h-4 w-4 rounded border-[#4C566A] bg-[#242933] text-[#88C0D0] focus:ring-[#88C0D0] disabled:opacity-40"
                 />
-                <span>Parceiro Micro-Beta / Membro Fundador</span>
+                <span>Membro Fundador (is_founder - acesso isento)</span>
               </label>
             </div>
 
