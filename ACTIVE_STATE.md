@@ -1,52 +1,47 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-11-05T11:16:45-03:00  
-**Fase do Projeto:** Produção / Live Feed Realtime Concluído & Homologação Final de Cron/Webhook  
+**Atualizado em:** 2026-11-22T01:57:00-03:00  
+**Fase do Projeto:** Produção / Health Check & Auto-Repair Homologado + Modernização de UI/UX com Skills Anti-IA  
 **Integridade do Código:** `npx tsc --noEmit` exit code 0 (Zero erros TypeScript)  
-**Último Commit:** `f945fd9` (`feat(dashboard): integracao do live feed de notificacoes em tempo real`)  
-**Branch Atual:** `main`  
+**Último Commit:** `9a847a3` (`feat(superadmin): adiciona diagnostico em tempo real e ferramenta de auto-reparacao segura`)  
+**Branch Atual:** `main` (Up to date com `origin/main`)  
 
 ---
 
 ## 1. Compilado do que Já Está Pronto e em Produção (`main`)
 
-1. **Live Feed de Notificações em Tempo Real no Dashboard (Commit `f945fd9`):**
-   - **Hook Realtime (`hooks/useNotificacoesFeed.ts`):** Consulta as últimas 30 notificações da tabela `painel_notificacoes` filtradas por `lojista_id` e abre canal Supabase Realtime (`postgres_changes` para `INSERT` e `UPDATE`), com mutação otimista em `marcarComoLida(notificacaoId)`.
-   - **Componente UI (`components/dashboard/NotificacoesFeed.tsx`):** Dropdown no padrão Nord Dark (`#2E3440`, `#3B4252`, `#88C0D0`, `#BF616A`, `#A3BE8C`) com badge pulsante de não lidas, identificação do evento (`tipo_evento`), atalho direto para responder no WhatsApp (`wa.me`) e botão de leitura.
-   - **Integração no Layout (`app/dashboard/layout.tsx`):** Renderizado no cabeçalho superior direito ao lado do e-mail do usuário autenticado, repassando `lojistaId={lojista.id}` (compatível tanto com login direto de lojista quanto com impersonação via Super Admin).
+1. **Ferramenta de Diagnóstico & Auto-Reparação Segura no /superadmin (Commit `9a847a3`):**
+   - **Endpoint de Diagnóstico Rápido (`app/api/admin/health-check/route.ts`):** Validação estrita de Super Admin, checagens concorrentes com `AbortSignal.timeout(4000)`, auditoria de variáveis de ambiente (`ASAAS`, `EVOLUTION`, `SUPABASE`), ping de infraestrutura, inspeção da fila `chat_queue` e detecção de anomalias em lojistas.
+   - **Endpoint de Auto-Reparação Não-Destrutiva (`app/api/admin/auto-repair/route.ts`):** Ações seguras de `sync_asaas`, `set_whatsapp_webhook`, `create_whatsapp_instance` (idempotente), `rebuild_knowledge_base`, `flush_chat_queue` e `send_access_link`.
+   - **Painel Visual (`app/superadmin/health-check-panel.tsx`):** Interface Nord Dark integrada no `/superadmin` com cards de status, botão de diagnóstico rápido, ações de auto-reparação por lojista e log de auditoria da sessão em PT-BR.
 
-2. **Motor de Notificações Automáticas (`app/api/cron/notificacoes/route.ts`):**
-   - Processa em lote 3 réguas de comunicação via Evolution API v2 (`America/Sao_Paulo`):
-     * **Lote 1 (T-24h):** Lembrete preventivo de véspera (janela 23h30 a 24h30 antes).
-     * **Lote 2 (T-2h):** Lembrete imediato (janela 1h45 a 2h15 antes) com trava de horário comercial (07:30 às 21:00).
-     * **Lote 3 (Pós-Atendimento / Google Reviews):** Solicitação de avaliação 2h após `data_hora_fim` (com fallback `ignorado_sem_url` caso o lojista não tenha configurado `google_review_url`).
-   - Resiliência anti-loop: Falhas de envio gravam auditoria na tabela `notificacao_erro_log` e marcam status `'erro'` no agendamento para não travar a fila.
-   - Autenticação flexibilizada (commit `4904446`): Aceita o cabeçalho `Authorization` tanto no formato `Bearer ${CRON_SECRET}` quanto o valor puro `${CRON_SECRET}` quando `process.env.CRON_SECRET` está definido.
+2. **Fluxo Unificado de Onboarding e Checkout Asaas (Commits `6251f85` e `e911a59`):**
+   - **Checkout Self-Service (`components/landing/CheckoutModal.tsx` & `PricingTiers.tsx`):** Removidos seletores redundantes de plano/ciclo/taxa no modal; resumo compacto com link "Trocar plano" e redirecionamento imediato para a fatura Asaas.
+   - **Formulário Novo Lojista (`app/superadmin/onboarding-form.tsx`):** Seletores únicos de plano/ciclo/taxa e modal de sucesso em destaque com botões diretos "Abrir Fatura" e "Copiar Link".
+   - **Proteção contra Duplicidade (`app/superadmin/asaas-subscribe-button.tsx`):** Botão "Ver / Nova Cobrança" com colapso de opções para assinaturas ativas/pendentes.
 
-3. **Compatibilidade com Vercel Hobby (`vercel.json`):**
-   - Removido o bloco interno `crons` de `vercel.json` (commit `e99c03f`) para evitar bloqueio de deploy no plano gratuito/Hobby da Vercel.
-   - O disparo periódico da rota `GET https://flowagenda.online/api/cron/notificacoes` é feito por agendador externo.
-
-4. **Esteira de Webhook Inbound WhatsApp (`app/api/webhooks/whatsapp/route.ts` & `scripts/test-whatsapp-webhook.ts`):**
-   - Processamento completo de `messages.upsert` da Evolution API v2 com filtro de grupos (`@g.us`) e `fromMe`.
-   - Idempotência atômica via tabela `webhook_eventos_processados` (`message_id`, `instance_name`, `created_at`).
-   - Parser de intenções validado em 4 cenários (`npm run test:webhook` 100% aprovado):
-     * `"1"` -> Confirma presença (`presenca_confirmada`).
-     * `"2"` -> Cancela agendamento (`agendamento_cancelado`) e envia link de reagendamento.
-     * Texto livre -> Registra alerta na tabela `painel_notificacoes` (`texto_livre_encaminhado`), alimentando instantaneamente o novo `NotificacoesFeed` no cabeçalho do lojista.
+3. **Arquitetura de Skills & Design Intelligence (Instaladas Globalmente):**
+   - Limpeza total do repositório massivo `awesome-skills` para evitar estouro de tokens e degradação de contexto.
+   - **Arsenal de Design Anti-IA Ativo em `~/.gemini/config/skills/`:**
+     * **`ui-ux-pro-max` (NextLevelBuilder):** Inteligência de design system com 194 perfis de paletas, 80 estilos de UI (Bento Grid, Glassmorphism, Dark Mode) e geração automatizada de tokens para Next.js + Tailwind CSS.
+     * **`hallmark` (Nutlope / Together AI):** Linter visual e motor `/hallmark redesign` em 3 níveis (`full`, `restyle`, `polish`) preservando 100% da lógica e formulários.
+     * **`scroll-craft`:** Landing pages cinematográficas com planos de profundidade independentes e combate ao template trap.
+     * **`humanizer`:** Remoção de tom robótico em textos, títulos e CTAs.
+     * **`grill-me` (Julius Brussee):** Auditoria crítica e stress-test de requisitos.
 
 ---
 
 ## 2. Decisões de Arquitetura Tomadas
 
-- **Isolamento Multi-Tenant no Realtime:** O canal WebSocket do Supabase (`realtime:painel_notificacoes:${lojistaId}`) filtra eventos `INSERT` e `UPDATE` estritamente por `lojista_id=eq.${lojistaId}`, garantindo que cada lojista receba apenas seus próprios alertas em tempo real.
-- **Suporte Transparente a Impersonação:** Como `app/dashboard/layout.tsx` resolve `lojista` antes de renderizar o cabeçalho (seja pelo `user_id` do lojista ou pelo cookie `flow_impersonate_tenant_id` do Super Admin), o `NotificacoesFeed` reflete automaticamente o lojista ativo na sessão.
+- **Anti-AI Slop:** Todas as futuras interfaces, landing pages e telas do FlowAgenda devem seguir os princípios de design humano (sem gradientes roxo/ciano genéricos em `#000`, sem 3 cards centralizados padrão, com tipografia fluida, paleta Nord Dark e contraste APCA/WCAG medido).
+- **Redesign Seguro via Hallmark:** O comando `/hallmark redesign` deve sempre manter intactos os dados, conexões com Supabase, rotas, formulários e testes.
 
 ---
 
-## 3. Pendências Técnicas Imediatas (Próxima Sessão)
+## 3. Próximos Passos Imediatos (Próxima Janela de Chat)
 
-1. **Verificar Habilitação do Supabase Realtime na Tabela `painel_notificacoes`:**
-   - Garantir que a tabela `public.painel_notificacoes` esteja adicionada à publicação `supabase_realtime` (`ALTER PUBLICATION supabase_realtime ADD TABLE public.painel_notificacoes;`) e com políticas RLS de `SELECT` e `UPDATE` para o `lojista_id` autenticado.
-2. **Validar Disparo Externo do Cron (`CRON_SECRET`) e Ponta-a-Ponta do Webhook:**
-   - Confirmar retorno `200 OK` na rota `/api/cron/notificacoes` após Redeploy na Vercel e validar chegada em tempo real de mensagem no sino de notificações (`NotificacoesFeed`).
+1. **Aplicação do Design Anti-IA:**
+   - Executar o redesign visual de seções da Landing Page (`components/landing/PricingTiers.tsx`, Hero, Features) utilizando `hallmark` e `ui-ux-pro-max` com o tema Nord Dark.
+   - Refinar a responsividade mobile e a física de animações dos modais de agendamento e checkout.
+2. **Homologação em Produção:**
+   - Validar o painel de Health Check e Auto-Repair com os lojistas cadastrados em produção na Vercel.
