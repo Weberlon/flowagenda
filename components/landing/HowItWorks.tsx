@@ -1,10 +1,19 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useRef } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { QrCode, Sliders, Bot, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function HowItWorks() {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const shouldReduceMotion = useReducedMotion();
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start 80%', 'center 45%'],
+  });
+  const railScaleX = useTransform(scrollYProgress, [0, 1], [shouldReduceMotion ? 1 : 0.12, 1]);
+
   const steps = [
     {
       number: '01',
@@ -36,27 +45,20 @@ export default function HowItWorks() {
   ];
 
   return (
-    <section id="como-funciona" className="relative py-20 sm:py-28 bg-[#242933] overflow-hidden border-t border-[#3B4252]/60">
+    <section
+      ref={sectionRef}
+      id="como-funciona"
+      className="relative py-20 sm:py-28 bg-[#242933] overflow-hidden border-t border-[#3B4252]/60"
+    >
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Cabeçalho da Seção */}
-        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#2E3440]/90 px-4 py-1.5 text-xs font-semibold text-[#88C0D0] mb-4 backdrop-blur-xl shadow-sm"
-          >
-            <span className="h-2 w-2 rounded-full bg-[#88C0D0] animate-pulse" />
-            Processo Simples & Prático
-          </motion.div>
-
+        {/* Cabeçalho da Seção (âncora à esquerda para variar o ritmo após o Hero) */}
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-14 sm:mb-18">
           <motion.h2
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#ECEFF4] tracking-tight leading-tight"
+            transition={{ duration: 0.5 }}
+            className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#ECEFF4] tracking-tight leading-tight max-w-2xl"
           >
             Como o FlowAgenda transforma sua operação em{' '}
             <span className="text-[#88C0D0]">3 etapas simples</span>
@@ -66,11 +68,19 @@ export default function HowItWorks() {
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-sm sm:text-base text-[#D8DEE9]/80 mt-4 leading-relaxed"
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-sm sm:text-base text-[#D8DEE9]/80 max-w-md leading-relaxed"
           >
             Esqueça softwares complexos que exigem semanas de treinamento. Em poucos minutos seu WhatsApp já estará respondendo e agendando de forma 100% autônoma.
           </motion.p>
+        </div>
+
+        {/* Trilho de progresso orientado por scroll conectando os 3 passos */}
+        <div className="hidden md:block relative h-1 w-full rounded-full bg-[#3B4252]/70 mb-8 overflow-hidden" aria-hidden="true">
+          <motion.div
+            style={{ scaleX: railScaleX, transformOrigin: 'left center' }}
+            className="h-full w-full rounded-full bg-gradient-to-r from-[#88C0D0] via-[#81A1C1] to-[#A3BE8C]"
+          />
         </div>
 
         {/* 3 Cards de Etapas */}

@@ -62,18 +62,21 @@ export default function TestimonialsSection() {
   return (
     <section id="depoimentos" className="py-20 sm:py-28 bg-[#242933] border-t border-[#3B4252]/60 overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Cabeçalho */}
-        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-20">
-          <span className="inline-block px-3.5 py-1 rounded-full bg-[#A3BE8C]/10 text-[#A3BE8C] text-xs font-bold border border-[#A3BE8C]/30 mb-4">
-            Resultados Comprovados
-          </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#ECEFF4] tracking-tight">
-            Quem usa, não volta mais para a{' '}
-            <span className="text-[#A3BE8C]">agenda de papel</span>
-          </h2>
-          <p className="text-sm sm:text-base text-[#D8DEE9]/80 mt-4 leading-relaxed">
-            Mais de 140.000 agendamentos concluídos com sucesso em salões, clínicas e barbearias de todo o Brasil.
-          </p>
+        {/* Cabeçalho assimétrico para variar o ritmo visual */}
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-14 sm:mb-18">
+          <div className="max-w-2xl">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#ECEFF4] tracking-tight">
+              Quem usa, não volta mais para a{' '}
+              <span className="text-[#A3BE8C]">agenda de papel</span>
+            </h2>
+            <p className="text-sm sm:text-base text-[#D8DEE9]/80 mt-4 leading-relaxed">
+              Mais de 140.000 agendamentos concluídos com sucesso em salões, clínicas e barbearias de todo o Brasil.
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 self-start lg:self-auto rounded-2xl border border-[#A3BE8C]/30 bg-[#A3BE8C]/10 px-4 py-2.5 text-xs font-mono font-bold text-[#A3BE8C]">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>Resultados Comprovados</span>
+          </div>
         </div>
 
         {/* Grid de Depoimentos */}
@@ -85,7 +88,7 @@ export default function TestimonialsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="relative rounded-3xl border border-[#3B4252] bg-gradient-to-br from-[#2E3440] to-[#2E3440]/80 p-6 sm:p-8 shadow-xl flex flex-col justify-between hover:border-[#88C0D0]/40 transition-all hover:-translate-y-1"
+              className="relative rounded-3xl border border-[#3B4252] bg-gradient-to-br from-[#2E3440] to-[#2E3440]/80 p-6 sm:p-8 shadow-xl flex flex-col justify-between hover:border-[#88C0D0]/40 transition-[border-color,transform] duration-300 hover:-translate-y-1"
             >
               <div className="space-y-4">
                 {/* Estrelas & Badge */}

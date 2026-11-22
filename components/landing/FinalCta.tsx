@@ -47,7 +47,7 @@ export default function FinalCta({ whatsappConsultorUrl }: FinalCtaProps) {
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="#planos"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-[#88C0D0] px-8 py-4 text-sm font-black text-[#242933] shadow-lg shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-all hover:scale-102"
+              className="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2 rounded-2xl bg-[#88C0D0] px-8 py-4 text-sm font-black text-[#242933] shadow-lg shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-[background-color,transform] hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#88C0D0] focus-visible:ring-offset-2 focus-visible:ring-offset-[#2E3440]"
             >
               <span>Escolher Meu Plano & Ativar Agora</span>
               <ArrowRight className="h-4 w-4" />
@@ -57,7 +57,7 @@ export default function FinalCta({ whatsappConsultorUrl }: FinalCtaProps) {
               href={consultorUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-[#4C566A] bg-[#3B4252] px-6 py-4 text-sm font-bold text-[#ECEFF4] hover:bg-[#434C5E] transition-all"
+              className="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2 rounded-2xl border border-[#4C566A] bg-[#3B4252] px-6 py-4 text-sm font-bold text-[#ECEFF4] hover:bg-[#434C5E] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#88C0D0] focus-visible:ring-offset-2 focus-visible:ring-offset-[#2E3440]"
             >
               <MessageSquare className="h-4 w-4 text-[#88C0D0]" />
               <span>Falar com Consultor no WhatsApp</span>
@@ -71,7 +71,7 @@ export default function FinalCta({ whatsappConsultorUrl }: FinalCtaProps) {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#88C0D0]" />
-              <span>Sem fidelidade forçada</span>
+              <span>Regras claras por ciclo</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#A3BE8C]" />
