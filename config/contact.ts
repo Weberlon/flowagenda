@@ -1,18 +1,14 @@
+import {
+  FLOWAGENDA_WHATSAPP_OFFICIAL,
+  getFlowAgendaWhatsAppNumber,
+} from '@/lib/brand-contact';
+
 export type BillingCycle = 'monthly' | 'semiannual' | 'annual';
 
-export const DEFAULT_FLOWAGENDA_WHATSAPP = '5531984139736';
-
-function normalizeWhatsAppDigits(raw?: string | null): string {
-  const digits = (raw || '').replace(/\D/g, '');
-  return digits.length >= 10 ? digits : DEFAULT_FLOWAGENDA_WHATSAPP;
-}
+export const DEFAULT_FLOWAGENDA_WHATSAPP = FLOWAGENDA_WHATSAPP_OFFICIAL;
 
 export const CONTACT_CONFIG = {
-  // Lê do .env.local; se não existir, usa fallback oficial do FlowAgenda
-  whatsappNumber: normalizeWhatsAppDigits(
-    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ||
-      process.env.NEXT_PUBLIC_WHATSAPP_COMERCIAL
-  ),
+  whatsappNumber: getFlowAgendaWhatsAppNumber(),
 
   getConsultantMessage: () => {
     return encodeURIComponent(
@@ -38,10 +34,7 @@ export const CONTACT_CONFIG = {
   },
 
   getUrl: (encodedMessage?: string) => {
-    const num = normalizeWhatsAppDigits(
-      process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ||
-        process.env.NEXT_PUBLIC_WHATSAPP_COMERCIAL
-    );
+    const num = getFlowAgendaWhatsAppNumber();
     const base = `https://wa.me/${num}`;
     return encodedMessage ? `${base}?text=${encodedMessage}` : base;
   },

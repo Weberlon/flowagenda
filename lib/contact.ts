@@ -1,13 +1,14 @@
 /**
- * Ponte de compatibilidade que reexporta as configurações de @/config/contact.
+ * Ponte de compatibilidade que reexporta as configurações de @/config/contact e @/lib/brand-contact.
  */
 import { CONTACT_CONFIG, DEFAULT_FLOWAGENDA_WHATSAPP } from '@/config/contact';
+import { getFlowAgendaWhatsAppNumber } from '@/lib/brand-contact';
 
-export { CONTACT_CONFIG };
+export { CONTACT_CONFIG, DEFAULT_FLOWAGENDA_WHATSAPP };
 export type { BillingCycle } from '@/config/contact';
 
 export function getWhatsAppComercialNumber(): string {
-  return CONTACT_CONFIG.whatsappNumber.replace(/\D/g, '') || DEFAULT_FLOWAGENDA_WHATSAPP;
+  return getFlowAgendaWhatsAppNumber() || DEFAULT_FLOWAGENDA_WHATSAPP;
 }
 
 export function getWhatsAppComercialUrl(mensagem?: string): string {
