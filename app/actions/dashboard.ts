@@ -162,7 +162,7 @@ export async function getDashboardData() {
   const baseSelect = `
       id, data_hora_inicio, data_hora_fim, data_horario, status,
       servico_id, profissional_id, cliente_id, pin_validacao, asaas_payment_id,
-      confirmacao_cliente_at, cancelado_origem,
+      confirmacao_cliente_at, cancelado_origem, lembrete_enviado, lembrete_enviado_at,
       cliente:clientes(nome, telefone),
       servico:servicos(nome_servico, duracao_minutos, preco),
       profissional:profissionais(nome)
@@ -482,6 +482,7 @@ export async function getDashboardData() {
       petNome: petObj?.nome || null,
       petDetalhes,
       triagemResumo,
+      lembreteEnviado: Boolean(agendamento.lembrete_enviado_at || agendamento.lembrete_enviado),
     };
   });
 

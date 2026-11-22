@@ -7,7 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import { createDashboardAgendamentoAction } from '@/app/actions/dashboard';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { Pet } from '@/types/niche';
-import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle, Sparkles } from 'lucide-react';
+import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle, Sparkles, MessageCircle, CheckCircle2 } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -81,6 +81,7 @@ export interface MerchantAnalyticsProps {
     petNome?: string | null;
     petDetalhes?: string | null;
     triagemResumo?: string | null;
+    lembreteEnviado?: boolean;
   }>;
   servicos?: Array<{
     id: string;
@@ -156,6 +157,54 @@ export function MerchantAnalytics({
   const [selectedPetId, setSelectedPetId] = useState('');
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isPendingBooking, startTransitionBooking] = useTransition();
+
+  // Estados de disparo de lembrete manual via WhatsApp
+  const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
+  const [sentReminderIds, setSentReminderIds] = useState<Record<string, boolean>>({});
+  const [reminderFeedback, setReminderFeedback] = useState<{
+    tipo: 'sucesso' | 'erro';
+    texto: string;
+  } | null>(null);
+
+  const handleEnviarLembrete = async (agendamentoId: string) => {
+    setSendingReminderId(agendamentoId);
+    setReminderFeedback(null);
+
+    try {
+      const response = await fetch('/api/dashboard/agendamentos/lembrete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agendamentoId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSentReminderIds((prev) => ({ ...prev, [agendamentoId]: true }));
+        setReminderFeedback({
+          tipo: 'sucesso',
+          texto: 'Lembrete enviado com sucesso no WhatsApp do cliente!',
+        });
+        router.refresh();
+      } else {
+        if (data.alreadySent) {
+          setSentReminderIds((prev) => ({ ...prev, [agendamentoId]: true }));
+        }
+        setReminderFeedback({
+          tipo: 'erro',
+          texto: data.error || 'Não foi possível enviar o lembrete pelo WhatsApp.',
+        });
+      }
+    } catch {
+      setReminderFeedback({
+        tipo: 'erro',
+        texto: 'Erro de comunicação ao disparar lembrete WhatsApp.',
+      });
+    } finally {
+      setSendingReminderId(null);
+      setTimeout(() => setReminderFeedback(null), 6000);
+    }
+  };
 
   useEffect(() => {
     if (!dict.features.hasPets || !selectedClienteId || !isNewBookingOpen) {
@@ -793,6 +842,23 @@ export function MerchantAnalytics({
           </div>
 
           <div className="flex-1 overflow-x-auto">
+            {reminderFeedback && (
+              <div
+                className={`mb-3 rounded-xl border px-3.5 py-2.5 text-xs font-medium flex items-center gap-2 ${
+                  reminderFeedback.tipo === 'sucesso'
+                    ? 'border-[#A3BE8C]/50 bg-[#A3BE8C]/15 text-[#A3BE8C]'
+                    : 'border-[#BF616A]/50 bg-[#BF616A]/15 text-[#BF616A]'
+                }`}
+              >
+                {reminderFeedback.tipo === 'sucesso' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>{reminderFeedback.texto}</span>
+              </div>
+            )}
+
             {agendamentosHoje.length === 0 ? (
               <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed border-[#3B4252] bg-[#242933]/50 p-6 text-center">
                 <div className="h-10 w-10 rounded-full bg-[#3B4252] text-[#88C0D0] flex items-center justify-center mb-2">
@@ -890,11 +956,56 @@ export function MerchantAnalytics({
                           </span>
                         </td>
                         <td className="py-3 px-3 text-right whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusBadgeClass}`}
-                          >
-                            {statusLabel}
-                          </span>
+                          <div className="inline-flex flex-col items-end gap-1.5">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusBadgeClass}`}
+                            >
+                              {statusLabel}
+                            </span>
+
+                            {!isCancelado && !isConcluido && (
+                              (() => {
+                                const jaEnviado =
+                                  Boolean(item.lembreteEnviado) || Boolean(sentReminderIds[item.id]);
+                                const isSending = sendingReminderId === item.id;
+
+                                return (
+                                  <button
+                                    type="button"
+                                    disabled={jaEnviado || isSending}
+                                    onClick={() => handleEnviarLembrete(item.id)}
+                                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-semibold transition ${
+                                      jaEnviado
+                                        ? 'border-[#A3BE8C]/40 bg-[#A3BE8C]/10 text-[#A3BE8C] cursor-default'
+                                        : 'border-[#4C566A] bg-[#3B4252] text-[#ECEFF4] hover:border-[#88C0D0] hover:text-[#88C0D0] disabled:opacity-50'
+                                    }`}
+                                    title={
+                                      jaEnviado
+                                        ? 'Lembrete já enviado anteriormente'
+                                        : 'Enviar lembrete/confirmação via WhatsApp'
+                                    }
+                                  >
+                                    {isSending ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        <span>Enviando...</span>
+                                      </>
+                                    ) : jaEnviado ? (
+                                      <>
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        <span>Lembrete Enviado</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <MessageCircle className="w-3 h-3 text-[#88C0D0]" />
+                                        <span>Enviar Lembrete WhatsApp</span>
+                                      </>
+                                    )}
+                                  </button>
+                                );
+                              })()
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
