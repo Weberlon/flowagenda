@@ -1,56 +1,44 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-11-22T10:35:00-03:00  
-**Fase do Projeto:** Produção / Finalização Estética Completa de Alto Padrão (Landing Page, Dashboard Lojista, SuperAdmin e Vitrine Pública) em Nord Dark  
-**Integridade do Código:** `npm run build` e `npx tsc --noEmit` exit code 0 (Zero erros TypeScript / 15 rotas compiladas com sucesso)  
+**Atualizado em:** 2026-11-22T15:56:00-03:00  
+**Fase do Projeto:** Produção / Etapa 5 Homologada — Customização Profunda por Nicho (Dicionário Multi-Nicho, Secretária IA Contextual, Módulo de Pets e Prontuários Visuais)  
+**Integridade do Código:** `npx tsc --noEmit` e `npm run build` exit code 0 (Zero erros TypeScript / 15 rotas compiladas com sucesso)  
 **Branch Atual:** `main`  
 
 ---
 
-## 1. Compilado das 4 Frentes de Design e Engenharia Concluídas em Disco
+## 1. Compilado do que Está Pronto e Homologado (`main`)
 
-1. **Frente 1: Landing Page Institucional (`app/page.tsx` e componentes da Home):**
-   - **Hero Section (`components/landing/HeroSection.tsx`):** Headline de alto impacto focada na Secretária IA 24h no WhatsApp para negócios locais (Barbearias, Salões, Clínicas de Estética, Odontologia, Pet Shops e Tatuagem), CTA principal em `#88C0D0`, mockup de chat IA e métricas de prova social.
-   - **Como Funciona (`components/landing/HowItWorks.tsx`):** 3 etapas intuitivas (QR Code, Configuração em 2 min, IA 24/7) e garantia de satisfação.
-   - **Bento Grid de Recursos:** IA 24/7 sem encargos, Grade Blindada com Lock de 10 min (PIN / Sinal Pix), Zero No-Show com Lembretes e Gestão Financeira.
-   - **Vitrine Interativa de Nichos (`components/landing/NicheShowcase.tsx`):** Seletor de 6 nichos com mockups dinâmicos de atendimento real.
-   - **Bloco White Label & Depoimentos (`components/landing/TestimonialsSection.tsx`):** 4 cases reais detalhados + prova social.
-   - **Planos & Preços (`components/landing/PricingTiers.tsx`):** Preservada a lógica estrita dos planos Essencial, Profissional, Autoridade e selo de segurança bancária Asaas IP S.A.
-   - **FAQ & CTA Final (`components/landing/FaqAccordion.tsx`, `components/landing/FinalCta.tsx`, `components/landing/Footer.tsx`):** Acordeão interativo, CTA final de conversão e rodapé com conformidade LGPD.
+1. **Etapa 4 & Redesign Nord Dark (Concluído e em Produção):**
+   - Landing Page institucional (`app/page.tsx` e `components/landing/*`), Dashboards Executivas (`/dashboard` e `/superadmin` com Recharts em Nord Dark) e Vitrine Pública Mobile-First (`app/tenant/[slug]/*` e `app/loja/[slug]/*`).
 
-2. **Frente 2: Painel do Lojista (`app/dashboard/*`):**
-   - **Métricas Executivas (`app/dashboard/merchant-analytics.tsx`):** 4 KPI Cards (Faturamento Previsto, Agendamentos do Mês, Fechados pela IA e Comparecimento).
-   - **Gráficos Recharts em Nord Dark:** Gráfico de Área Suave (Evolução 14 dias), Gráfico de Rosca/Donut de Canais com totalizador central em SVG e Medidor Semicircular de Ocupação da Grade.
-   - **Ranking & Agenda do Dia:** Abas de Serviços/Profissionais em destaque + tabela de agendamentos com badges de status.
-   - **Navegação & Mobile:** Drawer responsivo slide-over com ícones Lucide (`components/dashboard/DashboardHeaderNav.tsx`) e harmonização total das telas de serviços e configurações em Nord Dark.
-
-3. **Frente 3: Painel Super Admin (`app/superadmin/*`):**
-   - **Unificação Nord Dark (`#242933` / `#2E3440`):** 4 KPI Cards SaaS (MRR Estimado, Lojistas Ativos vs Pendentes, Agendamentos e Interações IA).
-   - **Gráficos Recharts:** Donut de Planos, Barras de novos cadastros e Ranking de estabelecimentos.
-   - **Preservação Funcional 100%:** Mantidos botões de cobrança Asaas, QR Code WhatsApp, Impersonação, Diagnóstico em tempo real (`HealthCheckPanel`) e Auto-Reparação.
-
-4. **Frente 4: Vitrine Pública de Agendamento (`app/tenant/[slug]/*` e `app/loja/[slug]/*`):**
-   - **Estética Mobile-First Estilo App Nativo (Apple / Uber):**
-     * Cabeçalho público em `#2E3440` com logo, status pulsante "Aberto para Agendamentos", botões de ação e suporte opcional a site institucional completo.
-     * Stepper moderno com barra de progresso em 4 etapas numeradas.
-     * Passo 1 (Serviços): Cards táteis com duração, preço em destaque (`#A3BE8C`) e sinal Pix.
-     * Passo 2 (Profissionais): Opção destacada "Qualquer Profissional Disponível" (mais rápido) e cards nominais.
-     * Passo 3 (Data & Horário): Carrossel horizontal de datas iOS-style e chips de horários livres com fonte mono.
-     * Passo 4 (Identificação): Formulário de contato com ícones e resumo completo.
-     * Passo 5 (Lock Provisório): Contagem regressiva de 10 min (PIN WhatsApp) ou 13 min (QR Code Pix Copia e Cola Asaas).
-     * Passo 6 (Sucesso): Resumo da reserva com 4 ações imediatas — "Adicionar ao Google Agenda" (link dinâmico com parâmetros de início/fim), "Falar no WhatsApp com o Estabelecimento", "Ver Localização no Mapa" e "Novo Agendamento".
+2. **Etapa 5 — Customização Profunda por Nicho (`business_niche`):**
+   - **Dicionário Multi-Nicho Retrocompatível (`lib/niche-dictionary.ts`):**
+     * Estendida `NicheDictionary` (com alias `getNicheConfig` e tipo `BusinessNiche`) adicionando `features` (`hasPets`, `hasOdontograma`, `hasMapaEstetico`) e `aiPersonaInstructions` em PT-BR para cada segmento (`pet_shop`, `dentista`, `clinica_estetica`, `barbearia`, `salao_beleza`, `tatuagem`, `automotivo`, `educacao_fitness`, `default`).
+   - **Secretária IA Contextual (`lib/ai-worker.ts` + `app/api/cron/process-chat-queue/route.ts`):**
+     * Injeção de `dict.aiPersonaInstructions` via `getNicheDictionary(lojista.business_niche || 'geral')` no `buildDeskcommSystemPrompt` do DeepSeek (perguntando nome/porte/alergias do pet em `pet_shop`; vedando diagnósticos/prescrições em `dentista` e `clinica_estetica`).
+   - **Tipos de Domínio Multi-Nicho (`types/niche.ts`):**
+     * Definidos `EspeciePet`, `PortePet`, `DocilidadePet`, `Pet`, `TipoFichaClinica`, `StatusDenteFDI` (`higido`, `tratamento`, `concluido`, `atencao`, `ausente`, `implante`), `DenteEstado`, `VistaMapaEstetico`, `MarcadorEstetico`, `FichaHistoricoItem`, `AnamneseOdonto`, `ItemPlanoTratamento`, `ExameClinicoItem` e `FichaClinica`.
+   - **Módulo de Pets para `pet_shop` (`components/dashboard/PetsManagerModal.tsx`, `clientes-client.tsx`, `app/actions/dashboard.ts`, `merchant-analytics.tsx`):**
+     * Modal em Nord Dark com listagem filtrada por `lojista_id` + `cliente_id`, cadastro completo, alertas visuais (`#EBCB8B` / `#BF616A`) para alergias ou docilidade `arisco`/`morde` e exclusão isolada por `id` + `lojista_id`.
+     * Botão **Pets** no CRM (Kanban, Tabela e Drawer) ativado apenas quando `dict.features.hasPets` é `true`.
+     * Fluxo de **Novo Agendamento** na Agenda de Hoje (`merchant-analytics.tsx`) carregando pets do tutor selecionado para vincular `pet_id` opcional em `agendamentos`.
+   - **Prontuários Visuais & Aprimoramento Clínico (`components/dashboard/OdontogramaModal.tsx`, `components/dashboard/MapaEsteticoModal.tsx`, `clientes-client.tsx`):**
+     * `OdontogramaModal` (`dentista`): 32 dentes permanentes FDI (18–11, 21–28, 48–41, 31–38) em SVG vetorial Nord Dark, 6 status clínicos com aplicação explícita no dente selecionado, observação individual/geral, histórico de evolução e abas de **Anamnese, Retorno e Exames** (com toggle de Alerta Clínico Crítico e atalho `+6 meses`) e **Plano / Orçamento** com totais em BRL (`orcado`, `aprovado`, `concluido`).
+     * `MapaEsteticoModal` (`clinica_estetica`): Canvas SVG interativo com seletor de vistas (*Facial*, *Corporal (Frente)*, *Corporal (Costas)*), rascunho pendente com coordenadas percentuais (0–100) e confirmação explícita (**Adicionar Marcador**), lista/remoção de marcadores, observações gerais e histórico.
+     * Persistência na tabela `public.fichas_clinicas` via `upsert` com `onConflict: 'lojista_id,cliente_id,tipo_ficha'`.
+     * CRM (`clientes-client.tsx`): Botões **Odontograma** e **Mapa Estético** isolados por feature flag no Kanban, Tabela e Drawer, mais resumo discreto no drawer do paciente com Alerta Clínico Crítico e Retorno Previsto.
 
 ---
 
-## 2. Decisões de Arquitetura e Contenção Respeitadas
+## 2. Regras Blindadas Preservadas (Sem Alterações)
 
-- **Nenhuma quebra de rotas:** Rotas de API (`/api/*`), webhooks (Asaas/WhatsApp), travas atômicas e queries com isolamento multi-tenant (`lojista_id`) preservadas integralmente.
-- **Next.js 16 / React 19 Homologado:** Hidratação segura em Recharts com skeletons sem mismatch de SSR.
-- **Build de Produção Verificado:** `npm run build` executado com êxito em 15 rotas estáticas e dinâmicas.
+- **Cobrança Asaas & Assinaturas:** Nenhuma alteração em `status_pagamento`, `is_founder`, `asaas_subscription_id`, `CheckoutModal.tsx`, `PricingTiers.tsx`, `/api/webhooks/asaas`, `/api/checkout/*` ou `/api/asaas/*`.
+- **Trava de Inadimplência & Admin:** Preservação integral de `app/dashboard/layout.tsx` e todas as rotas `/api/admin/*`.
 
 ---
 
 ## 3. Próximos Passos Recomendados
 
-1. Realizar o commit Git dos arquivos modificados e criados.
-2. Fazer `git push origin main` para deploy automático em produção na Vercel (https://www.flowagenda.online).
+1. Aplicar/conferir as migrations das tabelas `pets`, `agendamentos.pet_id` e `fichas_clinicas` no Supabase de produção caso ainda não estejam aplicadas.
+2. Realizar validação funcional em produção (`https://www.flowagenda.online`) testando um tenant `pet_shop`, `dentista` e `clinica_estetica`.

@@ -2,8 +2,32 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { DenteEstado, FichaHistoricoItem, StatusDenteFDI } from '@/types/niche';
-import { X, Save, Loader2, AlertTriangle, CheckCircle2, Sparkles, Check, History } from 'lucide-react';
+import {
+  AnamneseOdonto,
+  DenteEstado,
+  ExameClinicoItem,
+  FichaHistoricoItem,
+  ItemPlanoTratamento,
+  StatusDenteFDI,
+  StatusPlanoTratamento,
+} from '@/types/niche';
+import {
+  X,
+  Save,
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  Sparkles,
+  Check,
+  History,
+  FileText,
+  Calculator,
+  ShieldAlert,
+  Calendar,
+  Plus,
+  Trash2,
+  Paperclip,
+} from 'lucide-react';
 
 interface OdontogramaModalProps {
   isOpen: boolean;
@@ -11,7 +35,10 @@ interface OdontogramaModalProps {
   lojistaId: string;
   clienteId: string;
   clienteNome: string;
+  onSaved?: () => void;
 }
+
+type ModalTab = 'odontograma' | 'anamnese' | 'plano';
 
 const STATUS_OPTIONS: {
   value: StatusDenteFDI;
@@ -64,7 +91,7 @@ const STATUS_OPTIONS: {
   },
 ];
 
-// Numeração FDI oficial dos 32 dentes
+// Numeração FDI oficial dos 32 dentes permanentes
 const QUADRANTE_SUP_DIR = [18, 17, 16, 15, 14, 13, 12, 11];
 const QUADRANTE_SUP_ESQ = [21, 22, 23, 24, 25, 26, 27, 28];
 const QUADRANTE_INF_DIR = [48, 47, 46, 45, 44, 43, 42, 41];
@@ -86,6 +113,10 @@ function getToothColors(status: StatusDenteFDI) {
     default:
       return { fill: '#3B4252', stroke: '#4C566A', text: '#ECEFF4' };
   }
+}
+
+function formatBRL(value: number) {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function ToothSvg({
@@ -128,7 +159,6 @@ function ToothSvg({
           className="w-7 h-9 sm:w-8 sm:h-10 transition-transform group-hover:scale-105"
         >
           {isUpper ? (
-            /* Raiz para cima, coroa para baixo */
             <path
               d="M11 18 C11 6, 15 3, 18 10 C21 3, 25 6, 25 18 L28 28 C29 36, 24 41, 18 40 C12 41, 7 36, 8 28 Z"
               fill={colors.fill}
@@ -137,7 +167,6 @@ function ToothSvg({
               strokeLinejoin="round"
             />
           ) : (
-            /* Coroa para cima, raiz para baixo */
             <path
               d="M8 16 C7 8, 12 3, 18 4 C24 3, 29 8, 28 16 L25 26 C25 38, 21 41, 18 34 C15 41, 11 38, 11 26 Z"
               fill={colors.fill}
@@ -186,12 +215,38 @@ export function OdontogramaModal({
   lojistaId,
   clienteId,
   clienteNome,
+  onSaved,
 }: OdontogramaModalProps) {
   const supabase = useMemo(() => createClient(), []);
 
+  const [activeTab, setActiveTab] = useState<ModalTab>('odontograma');
+
+  // Dados da Ficha
   const [dentes, setDentes] = useState<Record<string, DenteEstado>>({});
   const [historico, setHistorico] = useState<FichaHistoricoItem[]>([]);
   const [observacoesGerais, setObservacoesGerais] = useState('');
+
+  // Anamnese, Retorno e Exames
+  const [anamnese, setAnamnese] = useState<AnamneseOdonto>({
+    alergias: '',
+    condicoesMedicas: '',
+    medicacoesEmUso: '',
+    alertaCritico: false,
+  });
+  const [retornoPrevisto, setRetornoPrevisto] = useState('');
+  const [exames, setExames] = useState<ExameClinicoItem[]>([]);
+  const [novoExameTitulo, setNovoExameTitulo] = useState('');
+  const [novoExameLink, setNovoExameLink] = useState('');
+  const [novoExameData, setNovoExameData] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Plano / Orçamento
+  const [planoTratamento, setPlanoTratamento] = useState<ItemPlanoTratamento[]>([]);
+  const [novoItemRegiao, setNovoItemRegiao] = useState('');
+  const [novoItemProc, setNovoItemProc] = useState('');
+  const [novoItemValor, setNovoItemValor] = useState('');
+  const [novoItemStatus, setNovoItemStatus] = useState<StatusPlanoTratamento>('orcado');
+
+  // Estado de UI do Odontograma
   const [activeStatus, setActiveStatus] = useState<StatusDenteFDI>('tratamento');
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -222,13 +277,30 @@ export function OdontogramaModal({
         const dadosJson = (data.dados_json || {}) as {
           dentes?: Record<string, DenteEstado>;
           historico?: FichaHistoricoItem[];
+          anamnese?: AnamneseOdonto;
+          planoTratamento?: ItemPlanoTratamento[];
+          retornoPrevisto?: string;
+          exames?: ExameClinicoItem[];
         };
         setDentes(dadosJson.dentes || {});
         setHistorico(Array.isArray(dadosJson.historico) ? dadosJson.historico : []);
+        setAnamnese({
+          alergias: dadosJson.anamnese?.alergias || '',
+          condicoesMedicas: dadosJson.anamnese?.condicoesMedicas || '',
+          medicacoesEmUso: dadosJson.anamnese?.medicacoesEmUso || '',
+          alertaCritico: Boolean(dadosJson.anamnese?.alertaCritico),
+        });
+        setPlanoTratamento(Array.isArray(dadosJson.planoTratamento) ? dadosJson.planoTratamento : []);
+        setRetornoPrevisto(dadosJson.retornoPrevisto || '');
+        setExames(Array.isArray(dadosJson.exames) ? dadosJson.exames : []);
         setObservacoesGerais(data.observacoes_gerais || '');
       } else {
         setDentes({});
         setHistorico([]);
+        setAnamnese({ alergias: '', condicoesMedicas: '', medicacoesEmUso: '', alertaCritico: false });
+        setPlanoTratamento([]);
+        setRetornoPrevisto('');
+        setExames([]);
         setObservacoesGerais('');
       }
     } catch (err: unknown) {
@@ -242,6 +314,7 @@ export function OdontogramaModal({
     if (isOpen) {
       setSuccessMessage(null);
       setSelectedTooth(null);
+      setActiveTab('odontograma');
       loadFicha();
     }
   }, [isOpen, loadFicha]);
@@ -278,17 +351,70 @@ export function OdontogramaModal({
     }));
   };
 
+  const handleSetRetorno6Meses = () => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 6);
+    setRetornoPrevisto(d.toISOString().split('T')[0]);
+  };
+
+  const handleAddExame = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoExameTitulo.trim()) return;
+    const item: ExameClinicoItem = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
+      titulo: novoExameTitulo.trim(),
+      linkOuLocal: novoExameLink.trim() || 'Arquivo local / impresso',
+      dataExame: novoExameData || new Date().toISOString().split('T')[0],
+    };
+    setExames((prev) => [item, ...prev]);
+    setNovoExameTitulo('');
+    setNovoExameLink('');
+  };
+
+  const handleRemoveExame = (id: string) => {
+    setExames((prev) => prev.filter((ex) => ex.id !== id));
+  };
+
+  const handleAddPlanoItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novoItemProc.trim()) return;
+    const parsedValor = Number(novoItemValor.replace(',', '.')) || 0;
+    const item: ItemPlanoTratamento = {
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
+      denteOuRegiao: novoItemRegiao.trim() || 'Geral',
+      procedimento: novoItemProc.trim(),
+      valorEstimado: parsedValor,
+      status: novoItemStatus,
+    };
+    setPlanoTratamento((prev) => [...prev, item]);
+    setNovoItemRegiao('');
+    setNovoItemProc('');
+    setNovoItemValor('');
+  };
+
+  const handleUpdatePlanoStatus = (id: string, status: StatusPlanoTratamento) => {
+    setPlanoTratamento((prev) => prev.map((it) => (it.id === id ? { ...it, status } : it)));
+  };
+
+  const handleRemovePlanoItem = (id: string) => {
+    setPlanoTratamento((prev) => prev.filter((it) => it.id !== id));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setErrorMessage(null);
     setSuccessMessage(null);
 
     try {
-      const dentesAlterados = Object.values(dentes).filter((d) => d.status !== 'higido' || d.observacao?.trim());
+      const dentesAlterados = Object.values(dentes).filter(
+        (d) => d.status !== 'higido' || d.observacao?.trim()
+      );
       const novaEntradaHistorico: FichaHistoricoItem = {
         id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
         data: new Date().toLocaleString('pt-BR'),
-        resumo: `Odontograma atualizado (${dentesAlterados.length} ${dentesAlterados.length === 1 ? 'dente registrado' : 'dentes registrados'})`,
+        resumo: `Prontuário odontológico salvo (${dentesAlterados.length} ${
+          dentesAlterados.length === 1 ? 'dente' : 'dentes'
+        }, ${planoTratamento.length} ${planoTratamento.length === 1 ? 'item no plano' : 'itens no plano'})`,
       };
       const proximoHistorico = [novaEntradaHistorico, ...historico].slice(0, 20);
 
@@ -299,7 +425,14 @@ export function OdontogramaModal({
             lojista_id: lojistaId,
             cliente_id: clienteId,
             tipo_ficha: 'odontograma',
-            dados_json: { dentes, historico: proximoHistorico },
+            dados_json: {
+              dentes,
+              historico: proximoHistorico,
+              anamnese,
+              planoTratamento,
+              retornoPrevisto: retornoPrevisto || undefined,
+              exames,
+            },
             observacoes_gerais: observacoesGerais.trim() || null,
             updated_at: new Date().toISOString(),
           },
@@ -307,12 +440,13 @@ export function OdontogramaModal({
         );
 
       if (error) {
-        setErrorMessage(`Erro ao salvar odontograma: ${error.message}`);
+        setErrorMessage(`Erro ao salvar prontuário: ${error.message}`);
         return;
       }
 
       setHistorico(proximoHistorico);
-      setSuccessMessage('Odontograma salvo com sucesso!');
+      setSuccessMessage('Prontuário odontológico salvo com sucesso!');
+      if (onSaved) onSaved();
       setTimeout(() => setSuccessMessage(null), 3500);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Falha ao salvar ficha.');
@@ -320,6 +454,20 @@ export function OdontogramaModal({
       setSaving(false);
     }
   };
+
+  const totaisPlano = useMemo(() => {
+    return planoTratamento.reduce(
+      (acc, item) => {
+        const v = Number(item.valorEstimado) || 0;
+        if (item.status === 'orcado') acc.orcado += v;
+        if (item.status === 'aprovado') acc.aprovado += v;
+        if (item.status === 'concluido') acc.concluido += v;
+        acc.total += v;
+        return acc;
+      },
+      { orcado: 0, aprovado: 0, concluido: 0, total: 0 }
+    );
+  }, [planoTratamento]);
 
   if (!isOpen) return null;
 
@@ -335,11 +483,19 @@ export function OdontogramaModal({
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#ECEFF4]">
-                Odontograma FDI — {clienteNome}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-[#ECEFF4]">
+                  Prontuário Odontológico — {clienteNome}
+                </h2>
+                {anamnese.alertaCritico && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#BF616A]/20 border border-[#BF616A] px-2 py-0.5 text-[10px] font-bold text-[#BF616A]">
+                    <ShieldAlert className="w-3 h-3" />
+                    Alerta Crítico
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-[#D8DEE9]/70">
-                Selecione o status ativo abaixo e clique no dente correspondente para registrar.
+                Odontograma FDI, Anamnese Clínica, Retorno, Exames e Plano de Tratamento.
               </p>
             </div>
           </div>
@@ -353,7 +509,52 @@ export function OdontogramaModal({
           </button>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-5 max-h-[84vh] overflow-y-auto">
+        {/* Navegação por Abas */}
+        <div className="flex items-center gap-2 px-6 pt-3 border-b border-[#4C566A]/40 bg-[#2E3440] overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('odontograma')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
+              activeTab === 'odontograma'
+                ? 'border-[#88C0D0] text-[#88C0D0]'
+                : 'border-transparent text-[#D8DEE9]/70 hover:text-[#ECEFF4]'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Odontograma & Histórico</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('anamnese')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
+              activeTab === 'anamnese'
+                ? 'border-[#88C0D0] text-[#88C0D0]'
+                : 'border-transparent text-[#D8DEE9]/70 hover:text-[#ECEFF4]'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Anamnese, Retorno e Exames</span>
+            {anamnese.alertaCritico && (
+              <span className="h-2 w-2 rounded-full bg-[#BF616A]" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('plano')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 transition whitespace-nowrap ${
+              activeTab === 'plano'
+                ? 'border-[#88C0D0] text-[#88C0D0]'
+                : 'border-transparent text-[#D8DEE9]/70 hover:text-[#ECEFF4]'
+            }`}
+          >
+            <Calculator className="w-3.5 h-3.5" />
+            <span>Plano / Orçamento ({planoTratamento.length})</span>
+          </button>
+        </div>
+
+        <div className="p-5 sm:p-6 space-y-5 max-h-[76vh] overflow-y-auto">
           {errorMessage && (
             <div className="rounded-xl border border-[#BF616A]/60 bg-[#BF616A]/15 p-3 text-xs text-[#ECEFF4] flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-[#BF616A] shrink-0" />
@@ -368,194 +569,567 @@ export function OdontogramaModal({
             </div>
           )}
 
-          {/* Barra de Status Ativo + Botão Rápido */}
-          <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252] p-3.5 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0]">
-                Status Ativo para Marcação
-              </span>
-              <button
-                type="button"
-                disabled={selectedTooth === null}
-                onClick={handleApplyStatusToSelected}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 disabled:opacity-40 px-3 py-1.5 text-xs font-bold text-[#2E3440] transition"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>
-                  {selectedTooth
-                    ? `Aplicar status ao dente ${selectedTooth}`
-                    : 'Aplicar status ao dente selecionado'}
-                </span>
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {STATUS_OPTIONS.map((opt) => {
-                const isActive = activeStatus === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setActiveStatus(opt.value)}
-                    className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                      isActive
-                        ? `${opt.bgClass} ${opt.borderClass} ring-2 ring-[#88C0D0]/60 text-[#ECEFF4]`
-                        : 'border-[#4C566A]/50 bg-[#2E3440] text-[#D8DEE9]/80 hover:bg-[#434C5E]'
-                    }`}
-                  >
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: opt.color }}
-                    />
-                    <span>{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-12 text-xs text-[#88C0D0]">
+            <div className="flex items-center justify-center gap-2 py-14 text-xs text-[#88C0D0]">
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Carregando odontograma...</span>
+              <span>Carregando prontuário odontológico...</span>
             </div>
           ) : (
-            /* Canvas Odontograma 32 Dentes FDI */
-            <div className="rounded-2xl border border-[#4C566A]/60 bg-[#242933] p-4 sm:p-6 space-y-6 overflow-x-auto">
-              {/* Arcada Superior */}
-              <div>
-                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#81A1C1] mb-2 px-2">
-                  <span>Quadrante 1 (Sup. Direito)</span>
-                  <span>Arcada Superior</span>
-                  <span>Quadrante 2 (Sup. Esquerdo)</span>
-                </div>
-                <div className="flex items-center justify-center gap-2 min-w-[640px]">
-                  <div className="flex items-center gap-1 pr-3 border-r border-[#4C566A]/60">
-                    {QUADRANTE_SUP_DIR.map((num) => (
-                      <ToothSvg
-                        key={num}
-                        numero={num}
-                        estado={dentes[num]}
-                        isSelected={selectedTooth === num}
-                        isUpper
-                        onClick={() => handleToothClick(num)}
-                      />
-                    ))}
+            <>
+              {/* ============================================================ */}
+              {/* ABA 1: ODONTOGRAMA & HISTÓRICO                               */}
+              {/* ============================================================ */}
+              {activeTab === 'odontograma' && (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252] p-3.5 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0]">
+                        Status Ativo para Marcação
+                      </span>
+                      <button
+                        type="button"
+                        disabled={selectedTooth === null}
+                        onClick={handleApplyStatusToSelected}
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 disabled:opacity-40 px-3 py-1.5 text-xs font-bold text-[#2E3440] transition"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>
+                          {selectedTooth
+                            ? `Aplicar status ao dente ${selectedTooth}`
+                            : 'Aplicar status ao dente selecionado'}
+                        </span>
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {STATUS_OPTIONS.map((opt) => {
+                        const isActive = activeStatus === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setActiveStatus(opt.value)}
+                            className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
+                              isActive
+                                ? `${opt.bgClass} ${opt.borderClass} ring-2 ring-[#88C0D0]/60 text-[#ECEFF4]`
+                                : 'border-[#4C566A]/50 bg-[#2E3440] text-[#D8DEE9]/80 hover:bg-[#434C5E]'
+                            }`}
+                          >
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: opt.color }}
+                            />
+                            <span>{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 pl-3">
-                    {QUADRANTE_SUP_ESQ.map((num) => (
-                      <ToothSvg
-                        key={num}
-                        numero={num}
-                        estado={dentes[num]}
-                        isSelected={selectedTooth === num}
-                        isUpper
-                        onClick={() => handleToothClick(num)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
 
-              <div className="border-t border-dashed border-[#4C566A]/60" />
+                  {/* Arcadas FDI */}
+                  <div className="rounded-2xl border border-[#4C566A]/60 bg-[#242933] p-4 sm:p-6 space-y-6 overflow-x-auto">
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#81A1C1] mb-2 px-2">
+                        <span>Quadrante 1 (Sup. Direito)</span>
+                        <span>Arcada Superior</span>
+                        <span>Quadrante 2 (Sup. Esquerdo)</span>
+                      </div>
+                      <div className="flex items-center justify-center gap-2 min-w-[640px]">
+                        <div className="flex items-center gap-1 pr-3 border-r border-[#4C566A]/60">
+                          {QUADRANTE_SUP_DIR.map((num) => (
+                            <ToothSvg
+                              key={num}
+                              numero={num}
+                              estado={dentes[String(num)]}
+                              isSelected={selectedTooth === num}
+                              isUpper
+                              onClick={() => handleToothClick(num)}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1 pl-3">
+                          {QUADRANTE_SUP_ESQ.map((num) => (
+                            <ToothSvg
+                              key={num}
+                              numero={num}
+                              estado={dentes[String(num)]}
+                              isSelected={selectedTooth === num}
+                              isUpper
+                              onClick={() => handleToothClick(num)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Arcada Inferior */}
-              <div>
-                <div className="flex items-center justify-center gap-2 min-w-[640px]">
-                  <div className="flex items-center gap-1 pr-3 border-r border-[#4C566A]/60">
-                    {QUADRANTE_INF_DIR.map((num) => (
-                      <ToothSvg
-                        key={num}
-                        numero={num}
-                        estado={dentes[num]}
-                        isSelected={selectedTooth === num}
-                        isUpper={false}
-                        onClick={() => handleToothClick(num)}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-1 pl-3">
-                    {QUADRANTE_INF_ESQ.map((num) => (
-                      <ToothSvg
-                        key={num}
-                        numero={num}
-                        estado={dentes[num]}
-                        isSelected={selectedTooth === num}
-                        isUpper={false}
-                        onClick={() => handleToothClick(num)}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#81A1C1] mt-2 px-2">
-                  <span>Quadrante 4 (Inf. Direito)</span>
-                  <span>Arcada Inferior</span>
-                  <span>Quadrante 3 (Inf. Esquerdo)</span>
-                </div>
-              </div>
-            </div>
-          )}
+                    <div className="border-t border-dashed border-[#4C566A]/60" />
 
-          {/* Edição de Observação por Dente + Observações Gerais */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#88C0D0]">
-                  {selectedTooth ? `Observação do Dente ${selectedTooth}` : 'Observação por Dente'}
-                </label>
-                {selectedToothData && (
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#2E3440] text-[#ECEFF4]">
-                    {STATUS_OPTIONS.find((s) => s.value === selectedToothData.status)?.label}
-                  </span>
-                )}
-              </div>
-              {selectedTooth ? (
-                <textarea
-                  rows={3}
-                  value={selectedToothData?.observacao || ''}
-                  onChange={(e) => handleToothObservacaoChange(e.target.value)}
-                  placeholder={`Descreva o procedimento ou achado clínico no dente ${selectedTooth}...`}
-                  className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
-                />
-              ) : (
-                <div className="rounded-xl border border-dashed border-[#4C566A]/50 bg-[#2E3440]/50 p-4 text-center text-xs text-[#D8DEE9]/60">
-                  Clique em qualquer dente acima para editar sua observação específica.
+                    <div>
+                      <div className="flex items-center justify-center gap-2 min-w-[640px]">
+                        <div className="flex items-center gap-1 pr-3 border-r border-[#4C566A]/60">
+                          {QUADRANTE_INF_DIR.map((num) => (
+                            <ToothSvg
+                              key={num}
+                              numero={num}
+                              estado={dentes[String(num)]}
+                              isSelected={selectedTooth === num}
+                              isUpper={false}
+                              onClick={() => handleToothClick(num)}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-1 pl-3">
+                          {QUADRANTE_INF_ESQ.map((num) => (
+                            <ToothSvg
+                              key={num}
+                              numero={num}
+                              estado={dentes[String(num)]}
+                              isSelected={selectedTooth === num}
+                              isUpper={false}
+                              onClick={() => handleToothClick(num)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[#81A1C1] mt-2 px-2">
+                        <span>Quadrante 4 (Inf. Direito)</span>
+                        <span>Arcada Inferior</span>
+                        <span>Quadrante 3 (Inf. Esquerdo)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Observações */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-wider text-[#88C0D0]">
+                          {selectedTooth
+                            ? `Observação do Dente ${selectedTooth}`
+                            : 'Observação por Dente'}
+                        </label>
+                        {selectedToothData && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#2E3440] text-[#ECEFF4]">
+                            {STATUS_OPTIONS.find((s) => s.value === selectedToothData.status)?.label}
+                          </span>
+                        )}
+                      </div>
+                      {selectedTooth ? (
+                        <textarea
+                          rows={3}
+                          value={selectedToothData?.observacao || ''}
+                          onChange={(e) => handleToothObservacaoChange(e.target.value)}
+                          placeholder={`Descreva o procedimento ou achado clínico no dente ${selectedTooth}...`}
+                          className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+                        />
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-[#4C566A]/50 bg-[#2E3440]/50 p-4 text-center text-xs text-[#D8DEE9]/60">
+                          Clique em qualquer dente acima para selecionar e editar sua observação.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-[#ECEFF4] block">
+                        Observações Gerais da Ficha
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={observacoesGerais}
+                        onChange={(e) => setObservacoesGerais(e.target.value)}
+                        placeholder="Plano geral, observações de atendimento..."
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Histórico */}
+                  {historico.length > 0 && (
+                    <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252]/70 p-4 space-y-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0] flex items-center gap-1.5">
+                        <History className="w-3.5 h-3.5" />
+                        <span>Histórico de Evolução ({historico.length})</span>
+                      </span>
+                      <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                        {historico.map((h) => (
+                          <div
+                            key={h.id}
+                            className="flex items-center justify-between gap-2 text-[11px] rounded-lg bg-[#2E3440] px-3 py-1.5 text-[#D8DEE9]"
+                          >
+                            <span>{h.resumo}</span>
+                            <span className="font-mono text-[10px] text-[#81A1C1] shrink-0">
+                              {h.data}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
 
-            <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-[#ECEFF4] block">
-                Observações Gerais da Ficha
-              </label>
-              <textarea
-                rows={3}
-                value={observacoesGerais}
-                onChange={(e) => setObservacoesGerais(e.target.value)}
-                placeholder="Plano de tratamento geral, alergias medicamentosas, anotações clínicas..."
-                className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Histórico de Evolução */}
-          {historico.length > 0 && (
-            <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252]/70 p-4 space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0] flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5" />
-                <span>Histórico de Evolução ({historico.length})</span>
-              </span>
-              <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
-                {historico.map((h) => (
+              {/* ============================================================ */}
+              {/* ABA 2: ANAMNESE, RETORNO E EXAMES                            */}
+              {/* ============================================================ */}
+              {activeTab === 'anamnese' && (
+                <div className="space-y-5">
+                  {/* Toggle Alerta Clínico Crítico */}
                   <div
-                    key={h.id}
-                    className="flex items-center justify-between gap-2 text-[11px] rounded-lg bg-[#2E3440] px-3 py-1.5 text-[#D8DEE9]"
+                    className={`rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                      anamnese.alertaCritico
+                        ? 'border-[#BF616A] bg-[#BF616A]/15'
+                        : 'border-[#4C566A]/60 bg-[#3B4252]'
+                    }`}
                   >
-                    <span>{h.resumo}</span>
-                    <span className="font-mono text-[10px] text-[#81A1C1] shrink-0">{h.data}</span>
+                    <div className="flex items-start gap-3">
+                      <ShieldAlert
+                        className={`w-5 h-5 shrink-0 mt-0.5 ${
+                          anamnese.alertaCritico ? 'text-[#BF616A]' : 'text-[#EBCB8B]'
+                        }`}
+                      />
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#ECEFF4]">
+                          Alerta Clínico Crítico
+                        </h3>
+                        <p className="text-xs text-[#D8DEE9]/75 mt-0.5">
+                          Destaca um aviso imediato na ficha do paciente (ex: alergia severa, anticoagulante, hipertensão).
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAnamnese((prev) => ({ ...prev, alertaCritico: !prev.alertaCritico }))
+                      }
+                      className={`px-4 py-2 rounded-xl text-xs font-bold border transition shrink-0 ${
+                        anamnese.alertaCritico
+                          ? 'bg-[#BF616A] border-[#BF616A] text-white'
+                          : 'bg-[#2E3440] border-[#4C566A] text-[#EBCB8B] hover:bg-[#434C5E]'
+                      }`}
+                    >
+                      {anamnese.alertaCritico ? 'Alerta Crítico ATIVO' : 'Ativar Alerta Crítico'}
+                    </button>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  {/* Campos de Anamnese */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-2">
+                      <label className="text-xs font-bold text-[#EBCB8B] block">
+                        Alergias Conhecidas
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={anamnese.alergias || ''}
+                        onChange={(e) =>
+                          setAnamnese((prev) => ({ ...prev, alergias: e.target.value }))
+                        }
+                        placeholder="Ex: Dipirona, Penicilina, Látex..."
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-2.5 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-2">
+                      <label className="text-xs font-bold text-[#88C0D0] block">
+                        Condições Médicas
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={anamnese.condicoesMedicas || ''}
+                        onChange={(e) =>
+                          setAnamnese((prev) => ({ ...prev, condicoesMedicas: e.target.value }))
+                        }
+                        placeholder="Ex: Diabetes, Hipertensão, Cardiopatia..."
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-2.5 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-2">
+                      <label className="text-xs font-bold text-[#ECEFF4] block">
+                        Medicações em Uso
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={anamnese.medicacoesEmUso || ''}
+                        onChange={(e) =>
+                          setAnamnese((prev) => ({ ...prev, medicacoesEmUso: e.target.value }))
+                        }
+                        placeholder="Ex: AAS, Losartana, Metformina..."
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-2.5 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Retorno Previsto */}
+                  <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <Calendar className="w-4 h-4 text-[#88C0D0]" />
+                      <div>
+                        <label className="text-xs font-bold text-[#ECEFF4] block">
+                          Retorno / Revisão Prevista
+                        </label>
+                        <span className="text-[11px] text-[#D8DEE9]/70">
+                          Programe o próximo acompanhamento preventivo.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={retornoPrevisto}
+                        onChange={(e) => setRetornoPrevisto(e.target.value)}
+                        className="rounded-xl border border-[#4C566A] bg-[#2E3440] px-3 py-2 text-xs text-[#ECEFF4] font-mono focus:border-[#88C0D0] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSetRetorno6Meses}
+                        className="rounded-xl border border-[#88C0D0]/50 bg-[#88C0D0]/15 hover:bg-[#88C0D0] hover:text-[#2E3440] px-3 py-2 text-xs font-bold text-[#88C0D0] transition whitespace-nowrap"
+                      >
+                        +6 meses
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Exames e Radiografias */}
+                  <div className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Paperclip className="w-4 h-4 text-[#88C0D0]" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#ECEFF4]">
+                        Exames e Radiografias ({exames.length})
+                      </h3>
+                    </div>
+
+                    <form onSubmit={handleAddExame} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                      <input
+                        type="text"
+                        required
+                        value={novoExameTitulo}
+                        onChange={(e) => setNovoExameTitulo(e.target.value)}
+                        placeholder="Título (ex: Panorâmica, Periapical 36)"
+                        className="sm:col-span-5 rounded-xl border border-[#4C566A] bg-[#2E3440] px-3 py-2 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={novoExameLink}
+                        onChange={(e) => setNovoExameLink(e.target.value)}
+                        placeholder="Link ou local do arquivo"
+                        className="sm:col-span-4 rounded-xl border border-[#4C566A] bg-[#2E3440] px-3 py-2 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                      />
+                      <input
+                        type="date"
+                        value={novoExameData}
+                        onChange={(e) => setNovoExameData(e.target.value)}
+                        className="sm:col-span-2 rounded-xl border border-[#4C566A] bg-[#2E3440] px-2.5 py-2 text-xs text-[#ECEFF4] font-mono focus:border-[#88C0D0] focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        className="sm:col-span-1 inline-flex items-center justify-center rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 text-[#2E3440] font-bold p-2 transition"
+                        title="Adicionar exame"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </form>
+
+                    {exames.length === 0 ? (
+                      <p className="text-xs text-[#D8DEE9]/60 italic text-center py-2">
+                        Nenhum exame ou radiografia anexado ainda.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {exames.map((ex) => (
+                          <div
+                            key={ex.id}
+                            className="flex items-center justify-between gap-2 rounded-xl border border-[#4C566A]/50 bg-[#2E3440] px-3.5 py-2.5 text-xs"
+                          >
+                            <div className="min-w-0">
+                              <strong className="text-[#ECEFF4] block truncate">{ex.titulo}</strong>
+                              <span className="text-[11px] text-[#81A1C1] block truncate">
+                                {ex.linkOuLocal} • {ex.dataExame.split('-').reverse().join('/')}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExame(ex.id)}
+                              className="rounded-lg p-1.5 text-[#BF616A] hover:bg-[#BF616A]/20 transition shrink-0"
+                              title="Remover exame"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ============================================================ */}
+              {/* ABA 3: PLANO / ORÇAMENTO                                     */}
+              {/* ============================================================ */}
+              {activeTab === 'plano' && (
+                <div className="space-y-5">
+                  {/* Resumo de Totais */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-[#EBCB8B]/40 bg-[#3B4252] p-3">
+                      <span className="text-[10px] uppercase tracking-wider text-[#EBCB8B] font-bold block">
+                        Orçado
+                      </span>
+                      <span className="text-sm font-black font-mono text-[#ECEFF4]">
+                        {formatBRL(totaisPlano.orcado)}
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-[#88C0D0]/40 bg-[#3B4252] p-3">
+                      <span className="text-[10px] uppercase tracking-wider text-[#88C0D0] font-bold block">
+                        Aprovado
+                      </span>
+                      <span className="text-sm font-black font-mono text-[#ECEFF4]">
+                        {formatBRL(totaisPlano.aprovado)}
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-[#A3BE8C]/40 bg-[#3B4252] p-3">
+                      <span className="text-[10px] uppercase tracking-wider text-[#A3BE8C] font-bold block">
+                        Concluído
+                      </span>
+                      <span className="text-sm font-black font-mono text-[#ECEFF4]">
+                        {formatBRL(totaisPlano.concluido)}
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-[#4C566A] bg-[#242933] p-3">
+                      <span className="text-[10px] uppercase tracking-wider text-[#D8DEE9]/70 font-bold block">
+                        Total do Plano
+                      </span>
+                      <span className="text-sm font-black font-mono text-[#88C0D0]">
+                        {formatBRL(totaisPlano.total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Formulário Novo Item */}
+                  <form
+                    onSubmit={handleAddPlanoItem}
+                    className="rounded-2xl border border-[#4C566A]/60 bg-[#3B4252] p-4 grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end"
+                  >
+                    <div className="sm:col-span-3">
+                      <label className="text-[11px] font-semibold text-[#D8DEE9] block mb-1">
+                        Dente / Região
+                      </label>
+                      <input
+                        type="text"
+                        value={novoItemRegiao}
+                        onChange={(e) => setNovoItemRegiao(e.target.value)}
+                        placeholder="Ex: Dente 16, Sup."
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] px-3 py-2 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <label className="text-[11px] font-semibold text-[#D8DEE9] block mb-1">
+                        Procedimento *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={novoItemProc}
+                        onChange={(e) => setNovoItemProc(e.target.value)}
+                        placeholder="Ex: Restauração em Resina"
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] px-3 py-2 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-semibold text-[#D8DEE9] block mb-1">
+                        Valor (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={novoItemValor}
+                        onChange={(e) => setNovoItemValor(e.target.value)}
+                        placeholder="250.00"
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] px-2.5 py-2 text-xs text-[#ECEFF4] font-mono focus:border-[#88C0D0] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-semibold text-[#D8DEE9] block mb-1">
+                        Status
+                      </label>
+                      <select
+                        value={novoItemStatus}
+                        onChange={(e) => setNovoItemStatus(e.target.value as StatusPlanoTratamento)}
+                        className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] px-2 py-2 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                      >
+                        <option value="orcado">Orçado</option>
+                        <option value="aprovado">Aprovado</option>
+                        <option value="concluido">Concluído</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-1">
+                      <button
+                        type="submit"
+                        className="w-full inline-flex items-center justify-center rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 text-[#2E3440] font-bold py-2 transition"
+                        title="Adicionar item ao plano"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Lista do Plano */}
+                  {planoTratamento.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[#4C566A] bg-[#3B4252]/40 p-6 text-center text-xs text-[#D8DEE9]/60">
+                      Nenhum procedimento adicionado ao plano de tratamento ainda.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {planoTratamento.map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-[#4C566A]/60 bg-[#3B4252] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded bg-[#2E3440] border border-[#4C566A] px-2 py-0.5 text-[10px] font-mono font-bold text-[#88C0D0]">
+                                {item.denteOuRegiao}
+                              </span>
+                              <strong className="text-[#ECEFF4]">{item.procedimento}</strong>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <span className="font-mono font-bold text-[#A3BE8C]">
+                              {formatBRL(Number(item.valorEstimado) || 0)}
+                            </span>
+                            <select
+                              value={item.status}
+                              onChange={(e) =>
+                                handleUpdatePlanoStatus(
+                                  item.id,
+                                  e.target.value as StatusPlanoTratamento
+                                )
+                              }
+                              className="rounded-lg border border-[#4C566A] bg-[#2E3440] px-2 py-1 text-[11px] text-[#ECEFF4] focus:outline-none"
+                            >
+                              <option value="orcado">Orçado</option>
+                              <option value="aprovado">Aprovado</option>
+                              <option value="concluido">Concluído</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePlanoItem(item.id)}
+                              className="rounded-lg p-1.5 text-[#BF616A] hover:bg-[#BF616A]/20 transition"
+                              title="Remover item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {/* Rodapé */}
@@ -581,7 +1155,7 @@ export function OdontogramaModal({
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  <span>Salvar Odontograma</span>
+                  <span>Salvar Prontuário</span>
                 </>
               )}
             </button>

@@ -458,7 +458,7 @@ export function MapaEsteticoModal({
                       className="inline-flex items-center gap-1.5 rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 px-4 py-2 text-xs font-bold text-[#2E3440] transition"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Adicionar Ponto</span>
+                      <span>Adicionar Marcador</span>
                     </button>
                   </form>
                 )}

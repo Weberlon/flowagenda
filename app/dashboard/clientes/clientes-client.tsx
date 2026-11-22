@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useTransition, useMemo, useEffect } from 'react';
+import React, { useState, useTransition, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient as createSupabaseBrowserClient } from '@/utils/supabase/client';
 import { 
   ClienteCRM, 
   upsertCliente, 
@@ -20,7 +21,7 @@ import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { PetsManagerModal } from '@/components/dashboard/PetsManagerModal';
 import { OdontogramaModal } from '@/components/dashboard/OdontogramaModal';
 import { MapaEsteticoModal } from '@/components/dashboard/MapaEsteticoModal';
-import { PawPrint, Stethoscope, Sparkles } from 'lucide-react';
+import { PawPrint, Stethoscope, Sparkles, ShieldAlert, Calendar } from 'lucide-react';
 
 const SYSTEM_METADATA_KEYS = new Set([
   'ai_paused_until',
@@ -95,6 +96,58 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [petModalCliente, setPetModalCliente] = useState<ClienteCRM | null>(null);
   const [odontogramaModalCliente, setOdontogramaModalCliente] = useState<ClienteCRM | null>(null);
   const [mapaEsteticoModalCliente, setMapaEsteticoModalCliente] = useState<ClienteCRM | null>(null);
+  const [odontoResumoDrawer, setOdontoResumoDrawer] = useState<{
+    alertaCritico: boolean;
+    alergias?: string;
+    retornoPrevisto?: string;
+  } | null>(null);
+
+  const supabaseBrowser = useMemo(() => createSupabaseBrowserClient(), []);
+
+  const carregarResumoOdonto = useCallback(
+    async (clienteId: string) => {
+      if (!dict.features.hasOdontograma) {
+        setOdontoResumoDrawer(null);
+        return;
+      }
+      try {
+        const { data } = await supabaseBrowser
+          .from('fichas_clinicas')
+          .select('dados_json')
+          .eq('lojista_id', lojista.id)
+          .eq('cliente_id', clienteId)
+          .eq('tipo_ficha', 'odontograma')
+          .maybeSingle();
+
+        if (data?.dados_json) {
+          const dj = data.dados_json as {
+            anamnese?: { alertaCritico?: boolean; alergias?: string };
+            retornoPrevisto?: string;
+          };
+          if (dj.anamnese?.alertaCritico || dj.retornoPrevisto) {
+            setOdontoResumoDrawer({
+              alertaCritico: Boolean(dj.anamnese?.alertaCritico),
+              alergias: dj.anamnese?.alergias,
+              retornoPrevisto: dj.retornoPrevisto,
+            });
+            return;
+          }
+        }
+        setOdontoResumoDrawer(null);
+      } catch {
+        setOdontoResumoDrawer(null);
+      }
+    },
+    [dict.features.hasOdontograma, lojista.id, supabaseBrowser]
+  );
+
+  useEffect(() => {
+    if (activeCliente && dict.features.hasOdontograma) {
+      carregarResumoOdonto(activeCliente.id);
+    } else {
+      setOdontoResumoDrawer(null);
+    }
+  }, [activeCliente, dict.features.hasOdontograma, carregarResumoOdonto]);
   const [novoNome, setNovoNome] = useState('');
   const [novoTelefone, setNovoTelefone] = useState('');
   const [novaEtapa, setNovaEtapa] = useState('lead');
@@ -1145,14 +1198,51 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
               )}
 
               {dict.features.hasOdontograma && (
-                <button
-                  type="button"
-                  onClick={() => setOdontogramaModalCliente(activeCliente)}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#88C0D0]/50 bg-[#88C0D0]/15 px-3 py-2.5 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
-                >
-                  <Stethoscope className="w-4 h-4" />
-                  <span>Abrir Odontograma do Paciente</span>
-                </button>
+                <div className="space-y-2.5">
+                  {odontoResumoDrawer && (
+                    <div
+                      className={`rounded-xl border p-3 text-xs space-y-1.5 ${
+                        odontoResumoDrawer.alertaCritico
+                          ? 'border-[#BF616A]/70 bg-[#BF616A]/15'
+                          : 'border-[#4C566A]/50 bg-[#242933]'
+                      }`}
+                    >
+                      {odontoResumoDrawer.alertaCritico && (
+                        <div className="flex items-start gap-2 text-[#BF616A] font-bold">
+                          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="block">Alerta Clínico Crítico Ativo</span>
+                            {odontoResumoDrawer.alergias && (
+                              <span className="text-[11px] font-normal text-[#EBCB8B] block mt-0.5">
+                                Alergias: {odontoResumoDrawer.alergias}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {odontoResumoDrawer.retornoPrevisto && (
+                        <div className="flex items-center gap-2 text-[#88C0D0] text-[11px] font-semibold">
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span>
+                            Retorno previsto:{' '}
+                            <strong className="font-mono text-[#ECEFF4]">
+                              {odontoResumoDrawer.retornoPrevisto.split('-').reverse().join('/')}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setOdontogramaModalCliente(activeCliente)}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#88C0D0]/50 bg-[#88C0D0]/15 px-3 py-2.5 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                  >
+                    <Stethoscope className="w-4 h-4" />
+                    <span>Abrir Odontograma ({dict.clienteSingular})</span>
+                  </button>
+                </div>
               )}
 
               {dict.features.hasMapaEstetico && (
@@ -1607,6 +1697,11 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
           lojistaId={lojista.id}
           clienteId={odontogramaModalCliente.id}
           clienteNome={odontogramaModalCliente.nome}
+          onSaved={() => {
+            if (activeCliente?.id === odontogramaModalCliente.id) {
+              carregarResumoOdonto(odontogramaModalCliente.id);
+            }
+          }}
         />
       )}
 

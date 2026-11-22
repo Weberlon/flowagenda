@@ -62,6 +62,30 @@ export interface FichaHistoricoItem {
   resumo: string;
 }
 
+export interface AnamneseOdonto {
+  alergias?: string;
+  condicoesMedicas?: string;
+  medicacoesEmUso?: string;
+  alertaCritico?: boolean;
+}
+
+export type StatusPlanoTratamento = 'orcado' | 'aprovado' | 'concluido';
+
+export interface ItemPlanoTratamento {
+  id: string;
+  denteOuRegiao: string;
+  procedimento: string;
+  valorEstimado: number;
+  status: StatusPlanoTratamento;
+}
+
+export interface ExameClinicoItem {
+  id: string;
+  titulo: string;
+  linkOuLocal: string;
+  dataExame: string;
+}
+
 export interface FichaClinica {
   id: string;
   lojista_id: string;
@@ -71,6 +95,10 @@ export interface FichaClinica {
     dentes?: Record<string, DenteEstado>;
     marcadores?: MarcadorEstetico[];
     historico?: FichaHistoricoItem[];
+    anamnese?: AnamneseOdonto;
+    planoTratamento?: ItemPlanoTratamento[];
+    retornoPrevisto?: string;
+    exames?: ExameClinicoItem[];
     [key: string]: unknown;
   };
   observacoes_gerais?: string | null;
