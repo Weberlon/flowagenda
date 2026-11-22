@@ -65,47 +65,47 @@ export default async function AppPage() {
       
       {/* 1. Header / Navbar Moderna com Glassmorphism Nord */}
       <header className="sticky top-0 z-50 w-full border-b border-[#3B4252]/80 bg-[#242933]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           
           {/* Logo FlowAgenda */}
-          <Link href="/" className="flex items-center gap-2.5 group">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5 group whitespace-nowrap">
             <BrandLogo variant="md" className="group-hover:scale-[1.02] transition-transform" />
-            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] border border-[#88C0D0]/30 font-bold">
+            <span className="hidden xl:inline-block whitespace-nowrap text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] border border-[#88C0D0]/30 font-bold">
               Secretária IA
             </span>
           </Link>
 
-          {/* Navegação Principal */}
-          <nav className="hidden lg:flex items-center gap-7 text-xs sm:text-sm font-semibold text-[#D8DEE9]">
-            <a href="#como-funciona" className="hover:text-[#88C0D0] transition-colors">Como Funciona</a>
-            <a href="#motor" className="hover:text-[#88C0D0] transition-colors">Benefícios</a>
-            <a href="#nichos" className="hover:text-[#88C0D0] transition-colors">Nichos</a>
-            <a href="#marca-propria" className="hover:text-[#88C0D0] transition-colors">Marca Própria</a>
-            <a href="#depoimentos" className="hover:text-[#88C0D0] transition-colors">Depoimentos</a>
-            <a href="#planos" className="hover:text-[#88C0D0] transition-colors">Planos & Preços</a>
-            <a href="#faq" className="hover:text-[#88C0D0] transition-colors">Dúvidas</a>
+          {/* Navegação Principal (linha única garantida) */}
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-xs xl:text-sm font-semibold text-[#D8DEE9] whitespace-nowrap">
+            <a href="#como-funciona" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Como Funciona</a>
+            <a href="#motor" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Benefícios</a>
+            <a href="#nichos" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Nichos</a>
+            <a href="#marca-propria" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Marca Própria</a>
+            <a href="#depoimentos" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Depoimentos</a>
+            <a href="#planos" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Planos & Preços</a>
+            <a href="#faq" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Dúvidas</a>
           </nav>
 
           {/* CTAs do Header */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex shrink-0 items-center gap-3 sm:gap-4 whitespace-nowrap">
             {painelHref ? (
               <Link
                 href={painelHref}
-                className="rounded-full border border-[#88C0D0]/50 bg-[#2E3440] px-4 py-2 text-xs sm:text-sm font-bold text-[#88C0D0] hover:bg-[#3B4252] transition-colors"
+                className="whitespace-nowrap rounded-full border border-[#88C0D0]/50 bg-[#2E3440] px-4 py-2 text-xs sm:text-sm font-bold text-[#88C0D0] hover:bg-[#3B4252] transition-colors"
               >
                 Ir para o Painel
               </Link>
             ) : (
               <Link
                 href="/login"
-                className="text-xs sm:text-sm font-bold text-[#D8DEE9] hover:text-[#ECEFF4] transition-colors px-2 py-1"
+                className="whitespace-nowrap text-xs sm:text-sm font-bold text-[#D8DEE9] hover:text-[#ECEFF4] transition-colors px-2 py-1"
               >
                 Entrar
               </Link>
             )}
             <a
               href="#planos"
-              className="rounded-full bg-[#88C0D0] px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-all hover:scale-102"
+              className="whitespace-nowrap rounded-full bg-[#88C0D0] px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-colors"
             >
               Começar Agora
             </a>
