@@ -9,6 +9,21 @@
  * seguro para "Cliente", "Profissional" e "Agendamento".
  */
 
+export type BusinessNiche =
+  | 'barbearia'
+  | 'salao_beleza'
+  | 'pet_shop'
+  | 'dentista'
+  | 'clinica_estetica'
+  | 'estudio_tatuagem'
+  | 'geral';
+
+export interface NicheFeatures {
+  hasPets: boolean;
+  hasOdontograma: boolean;
+  hasMapaEstetico: boolean;
+}
+
 export interface NicheDictionary {
   nicheKey: string;
   clienteSingular: string;
@@ -29,6 +44,8 @@ export interface NicheDictionary {
   };
   sugestoesTags: string[];
   sugestoesMetadataKeys: string[];
+  features: NicheFeatures;
+  aiPersonaInstructions: string;
 }
 
 const DEFAULT_DICTIONARY: NicheDictionary = {
@@ -51,6 +68,9 @@ const DEFAULT_DICTIONARY: NicheDictionary = {
   },
   sugestoesTags: ['VIP', 'Pontual', 'Recorrente', 'Sensível', 'Indicação'],
   sugestoesMetadataKeys: ['preferencia_horario', 'profissional_preferido', 'observacao_ia'],
+  features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+  aiPersonaInstructions:
+    'Você é a secretária virtual oficial do estabelecimento. Seja objetiva, educada e eficiente para tirar dúvidas e conduzir o cliente ao agendamento.',
 };
 
 export function getNicheDictionary(businessNiche?: string | null): NicheDictionary {
@@ -106,6 +126,9 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'turno_preferido',
         'dentista_preferido',
       ],
+      features: { hasPets: false, hasOdontograma: true, hasMapaEstetico: false },
+      aiPersonaInstructions:
+        'Você é a secretária virtual de uma clínica odontológica. Mantenha postura ética, empática e profissional. Nunca faça diagnósticos clínicos nem prescreva medicamentos; oriente agendar uma consulta de avaliação.',
     };
   }
 
@@ -144,6 +167,9 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'bebida_preferida',
         'frequencia_corte',
       ],
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      aiPersonaInstructions:
+        'Você atende em uma barbearia. Use um tom cordial, direto e moderno. Chame os atendimentos de serviços/horários e ajude o cliente a escolher o barbeiro e o corte/barba desejado.',
     };
   }
 
@@ -187,6 +213,9 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'tipo_cabelo_quimica',
         'frequencia_retorno',
       ],
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      aiPersonaInstructions:
+        'Você atende em um salão de beleza. Seja acolhedora, atenciosa e elegante. Verifique se o procedimento exige tempo estendido (como coloração ou mechas) antes de confirmar.',
     };
   }
 
@@ -230,6 +259,9 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'temperamento_observacoes',
         'pacote_banho',
       ],
+      features: { hasPets: true, hasOdontograma: false, hasMapaEstetico: false },
+      aiPersonaInstructions:
+        'Você atende em um Pet Shop / Clínica Veterinária. Trate o cliente como Tutor e SEMPRE pergunte o nome do pet, porte (pequeno, médio, grande) e se possui alguma alergia ou restrição de temperamento antes de finalizar o agendamento.',
     };
   }
 
@@ -272,6 +304,9 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'tipo_pele_cabelo',
         'pacote_sessoes',
       ],
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: true },
+      aiPersonaInstructions:
+        'Você atende em uma clínica de estética avançada. Use comunicação sofisticada, acolhedora e segura. Nunca faça diagnósticos nem prescreva tratamentos ou medicamentos; caso o paciente pergunte sobre procedimentos invasivos ou injetáveis, destaque a importância da avaliação presencial.',
     };
   }
 
@@ -314,6 +349,9 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'artista_preferido',
         'referencia_projeto',
       ],
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      aiPersonaInstructions:
+        'Você atende em um estúdio de tatuagem. Pergunte sempre sobre a ideia da arte, local do corpo e tamanho aproximado em centímetros para alinhar a duração da sessão.',
     };
   }
 
@@ -350,6 +388,9 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'Frota / VIP',
       ],
       sugestoesMetadataKeys: ['modelo_veiculo', 'placa', 'servico_solicitado', 'ano_veiculo'],
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      aiPersonaInstructions:
+        'Você atende em uma oficina / estética automotiva. Seja claro e técnico na medida certa, perguntando modelo e ano do veículo quando necessário para agilizar o atendimento.',
     };
   }
 
@@ -381,9 +422,14 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
       },
       sugestoesTags: ['Experimental', 'Plano Mensal', 'Plano Anual', 'Manhã', 'Noite'],
       sugestoesMetadataKeys: ['objetivo_treino', 'horario_preferido', 'instrutor_preferido'],
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      aiPersonaInstructions:
+        'Você atende em um estúdio fitness / academia / escola. Seja motivador, cordial e objetivo ao apresentar horários de aulas e conduzir para aula experimental ou matrícula.',
     };
   }
 
   return DEFAULT_DICTIONARY;
 }
+
+export const getNicheConfig = getNicheDictionary;
 

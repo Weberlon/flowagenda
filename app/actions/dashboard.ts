@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { fetchInstanceConnectionStatus } from '@/lib/evolution';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 
 const DURACOES_PERMITIDAS = [15, 30, 45, 60] as const;
 
@@ -71,7 +72,8 @@ async function resolveDashboardLojista(supabase: any, userId: string) {
     .eq('id', userId)
     .single();
 
-  const selectFields = 'id, nome_estabelecimento, slug_subdominio, ticket_medio_padrao, tier';
+  const selectFields =
+    'id, nome_estabelecimento, slug_subdominio, ticket_medio_padrao, tier, business_niche';
 
   if (profile?.role === 'super_admin') {
     const cookieStore = await cookies();
@@ -122,8 +124,9 @@ export async function getDashboardData() {
   // 1. Busca catálogo de serviços do lojista
   const { data: servicos } = await dbClient
     .from('servicos')
-    .select('id, nome_servico, duracao_minutos, preco, ativo')
-    .eq('lojista_id', lojista.id);
+    .select('id, nome_servico, duracao_minutos, intervalo_minutos, preco, ativo')
+    .eq('lojista_id', lojista.id)
+    .order('nome_servico', { ascending: true });
 
   const servicoMap = new Map<string, any>(
     servicos?.map((s: any) => [s.id, s]) || []
@@ -133,11 +136,20 @@ export async function getDashboardData() {
   const { data: profissionais } = await dbClient
     .from('profissionais')
     .select('id, nome, ativo')
-    .eq('lojista_id', lojista.id);
+    .eq('lojista_id', lojista.id)
+    .order('nome', { ascending: true });
 
   const profissionalMap = new Map<string, any>(
     profissionais?.map((p: any) => [p.id, p]) || []
   );
+
+  // 2b. Busca clientes do lojista para agendamento manual
+  const { data: clientes } = await dbClient
+    .from('clientes')
+    .select('id, nome, telefone')
+    .eq('lojista_id', lojista.id)
+    .order('nome', { ascending: true })
+    .limit(500);
 
   // 3. Delimitações temporais para cálculos analíticos
   const now = new Date();
@@ -387,6 +399,7 @@ export async function getDashboardData() {
       slug_subdominio: lojista.slug_subdominio,
       ticket_medio_padrao: ticketMedioPadrao,
       tier: lojista.tier || 'tier_1',
+      business_niche: lojista.business_niche || null,
     },
     lojistaId: lojista.id,
     whatsappStatus,
@@ -408,6 +421,9 @@ export async function getDashboardData() {
     topServicos,
     topProfissionais,
     agendamentosHoje,
+    servicos: (servicos || []).filter((s: any) => s.ativo !== false),
+    profissionais: (profissionais || []).filter((p: any) => p.ativo !== false),
+    clientes: clientes || [],
     // Compatibilidade com código legado
     agendamentos: agendamentosHoje,
   };
@@ -473,5 +489,110 @@ export async function addServicoAction(formData: FormData) {
   // Sincroniza automaticamente o catálogo atualizado dentro de lojistas.knowledge_base
   await syncKnowledgeBaseServicos(dbClient, lojista.id);
 
+  return { success: true };
+}
+
+export async function createDashboardAgendamentoAction(input: {
+  clienteId: string;
+  servicoId: string;
+  profissionalId: string;
+  dataYmd: string;
+  horaHm: string;
+  petId?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Não autorizado.' };
+
+  const lojista = await resolveDashboardLojista(supabase, user.id);
+  if (!lojista) return { success: false, error: 'Estabelecimento não encontrado.' };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const dbClient =
+    profile?.role === 'super_admin' && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : supabase;
+
+  if (!input.clienteId || !input.servicoId || !input.profissionalId || !input.dataYmd || !input.horaHm) {
+    return { success: false, error: 'Preencha cliente, serviço, profissional, data e horário.' };
+  }
+
+  const { data: servico } = await dbClient
+    .from('servicos')
+    .select('id, duracao_minutos, intervalo_minutos, ativo')
+    .eq('id', input.servicoId)
+    .eq('lojista_id', lojista.id)
+    .maybeSingle();
+
+  if (!servico || !servico.ativo) {
+    return { success: false, error: 'Serviço selecionado inválido ou inativo.' };
+  }
+
+  const duracao = Number(servico.duracao_minutos);
+  if (!DURACOES_PERMITIDAS.includes(duracao as any)) {
+    return { success: false, error: 'Duração de serviço inválida. Permitido: 15, 30, 45 ou 60 min.' };
+  }
+
+  const intervalo = Number(servico.intervalo_minutos) || 0;
+  const totalMinutos = duracao + intervalo;
+
+  const [year, month, day] = input.dataYmd.split('-').map(Number);
+  const [hour, minute] = input.horaHm.split(':').map(Number);
+
+  // Horário de Brasília (UTC-3)
+  const startDate = new Date(Date.UTC(year, month - 1, day, hour + 3, minute, 0));
+  const endDate = new Date(startDate.getTime() + totalMinutos * 60000);
+  const startIso = startDate.toISOString();
+  const endIso = endDate.toISOString();
+  const agoraIso = new Date().toISOString();
+
+  // Checagem de conflito filtrando por lojista_id E profissional_id
+  const { data: conflitos } = await dbClient
+    .from('agendamentos')
+    .select('id')
+    .eq('lojista_id', lojista.id)
+    .eq('profissional_id', input.profissionalId)
+    .lt('data_hora_inicio', endIso)
+    .gt('data_hora_fim', startIso)
+    .or(`status.eq.confirmado,and(status.eq.pendente_pin,expira_em.gt.${agoraIso})`);
+
+  if (conflitos && conflitos.length > 0) {
+    return {
+      success: false,
+      error: 'Já existe um agendamento ativo para este profissional no horário selecionado.',
+    };
+  }
+
+  const insertPayload: Record<string, any> = {
+    lojista_id: lojista.id,
+    cliente_id: input.clienteId,
+    servico_id: input.servicoId,
+    profissional_id: input.profissionalId,
+    data_hora_inicio: startIso,
+    data_hora_fim: endIso,
+    status: 'confirmado',
+  };
+
+  if (input.petId) {
+    insertPayload.pet_id = input.petId;
+  }
+
+  const { error: insertError } = await dbClient
+    .from('agendamentos')
+    .insert(insertPayload);
+
+  if (insertError) {
+    return { success: false, error: insertError.message };
+  }
+
+  revalidatePath('/dashboard');
   return { success: true };
 }

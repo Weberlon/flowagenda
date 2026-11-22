@@ -1,7 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
+import { createDashboardAgendamentoAction } from '@/app/actions/dashboard';
+import { getNicheDictionary } from '@/lib/niche-dictionary';
+import { Pet } from '@/types/niche';
+import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,6 +27,7 @@ export interface MerchantAnalyticsProps {
     slug_subdominio?: string;
     ticket_medio_padrao: number;
     tier: string;
+    business_niche?: string | null;
   };
   whatsappStatus: {
     state?: string;
@@ -72,6 +79,21 @@ export interface MerchantAnalyticsProps {
     profissionalNome: string;
     status: string;
   }>;
+  servicos?: Array<{
+    id: string;
+    nome_servico: string;
+    duracao_minutos: number;
+    preco: number;
+  }>;
+  profissionais?: Array<{
+    id: string;
+    nome: string;
+  }>;
+  clientes?: Array<{
+    id: string;
+    nome: string;
+    telefone: string;
+  }>;
 }
 
 const NordTooltip = ({ active, payload, label }: any) => {
@@ -112,7 +134,90 @@ export function MerchantAnalytics({
   topServicos,
   topProfissionais,
   agendamentosHoje,
+  servicos = [],
+  profissionais = [],
+  clientes = [],
 }: MerchantAnalyticsProps) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const dict = useMemo(() => getNicheDictionary(lojista.business_niche), [lojista.business_niche]);
+
+  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
+  const [selectedClienteId, setSelectedClienteId] = useState('');
+  const [selectedServicoId, setSelectedServicoId] = useState('');
+  const [selectedProfissionalId, setSelectedProfissionalId] = useState('');
+  const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [bookingTime, setBookingTime] = useState('09:00');
+  const [clientePets, setClientePets] = useState<Pet[]>([]);
+  const [loadingPets, setLoadingPets] = useState(false);
+  const [selectedPetId, setSelectedPetId] = useState('');
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [isPendingBooking, startTransitionBooking] = useTransition();
+
+  useEffect(() => {
+    if (!dict.features.hasPets || !selectedClienteId || !isNewBookingOpen) {
+      setClientePets([]);
+      setSelectedPetId('');
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingPets(true);
+    setSelectedPetId('');
+
+    supabase
+      .from('pets')
+      .select('*')
+      .eq('lojista_id', lojista.id)
+      .eq('cliente_id', selectedClienteId)
+      .order('nome', { ascending: true })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) {
+          setClientePets(data as Pet[]);
+        } else {
+          setClientePets([]);
+        }
+        setLoadingPets(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dict.features.hasPets, selectedClienteId, isNewBookingOpen, lojista.id, supabase]);
+
+  const handleOpenNewBooking = () => {
+    setBookingError(null);
+    setSelectedClienteId(clientes[0]?.id || '');
+    setSelectedServicoId(servicos[0]?.id || '');
+    setSelectedProfissionalId(profissionais[0]?.id || '');
+    setSelectedPetId('');
+    setIsNewBookingOpen(true);
+  };
+
+  const handleCreateBooking = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBookingError(null);
+
+    startTransitionBooking(async () => {
+      const res = await createDashboardAgendamentoAction({
+        clienteId: selectedClienteId,
+        servicoId: selectedServicoId,
+        profissionalId: selectedProfissionalId,
+        dataYmd: bookingDate,
+        horaHm: bookingTime,
+        petId: dict.features.hasPets && selectedPetId ? selectedPetId : null,
+      });
+
+      if (!res.success) {
+        setBookingError(res.error || 'Não foi possível criar o agendamento.');
+        return;
+      }
+
+      setIsNewBookingOpen(false);
+      router.refresh();
+    });
+  };
   const [mounted, setMounted] = useState(false);
   const [rankingTab, setRankingTab] = useState<'servicos' | 'profissionais'>('servicos');
 
@@ -669,9 +774,19 @@ export function MerchantAnalytics({
                 })}
               </p>
             </div>
-            <span className="rounded-xl border border-[#3B4252] bg-[#242933] px-3 py-1 font-mono text-xs font-semibold text-[#88C0D0]">
-              {agendamentosHoje.length} {agendamentosHoje.length === 1 ? 'horário' : 'horários'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-xl border border-[#3B4252] bg-[#242933] px-3 py-1 font-mono text-xs font-semibold text-[#88C0D0]">
+                {agendamentosHoje.length} {agendamentosHoje.length === 1 ? 'horário' : 'horários'}
+              </span>
+              <button
+                type="button"
+                onClick={handleOpenNewBooking}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 px-3 py-1.5 text-xs font-bold text-[#2E3440] transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Novo Agendamento</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-x-auto">
@@ -766,6 +881,186 @@ export function MerchantAnalytics({
           </div>
         </div>
       </div>
+
+      {/* Modal: Novo Agendamento Manual do Lojista */}
+      {isNewBookingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl border border-[#4C566A] bg-[#2E3440] text-[#ECEFF4] shadow-2xl overflow-hidden my-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#4C566A]/60 bg-[#3B4252]">
+              <div className="flex items-center gap-2.5">
+                <CalendarPlus className="w-5 h-5 text-[#88C0D0]" />
+                <h3 className="text-base font-bold text-[#ECEFF4]">
+                  Novo {dict.agendamentoSingular}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNewBookingOpen(false)}
+                className="rounded-lg p-1 text-[#D8DEE9]/70 hover:bg-[#434C5E] hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateBooking} className="p-6 space-y-4">
+              {bookingError && (
+                <div className="rounded-xl border border-[#BF616A]/60 bg-[#BF616A]/15 p-3 text-xs text-[#ECEFF4] flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-[#BF616A] shrink-0" />
+                  <span>{bookingError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-[#D8DEE9] block mb-1">
+                  {dict.clienteSingular} *
+                </label>
+                <select
+                  required
+                  value={selectedClienteId}
+                  onChange={(e) => setSelectedClienteId(e.target.value)}
+                  className="w-full rounded-xl border border-[#4C566A] bg-[#3B4252] px-3 py-2.5 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                >
+                  <option value="">Selecione um(a) {dict.clienteSingular.toLowerCase()}...</option>
+                  {clientes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome} ({c.telefone})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Select opcional de Pet quando hasPets = true e um cliente estiver selecionado */}
+              {dict.features.hasPets && selectedClienteId && (
+                <div className="rounded-xl border border-[#88C0D0]/30 bg-[#3B4252]/60 p-3 space-y-1.5">
+                  <label className="text-xs font-semibold text-[#88C0D0] flex items-center gap-1.5">
+                    <PawPrint className="w-3.5 h-3.5" />
+                    <span>Vincular Pet (opcional)</span>
+                  </label>
+                  {loadingPets ? (
+                    <div className="flex items-center gap-2 text-xs text-[#D8DEE9]/70 py-1">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#88C0D0]" />
+                      <span>Carregando pets do tutor...</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedPetId}
+                      onChange={(e) => setSelectedPetId(e.target.value)}
+                      className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] px-3 py-2 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                    >
+                      <option value="">
+                        {clientePets.length === 0
+                          ? 'Nenhum pet cadastrado para este tutor'
+                          : 'Não vincular pet específico'}
+                      </option>
+                      {clientePets.map((pet) => (
+                        <option key={pet.id} value={pet.id}>
+                          {pet.nome} ({pet.especie}
+                          {pet.porte ? ` • Porte ${pet.porte}` : ''}
+                          {pet.docilidade === 'arisco' || pet.docilidade === 'morde'
+                            ? ` • ⚠️ ${pet.docilidade}`
+                            : ''}
+                          )
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-xs font-semibold text-[#D8DEE9] block mb-1">
+                    Serviço *
+                  </label>
+                  <select
+                    required
+                    value={selectedServicoId}
+                    onChange={(e) => setSelectedServicoId(e.target.value)}
+                    className="w-full rounded-xl border border-[#4C566A] bg-[#3B4252] px-3 py-2.5 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                  >
+                    <option value="">Selecione...</option>
+                    {servicos.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nome_servico} ({s.duracao_minutos}m)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[#D8DEE9] block mb-1">
+                    {dict.profissionalSingular} *
+                  </label>
+                  <select
+                    required
+                    value={selectedProfissionalId}
+                    onChange={(e) => setSelectedProfissionalId(e.target.value)}
+                    className="w-full rounded-xl border border-[#4C566A] bg-[#3B4252] px-3 py-2.5 text-xs text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+                  >
+                    <option value="">Selecione...</option>
+                    {profissionais.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-xs font-semibold text-[#D8DEE9] block mb-1">
+                    Data *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={bookingDate}
+                    onChange={(e) => setBookingDate(e.target.value)}
+                    className="w-full rounded-xl border border-[#4C566A] bg-[#3B4252] px-3 py-2.5 text-xs text-[#ECEFF4] font-mono focus:border-[#88C0D0] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#D8DEE9] block mb-1">
+                    Horário *
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={bookingTime}
+                    onChange={(e) => setBookingTime(e.target.value)}
+                    className="w-full rounded-xl border border-[#4C566A] bg-[#3B4252] px-3 py-2.5 text-xs text-[#ECEFF4] font-mono focus:border-[#88C0D0] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#4C566A]/40">
+                <button
+                  type="button"
+                  onClick={() => setIsNewBookingOpen(false)}
+                  className="rounded-xl border border-[#4C566A] bg-[#3B4252] hover:bg-[#434C5E] px-4 py-2 text-xs font-semibold text-[#ECEFF4] transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPendingBooking}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 px-5 py-2 text-xs font-bold text-[#2E3440] transition disabled:opacity-50"
+                >
+                  {isPendingBooking ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Agendando...</span>
+                    </>
+                  ) : (
+                    <span>Confirmar {dict.agendamentoSingular}</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,6 +17,8 @@ import {
 } from '@/app/actions/clientes';
 import VoiceNoteRecorder from '@/components/crm/VoiceNoteRecorder';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
+import { PetsManagerModal } from '@/components/dashboard/PetsManagerModal';
+import { PawPrint } from 'lucide-react';
 
 const SYSTEM_METADATA_KEYS = new Set([
   'ai_paused_until',
@@ -88,6 +90,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
 
   // Modal Novo Cliente
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [petModalCliente, setPetModalCliente] = useState<ClienteCRM | null>(null);
   const [novoNome, setNovoNome] = useState('');
   const [novoTelefone, setNovoTelefone] = useState('');
   const [novaEtapa, setNovaEtapa] = useState('lead');
@@ -749,17 +752,30 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                               </span>
                             </div>
 
-                            {/* Rodapé do Card: WhatsApp & Seletor de Etapa Rápido (Tablet/iPad) */}
+                            {/* Rodapé do Card: WhatsApp, Pets & Seletor de Etapa Rápido */}
                             <div className="pt-2 flex items-center justify-between gap-2 border-t border-[#4C566A]/20">
-                              <a
-                                href={zapUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#A3BE8C] hover:text-[#A3BE8C]/80 transition"
-                              >
-                                <span>💬</span>
-                                <span>WhatsApp</span>
-                              </a>
+                              <div className="flex items-center gap-2.5">
+                                <a
+                                  href={zapUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#A3BE8C] hover:text-[#A3BE8C]/80 transition"
+                                >
+                                  <span>💬</span>
+                                  <span>WhatsApp</span>
+                                </a>
+
+                                {dict.features.hasPets && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPetModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-md bg-[#88C0D0]/15 border border-[#88C0D0]/40 px-2 py-0.5 text-[10px] font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                                  >
+                                    <PawPrint className="w-3 h-3" />
+                                    <span>Pets</span>
+                                  </button>
+                                )}
+                              </div>
 
                               {/* Menu Rápido de 1 Clique */}
                               <select
@@ -882,6 +898,16 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                             </td>
                             <td className="py-3.5 px-4 text-right">
                               <div className="inline-flex items-center gap-2">
+                                {dict.features.hasPets && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPetModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[#88C0D0]/15 border border-[#88C0D0]/40 px-2.5 py-1 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                                  >
+                                    <PawPrint className="w-3.5 h-3.5" />
+                                    <span>Pets</span>
+                                  </button>
+                                )}
                                 <a
                                   href={zapUrl}
                                   target="_blank"
@@ -1060,6 +1086,17 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                   ))}
                 </select>
               </div>
+
+              {dict.features.hasPets && (
+                <button
+                  type="button"
+                  onClick={() => setPetModalCliente(activeCliente)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#88C0D0]/50 bg-[#88C0D0]/15 px-3 py-2.5 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                >
+                  <PawPrint className="w-4 h-4" />
+                  <span>Gerenciar Pets deste Tutor</span>
+                </button>
+              )}
 
               {/* Seletor de Tags do Cliente */}
               <div className="space-y-2">
@@ -1483,6 +1520,16 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
             </form>
           </div>
         </div>
+      )}
+
+      {dict.features.hasPets && petModalCliente && (
+        <PetsManagerModal
+          isOpen={Boolean(petModalCliente)}
+          onClose={() => setPetModalCliente(null)}
+          lojistaId={lojista.id}
+          clienteId={petModalCliente.id}
+          clienteNome={petModalCliente.nome}
+        />
       )}
     </div>
   );

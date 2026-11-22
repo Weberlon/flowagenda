@@ -17,6 +17,9 @@ export default async function DashboardPage() {
       topServicos={data.topServicos}
       topProfissionais={data.topProfissionais}
       agendamentosHoje={data.agendamentosHoje}
+      servicos={data.servicos}
+      profissionais={data.profissionais}
+      clientes={data.clientes}
     />
   );
 }

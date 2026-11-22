@@ -6,6 +6,7 @@ import {
   runColdLeadsFollowUpRadar,
   ColdLeadsFollowUpSummary,
 } from '@/lib/ai-handoff';
+import { getNicheDictionary } from '@/lib/niche-dictionary';
 
 /**
  * ==============================================================================
@@ -76,6 +77,7 @@ export function buildDeskcommSystemPrompt(params: {
   knowledgeBase: string;
   linkAgendamento: string;
   senderName?: string | null;
+  aiPersonaInstructions?: string;
 }): string {
   const {
     nomeEstabelecimento,
@@ -83,11 +85,18 @@ export function buildDeskcommSystemPrompt(params: {
     knowledgeBase,
     linkAgendamento,
     senderName,
+    aiPersonaInstructions,
   } = params;
+
+  const personaInstructions =
+    aiPersonaInstructions || getNicheDictionary(businessNiche).aiPersonaInstructions;
 
   return [
     `Você é o assistente virtual inteligente do estabelecimento "${nomeEstabelecimento}", atuando no segmento de "${businessNiche}".`,
     senderName ? `Você está conversando no WhatsApp com o(a) cliente "${senderName}".` : '',
+    ``,
+    `=== PERSONA E COMPORTAMENTO DO NICHO ===`,
+    personaInstructions,
     ``,
     `=== BASE DE CONHECIMENTO E REGRAS DO ESTABELECIMENTO ===`,
     knowledgeBase || `Estabelecimento: ${nomeEstabelecimento} (${businessNiche}). Link oficial de agendamento: ${linkAgendamento}`,
@@ -357,12 +366,14 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         }
       }
 
+      const nicheDict = getNicheDictionary(lojista.business_niche || 'geral');
       const systemPrompt = buildDeskcommSystemPrompt({
         nomeEstabelecimento,
         businessNiche,
         knowledgeBase: enrichedKnowledgeBase,
         linkAgendamento,
         senderName,
+        aiPersonaInstructions: nicheDict.aiPersonaInstructions,
       });
 
       const messagesPayload: OpenAI.Chat.ChatCompletionMessageParam[] = [
