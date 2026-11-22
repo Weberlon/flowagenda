@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { OnboardingForm } from './onboarding-form';
 import { AsaasSubscribeButton } from './asaas-subscribe-button';
+import { HealthCheckPanel } from './health-check-panel';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -171,7 +172,12 @@ export default async function SuperAdminPage() {
           </div>
         </div>
 
-        {/* Seção 2: Formulário de Onboarding de Novo Lojista */}
+        {/* Seção 2: Diagnóstico & Reparação do Sistema */}
+        <div>
+          <HealthCheckPanel />
+        </div>
+
+        {/* Seção 3: Formulário de Onboarding de Novo Lojista */}
         <div>
           <OnboardingForm />
         </div>
