@@ -168,7 +168,7 @@ export default async function DashboardLayout({
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden bg-slate-50 text-slate-900">
+      <div className="flex flex-1 flex-col overflow-hidden bg-[#242933] text-[#ECEFF4]">
         {/* Impersonation Warning Banner */}
         {isImpersonating && (
           <div className="bg-amber-400 text-slate-950 px-6 py-2 text-xs font-medium flex flex-wrap items-center justify-between gap-3 shadow-sm z-20 border-b border-amber-500">
@@ -210,7 +210,7 @@ export default async function DashboardLayout({
         )}
 
         {/* Scrollable Main */}
-        <main className={`flex-1 overflow-y-auto ${isPaymentBlocked ? 'bg-[#242933] p-6' : 'p-6'}`}>
+        <main className="flex-1 overflow-y-auto bg-[#242933] p-6 text-[#ECEFF4]">
           {isPaymentBlocked ? (
             <div className="flex h-full items-center justify-center p-4">
               <div className="w-full max-w-lg text-center bg-[#2E3440] p-8 rounded-2xl border border-[#3B4252] shadow-2xl space-y-6 text-[#ECEFF4]">

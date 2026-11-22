@@ -71,13 +71,15 @@ async function resolveDashboardLojista(supabase: any, userId: string) {
     .eq('id', userId)
     .single();
 
+  const selectFields = 'id, nome_estabelecimento, slug_subdominio, ticket_medio_padrao, tier';
+
   if (profile?.role === 'super_admin') {
     const cookieStore = await cookies();
     const impersonateTenantId = cookieStore.get('flow_impersonate_tenant_id')?.value;
     if (impersonateTenantId) {
       const { data: targetLojista } = await supabase
         .from('lojistas')
-        .select('id, nome_estabelecimento')
+        .select(selectFields)
         .eq('id', impersonateTenantId)
         .single();
       if (targetLojista) return targetLojista;
@@ -86,7 +88,7 @@ async function resolveDashboardLojista(supabase: any, userId: string) {
 
   const { data: lojista } = await supabase
     .from('lojistas')
-    .select('id, nome_estabelecimento')
+    .select(selectFields)
     .eq('user_id', userId)
     .single();
 
@@ -103,21 +105,271 @@ export async function getDashboardData() {
 
   if (!lojista) throw new Error('Tenant not found');
 
-  // Fetch Agenda (Today/Upcoming)
-  const { data: agendamentos } = await supabase
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const isSuperAdmin = profile?.role === 'super_admin';
+  const dbClient =
+    isSuperAdmin && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : supabase;
+
+  const ticketMedioPadrao = Number(lojista.ticket_medio_padrao) || 65;
+
+  // 1. Busca catálogo de serviços do lojista
+  const { data: servicos } = await dbClient
+    .from('servicos')
+    .select('id, nome_servico, duracao_minutos, preco, ativo')
+    .eq('lojista_id', lojista.id);
+
+  const servicoMap = new Map<string, any>(
+    servicos?.map((s: any) => [s.id, s]) || []
+  );
+
+  // 2. Busca profissionais cadastrados
+  const { data: profissionais } = await dbClient
+    .from('profissionais')
+    .select('id, nome, ativo')
+    .eq('lojista_id', lojista.id);
+
+  const profissionalMap = new Map<string, any>(
+    profissionais?.map((p: any) => [p.id, p]) || []
+  );
+
+  // 3. Delimitações temporais para cálculos analíticos
+  const now = new Date();
+  const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  // 4. Busca agendamentos do lojista (desde o início do mês anterior)
+  const { data: todosAgendamentos } = await dbClient
     .from('agendamentos')
     .select(`
-      id, data_hora_inicio, data_hora_fim, status,
-      servico_id,
+      id, data_hora_inicio, data_hora_fim, data_horario, status,
+      servico_id, profissional_id, cliente_id, pin_validacao, asaas_payment_id,
+      confirmacao_cliente_at, cancelado_origem,
       cliente:clientes(nome, telefone),
-      servico:servicos(nome_servico, duracao_minutos)
+      servico:servicos(nome_servico, duracao_minutos, preco),
+      profissional:profissionais(nome)
     `)
     .eq('lojista_id', lojista.id)
-    .gte('data_hora_inicio', new Date().toISOString().split('T')[0])
+    .gte('data_hora_inicio', startOfLastMonth.toISOString())
     .order('data_hora_inicio', { ascending: true });
 
-  // Fetch WhatsApp Config
-  const { data: configRobo } = await supabase
+  const agendamentosList = todosAgendamentos || [];
+
+  // 5. Agendamentos do Mês Atual vs Mês Anterior
+  const currentMonthAppointments = agendamentosList.filter((a: any) => {
+    const dt = new Date(a.data_hora_inicio || a.data_horario);
+    return dt >= startOfCurrentMonth && dt < startOfNextMonth;
+  });
+
+  const lastMonthAppointments = agendamentosList.filter((a: any) => {
+    const dt = new Date(a.data_hora_inicio || a.data_horario);
+    return dt >= startOfLastMonth && dt < startOfCurrentMonth;
+  });
+
+  // KPI 1: Faturamento Previsto no Mês (confirmados/concluídos ou ativos no lock)
+  const faturamentoPrevistoMes = currentMonthAppointments
+    .filter((a: any) =>
+      ['confirmado', 'concluido', 'locked', 'awaiting_payment_confirmation'].includes(a.status)
+    )
+    .reduce((acc: number, a: any) => {
+      const s = a.servico_id ? servicoMap.get(a.servico_id) : a.servico;
+      const preco = Number(s?.preco) || ticketMedioPadrao;
+      return acc + preco;
+    }, 0);
+
+  // KPI 2: Agendamentos do Mês e Variação %
+  const agendamentosMes = currentMonthAppointments.length;
+  const agendamentosMesAnterior = lastMonthAppointments.length;
+  let variacaoPercentual = 0;
+  if (agendamentosMesAnterior > 0) {
+    variacaoPercentual = Math.round(
+      ((agendamentosMes - agendamentosMesAnterior) / agendamentosMesAnterior) * 100
+    );
+  } else {
+    variacaoPercentual = agendamentosMes > 0 ? 100 : 0;
+  }
+
+  // KPI 3: Fechados pela Secretária IA (WhatsApp Bot)
+  const fechadosSecretariaIa = currentMonthAppointments.filter(
+    (a: any) =>
+      Boolean(a.pin_validacao) ||
+      Boolean(a.confirmacao_cliente_at) ||
+      a.cancelado_origem === 'whatsapp_bot'
+  ).length;
+
+  // KPI 4: Taxa de Comparecimento (%)
+  const concluidosMes = currentMonthAppointments.filter((a: any) => a.status === 'concluido').length;
+  const canceladosMes = currentMonthAppointments.filter((a: any) => a.status === 'cancelado').length;
+  const confirmadosMes = currentMonthAppointments.filter((a: any) => a.status === 'confirmado').length;
+  const totalComparecimentoBase = concluidosMes + canceladosMes;
+  let taxaComparecimento = 100;
+  if (totalComparecimentoBase > 0) {
+    taxaComparecimento = Math.min(
+      100,
+      Math.max(0, Math.round((concluidosMes / totalComparecimentoBase) * 100))
+    );
+  } else if (confirmadosMes > 0) {
+    taxaComparecimento = 95; // Assiduidade prevista saudável
+  }
+
+  // 6. Gráfico de Área Suave: Evolução dos Últimos 14 Dias
+  const evolucao14Dias: Array<{
+    data: string;
+    label: string;
+    faturamento: number;
+    agendamentos: number;
+  }> = [];
+
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const ymd = d.toISOString().split('T')[0];
+    const label = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+    const dayAppointments = agendamentosList.filter((a: any) => {
+      const aDate = (a.data_hora_inicio || a.data_horario || '').split('T')[0];
+      return aDate === ymd;
+    });
+
+    const faturamentoDia = dayAppointments
+      .filter((a: any) =>
+        ['confirmado', 'concluido', 'locked', 'awaiting_payment_confirmation'].includes(a.status)
+      )
+      .reduce((acc: number, a: any) => {
+        const s = a.servico_id ? servicoMap.get(a.servico_id) : a.servico;
+        const preco = Number(s?.preco) || ticketMedioPadrao;
+        return acc + preco;
+      }, 0);
+
+    evolucao14Dias.push({
+      data: ymd,
+      label,
+      faturamento: Number(faturamentoDia.toFixed(2)),
+      agendamentos: dayAppointments.length,
+    });
+  }
+
+  // 7. Gráfico de Rosca/Donut: Canais de Aquisição
+  let iaCount = 0;
+  let linkPublicoCount = 0;
+  let manualCount = 0;
+
+  for (const a of currentMonthAppointments) {
+    if (a.pin_validacao || a.confirmacao_cliente_at || a.cancelado_origem === 'whatsapp_bot') {
+      iaCount++;
+    } else if (a.asaas_payment_id || a.cliente_id) {
+      linkPublicoCount++;
+    } else {
+      manualCount++;
+    }
+  }
+
+  const canais = [
+    { name: 'Secretária IA', value: iaCount, color: '#88C0D0' },
+    { name: 'Link Público', value: linkPublicoCount, color: '#A3BE8C' },
+    { name: 'Agendamento Manual', value: manualCount, color: '#B48EAD' },
+  ];
+
+  // 8. Medidor Semicircular: Ocupação da Agenda
+  const activeProsCount = Math.max(
+    profissionais?.filter((p: any) => p.ativo).length || 1,
+    1
+  );
+  const capacidadeHoras = 8 * 22 * activeProsCount; // 8h/dia * 22 dias comerciais
+
+  const minutosOcupados = currentMonthAppointments
+    .filter((a: any) => ['confirmado', 'concluido'].includes(a.status))
+    .reduce((acc: number, a: any) => {
+      const s = a.servico_id ? servicoMap.get(a.servico_id) : a.servico;
+      return acc + (Number(s?.duracao_minutos) || 45);
+    }, 0);
+
+  const horasAgendadas = Number((minutosOcupados / 60).toFixed(1));
+  const ocupacaoPercentual = Math.min(
+    Math.round((horasAgendadas / Math.max(capacidadeHoras, 1)) * 100),
+    100
+  );
+
+  // 9. Barras Horizontais: Top Serviços
+  const servicoCounts = new Map<string, { nome: string; quantidade: number; receita: number }>();
+  for (const a of currentMonthAppointments) {
+    const s = a.servico_id ? servicoMap.get(a.servico_id) : a.servico;
+    const nome = s?.nome_servico || 'Serviço Geral';
+    const preco = Number(s?.preco) || ticketMedioPadrao;
+    const curr = servicoCounts.get(nome) || { nome, quantidade: 0, receita: 0 };
+    curr.quantidade += 1;
+    if (['confirmado', 'concluido'].includes(a.status)) {
+      curr.receita += preco;
+    }
+    servicoCounts.set(nome, curr);
+  }
+  const topServicos = Array.from(servicoCounts.values())
+    .sort((a, b) => b.quantidade - a.quantidade)
+    .slice(0, 5);
+
+  // 10. Barras Horizontais: Top Profissionais
+  const proCounts = new Map<string, { nome: string; agendamentos: number }>();
+  for (const a of currentMonthAppointments) {
+    const p = a.profissional_id ? profissionalMap.get(a.profissional_id) : a.profissional;
+    const nome = p?.nome || 'Profissional Titular';
+    const curr = proCounts.get(nome) || { nome, agendamentos: 0 };
+    curr.agendamentos += 1;
+    proCounts.set(nome, curr);
+  }
+  const topProfissionais = Array.from(proCounts.values())
+    .sort((a, b) => b.agendamentos - a.agendamentos)
+    .slice(0, 5);
+
+  // 11. Tabela Moderna: Agendamentos do Dia
+  const todayYmd = now.toISOString().split('T')[0];
+  const agendamentosHoje = agendamentosList
+    .filter((a: any) => {
+      const aDate = (a.data_hora_inicio || a.data_horario || '').split('T')[0];
+      return aDate === todayYmd;
+    })
+    .sort(
+      (a: any, b: any) =>
+        new Date(a.data_hora_inicio).getTime() - new Date(b.data_hora_inicio).getTime()
+    )
+    .map((agendamento: any) => {
+      const horaInicio = new Date(agendamento.data_hora_inicio).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      const horaFim = new Date(agendamento.data_hora_fim).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      const s = agendamento.servico_id
+        ? servicoMap.get(agendamento.servico_id)
+        : agendamento.servico;
+      const p = agendamento.profissional_id
+        ? profissionalMap.get(agendamento.profissional_id)
+        : agendamento.profissional;
+
+      return {
+        id: agendamento.id,
+        horaInicio,
+        horaFim,
+        clienteNome: agendamento.cliente?.nome || 'Cliente',
+        clienteTelefone: agendamento.cliente?.telefone || '',
+        servicoNome: s?.nome_servico || 'Serviço',
+        servicoDuracao: s?.duracao_minutos || 45,
+        servicoPreco: Number(s?.preco) || ticketMedioPadrao,
+        profissionalNome: p?.nome || 'Titular',
+        status: agendamento.status,
+      };
+    });
+
+  // 12. Status da Instância do WhatsApp
+  const { data: configRobo } = await dbClient
     .from('configuracoes_robo')
     .select('instance_name')
     .eq('lojista_id', lojista.id)
@@ -128,7 +380,37 @@ export async function getDashboardData() {
     whatsappStatus = await fetchInstanceConnectionStatus(configRobo.instance_name);
   }
 
-  return { agendamentos, whatsappStatus, lojistaId: lojista.id };
+  return {
+    lojista: {
+      id: lojista.id,
+      nome_estabelecimento: lojista.nome_estabelecimento,
+      slug_subdominio: lojista.slug_subdominio,
+      ticket_medio_padrao: ticketMedioPadrao,
+      tier: lojista.tier || 'tier_1',
+    },
+    lojistaId: lojista.id,
+    whatsappStatus,
+    kpis: {
+      faturamentoPrevistoMes,
+      agendamentosMes,
+      variacaoPercentual,
+      fechadosSecretariaIa,
+      taxaComparecimento,
+      ticketMedio: ticketMedioPadrao,
+    },
+    evolucao14Dias,
+    canais,
+    ocupacao: {
+      percentual: ocupacaoPercentual,
+      horasAgendadas,
+      capacidadeHoras,
+    },
+    topServicos,
+    topProfissionais,
+    agendamentosHoje,
+    // Compatibilidade com código legado
+    agendamentos: agendamentosHoje,
+  };
 }
 
 export async function getServicosData() {

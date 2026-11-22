@@ -12,12 +12,11 @@ export function ServicosForm() {
     setLoading(true);
     try {
       await addServicoAction(formData);
-      // Reset form na mão (poderia usar useRef)
       const form = document.getElementById('servico-form') as HTMLFormElement;
-      form.reset();
+      form?.reset();
       router.refresh();
-    } catch (error) {
-      alert('Erro ao salvar serviço.');
+    } catch (error: any) {
+      alert(error?.message || 'Erro ao salvar serviço.');
     } finally {
       setLoading(false);
     }
@@ -25,39 +24,41 @@ export function ServicosForm() {
 
   return (
     <form id="servico-form" action={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <label htmlFor="nome_servico" className="text-sm font-medium text-slate-900">
+      <div className="space-y-1.5">
+        <label htmlFor="nome_servico" className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]">
           Nome do Serviço
         </label>
         <input
           id="nome_servico"
           name="nome_servico"
           required
-          placeholder="Ex: Corte de Cabelo"
-          className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          placeholder="Ex: Corte Masculino ou Limpeza"
+          className="flex h-10 w-full rounded-xl border border-[#4C566A] bg-[#242933] px-3 py-2 text-sm text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
         />
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="duracao_minutos" className="text-sm font-medium text-slate-900">
-          Duração (Minutos)
+      <div className="space-y-1.5">
+        <label htmlFor="duracao_minutos" className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]">
+          Duração na Grade
         </label>
         <select
           id="duracao_minutos"
           name="duracao_minutos"
           required
-          className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          className="flex h-10 w-full rounded-xl border border-[#4C566A] bg-[#242933] px-3 py-2 text-sm text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
         >
-          <option value="15">15 Minutos</option>
-          <option value="30">30 Minutos</option>
-          <option value="45">45 Minutos</option>
-          <option value="60">60 Minutos</option>
+          <option value="15" className="bg-[#242933] text-[#ECEFF4]">15 Minutos</option>
+          <option value="30" className="bg-[#242933] text-[#ECEFF4]">30 Minutos</option>
+          <option value="45" className="bg-[#242933] text-[#ECEFF4]">45 Minutos</option>
+          <option value="60" className="bg-[#242933] text-[#ECEFF4]">60 Minutos</option>
         </select>
-        <p className="text-xs text-slate-500">A duração determina as lacunas de tempo visíveis na agenda para o cliente.</p>
+        <p className="text-[11px] text-[#D8DEE9]/60">
+          Determina os blocos de horário calculados para a agenda online.
+        </p>
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="preco" className="text-sm font-medium text-slate-900">
+      <div className="space-y-1.5">
+        <label htmlFor="preco" className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]">
           Preço (R$)
         </label>
         <input
@@ -66,8 +67,8 @@ export function ServicosForm() {
           type="number"
           step="0.01"
           required
-          placeholder="45.00"
-          className="flex h-10 w-full rounded-md border border-slate-300 bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
+          placeholder="50.00"
+          className="flex h-10 w-full rounded-xl border border-[#4C566A] bg-[#242933] px-3 py-2 text-sm text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
         />
       </div>
 
@@ -77,19 +78,19 @@ export function ServicosForm() {
           id="ativo"
           name="ativo"
           defaultChecked
-          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+          className="h-4 w-4 rounded border-[#4C566A] bg-[#242933] text-[#88C0D0] focus:ring-[#88C0D0]"
         />
-        <label htmlFor="ativo" className="text-sm font-medium text-slate-900">
-          Serviço Ativo (Visível para agendamento)
+        <label htmlFor="ativo" className="text-xs font-medium text-[#ECEFF4]">
+          Serviço ativo (visível para clientes no link)
         </label>
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-900/90 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+        className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#88C0D0] px-4 py-2 text-xs font-bold text-[#242933] hover:bg-[#88C0D0]/90 transition-colors shadow-md disabled:opacity-50"
       >
-        {loading ? 'Salvando...' : 'Salvar Serviço'}
+        {loading ? 'Salvando...' : 'Adicionar Serviço'}
       </button>
     </form>
   );

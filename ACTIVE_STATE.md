@@ -1,47 +1,46 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-11-22T01:57:00-03:00  
-**Fase do Projeto:** Produção / Health Check & Auto-Repair Homologado + Modernização de UI/UX com Skills Anti-IA  
+**Atualizado em:** 2026-11-22T02:15:00-03:00  
+**Fase do Projeto:** Produção / Etapa 4 Homologada — Dashboards Executivas Modernas (/dashboard e /superadmin) em Nord Dark  
 **Integridade do Código:** `npx tsc --noEmit` exit code 0 (Zero erros TypeScript)  
-**Último Commit:** `9a847a3` (`feat(superadmin): adiciona diagnostico em tempo real e ferramenta de auto-reparacao segura`)  
-**Branch Atual:** `main` (Up to date com `origin/main`)  
+**Branch Atual:** `main`  
 
 ---
 
 ## 1. Compilado do que Já Está Pronto e em Produção (`main`)
 
-1. **Ferramenta de Diagnóstico & Auto-Reparação Segura no /superadmin (Commit `9a847a3`):**
-   - **Endpoint de Diagnóstico Rápido (`app/api/admin/health-check/route.ts`):** Validação estrita de Super Admin, checagens concorrentes com `AbortSignal.timeout(4000)`, auditoria de variáveis de ambiente (`ASAAS`, `EVOLUTION`, `SUPABASE`), ping de infraestrutura, inspeção da fila `chat_queue` e detecção de anomalias em lojistas.
-   - **Endpoint de Auto-Reparação Não-Destrutiva (`app/api/admin/auto-repair/route.ts`):** Ações seguras de `sync_asaas`, `set_whatsapp_webhook`, `create_whatsapp_instance` (idempotente), `rebuild_knowledge_base`, `flush_chat_queue` e `send_access_link`.
-   - **Painel Visual (`app/superadmin/health-check-panel.tsx`):** Interface Nord Dark integrada no `/superadmin` com cards de status, botão de diagnóstico rápido, ações de auto-reparação por lojista e log de auditoria da sessão em PT-BR.
+1. **Redesign Executivo da Dashboard do Lojista (`/dashboard`):**
+   - **Componente `MerchantAnalytics` (`app/dashboard/merchant-analytics.tsx`):**
+     * **4 KPI Cards (Topo):** Faturamento Previsto no Mês (cruzando agendamentos confirmados/concluídos com o valor do serviço ou `ticket_medio_padrao`), Agendamentos do Mês (com variação percentual vs mês anterior), Fechados pela Secretária IA (WhatsApp Bot) e Taxa de Comparecimento (%).
+     * **Linha Analítica Central (3 Colunas):** Gráfico de Área Suave Recharts (evolução de faturamento e agendamentos nos últimos 14 dias), Gráfico de Rosca/Donut de Canais (Secretária IA vs Link Público vs Manual) com totalizador central em SVG, e Medidor Semicircular / Gauge de Ocupação da Grade (horas agendadas vs capacidade comercial de 8h/22 dias úteis).
+     * **Linha Inferior:** Barras Horizontais com ranking dos Serviços e Profissionais em destaque (com abas) + Tabela moderna da Agenda de Hoje com horários em monospace e badges arredondadas de status Nord Dark.
+     * **Módulo WhatsApp Integrado:** Badge de conexão ativa no topo com ping em tempo real, ou card de leitura com QR Code e link direto para configurações caso desconectado.
+   - **Pipeline de Dados (`app/actions/dashboard.ts`):** Agregação analítica server-side com resolução de lojista (inclusive sob impersonação Super Admin), isolamento multi-tenant estrito e fallback de ticket médio.
 
-2. **Fluxo Unificado de Onboarding e Checkout Asaas (Commits `6251f85` e `e911a59`):**
-   - **Checkout Self-Service (`components/landing/CheckoutModal.tsx` & `PricingTiers.tsx`):** Removidos seletores redundantes de plano/ciclo/taxa no modal; resumo compacto com link "Trocar plano" e redirecionamento imediato para a fatura Asaas.
-   - **Formulário Novo Lojista (`app/superadmin/onboarding-form.tsx`):** Seletores únicos de plano/ciclo/taxa e modal de sucesso em destaque com botões diretos "Abrir Fatura" e "Copiar Link".
-   - **Proteção contra Duplicidade (`app/superadmin/asaas-subscribe-button.tsx`):** Botão "Ver / Nova Cobrança" com colapso de opções para assinaturas ativas/pendentes.
+2. **Redesign Executivo da Dashboard Super Admin (`/superadmin`):**
+   - **Fundo Global Unificado:** Conversão completa para o tema Nord Dark (`#242933` fundo global, `#2E3440` cards/superfícies, `#3B4252` divisórias, `#ECEFF4` texto principal).
+   - **Componente `SuperAdminAnalytics` (`app/superadmin/superadmin-analytics.tsx`):**
+     * **4 KPI Cards SaaS:** MRR Estimado (soma das assinaturas ativas com conversão mensal equivalente), Lojistas Ativos vs Pendentes/Inadimplentes, Total de Agendamentos na Plataforma e Total de Interações IA (fila DeepSeek + webhooks Evolution API).
+     * **Linha Analítica (3 Colunas):** Gráfico de Rosca/Donut com distribuição por plano (`Essencial`, `Profissional`, `Autoridade`) com totalizador central, Gráfico de Barras de novos cadastros/receita nos últimos 6 meses e Barras Horizontais de estabelecimentos mais ativos.
+   - **Preservação Funcional Estrita (100%):**
+     * Tabela de Estabelecimentos Cadastrados mantendo botões `Ver / Nova Cobrança` (`AsaasSubscribeButton`), `QR Code WhatsApp` e `Acessar Painel` (impersonação segura).
+     * Seção Diagnóstico & Reparação do Sistema (`<HealthCheckPanel />`).
+     * Seção Formulário de Novo Lojista (`<OnboardingForm />`).
 
-3. **Arquitetura de Skills & Design Intelligence (Instaladas Globalmente):**
-   - Limpeza total do repositório massivo `awesome-skills` para evitar estouro de tokens e degradação de contexto.
-   - **Arsenal de Design Anti-IA Ativo em `~/.gemini/config/skills/`:**
-     * **`ui-ux-pro-max` (NextLevelBuilder):** Inteligência de design system com 194 perfis de paletas, 80 estilos de UI (Bento Grid, Glassmorphism, Dark Mode) e geração automatizada de tokens para Next.js + Tailwind CSS.
-     * **`hallmark` (Nutlope / Together AI):** Linter visual e motor `/hallmark redesign` em 3 níveis (`full`, `restyle`, `polish`) preservando 100% da lógica e formulários.
-     * **`scroll-craft`:** Landing pages cinematográficas com planos de profundidade independentes e combate ao template trap.
-     * **`humanizer`:** Remoção de tom robótico em textos, títulos e CTAs.
-     * **`grill-me` (Julius Brussee):** Auditoria crítica e stress-test de requisitos.
+3. **Homologação e Harmonia Visual nos Módulos de Suporte:**
+   - Atualizados `app/dashboard/layout.tsx`, `app/dashboard/servicos/page.tsx` e `app/dashboard/servicos/servicos-form.tsx` para o mesmo padrão estético Nord Dark.
 
 ---
 
 ## 2. Decisões de Arquitetura Tomadas
 
-- **Anti-AI Slop:** Todas as futuras interfaces, landing pages e telas do FlowAgenda devem seguir os princípios de design humano (sem gradientes roxo/ciano genéricos em `#000`, sem 3 cards centralizados padrão, com tipografia fluida, paleta Nord Dark e contraste APCA/WCAG medido).
-- **Redesign Seguro via Hallmark:** O comando `/hallmark redesign` deve sempre manter intactos os dados, conexões com Supabase, rotas, formulários e testes.
+- **Recharts com Hidratação Segura:** Componentes analíticos usam `'use client'` com verificação `mounted` e skeletons estilizados em `#3B4252]/40 animate-pulse` para garantir zero erro de mismatch SSR no Next.js 16 / React 19.
+- **Tooltips Padronizados em Nord Dark:** `NordTooltip` customizado em `#2E3440` com borda `#4C566A`, formatação monetária em Real (R$) e indicadores circulares com as cores dos eixos.
+- **Regras de Contenção Respeitadas:** Nenhuma rota de checkout, landing page pública (`app/page.tsx`), webhooks (`/api/webhooks/*`) ou APIs de agendamento foi alterada.
 
 ---
 
-## 3. Próximos Passos Imediatos (Próxima Janela de Chat)
+## 3. Próximos Passos Imediatos
 
-1. **Aplicação do Design Anti-IA:**
-   - Executar o redesign visual de seções da Landing Page (`components/landing/PricingTiers.tsx`, Hero, Features) utilizando `hallmark` e `ui-ux-pro-max` com o tema Nord Dark.
-   - Refinar a responsividade mobile e a física de animações dos modais de agendamento e checkout.
-2. **Homologação em Produção:**
-   - Validar o painel de Health Check e Auto-Repair com os lojistas cadastrados em produção na Vercel.
+1. Executar testes ponta a ponta e auditoria de navegação no painel do lojista e superadmin em ambiente de staging / produção.
+2. Avançar para refinamentos de UX nas telas de Clientes (CRM) e Configurações de IA, se solicitado.
