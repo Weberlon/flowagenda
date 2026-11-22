@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { DenteEstado, StatusDenteFDI } from '@/types/niche';
-import { X, Save, Loader2, AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
+import { DenteEstado, FichaHistoricoItem, StatusDenteFDI } from '@/types/niche';
+import { X, Save, Loader2, AlertTriangle, CheckCircle2, Sparkles, Check, History } from 'lucide-react';
 
 interface OdontogramaModalProps {
   isOpen: boolean;
@@ -55,6 +55,13 @@ const STATUS_OPTIONS: {
     bgClass: 'bg-[#2E3440]',
     borderClass: 'border-[#4C566A]',
   },
+  {
+    value: 'implante',
+    label: 'Implante',
+    color: '#88C0D0',
+    bgClass: 'bg-[#88C0D0]/20',
+    borderClass: 'border-[#88C0D0]',
+  },
 ];
 
 // Numeração FDI oficial dos 32 dentes
@@ -73,6 +80,8 @@ function getToothColors(status: StatusDenteFDI) {
       return { fill: 'rgba(191, 97, 106, 0.28)', stroke: '#BF616A', text: '#BF616A' };
     case 'ausente':
       return { fill: 'rgba(76, 86, 106, 0.15)', stroke: '#4C566A', text: '#4C566A' };
+    case 'implante':
+      return { fill: 'rgba(136, 192, 208, 0.25)', stroke: '#88C0D0', text: '#88C0D0' };
     case 'higido':
     default:
       return { fill: '#3B4252', stroke: '#4C566A', text: '#ECEFF4' };
@@ -144,6 +153,14 @@ function ToothSvg({
               <line x1="28" y1="8" x2="8" y2="36" />
             </g>
           )}
+
+          {status === 'implante' && (
+            <g stroke="#88C0D0" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="18" y1={isUpper ? '8' : '22'} x2="18" y2={isUpper ? '22' : '36'} />
+              <line x1="14" y1={isUpper ? '12' : '26'} x2="22" y2={isUpper ? '12' : '26'} />
+              <line x1="14" y1={isUpper ? '16' : '30'} x2="22" y2={isUpper ? '16' : '30'} />
+            </g>
+          )}
         </svg>
 
         {hasObs && (
@@ -172,7 +189,8 @@ export function OdontogramaModal({
 }: OdontogramaModalProps) {
   const supabase = useMemo(() => createClient(), []);
 
-  const [dentes, setDentes] = useState<Record<number, DenteEstado>>({});
+  const [dentes, setDentes] = useState<Record<string, DenteEstado>>({});
+  const [historico, setHistorico] = useState<FichaHistoricoItem[]>([]);
   const [observacoesGerais, setObservacoesGerais] = useState('');
   const [activeStatus, setActiveStatus] = useState<StatusDenteFDI>('tratamento');
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
@@ -201,11 +219,16 @@ export function OdontogramaModal({
       }
 
       if (data) {
-        const dadosJson = (data.dados_json || {}) as { dentes?: Record<number, DenteEstado> };
+        const dadosJson = (data.dados_json || {}) as {
+          dentes?: Record<string, DenteEstado>;
+          historico?: FichaHistoricoItem[];
+        };
         setDentes(dadosJson.dentes || {});
+        setHistorico(Array.isArray(dadosJson.historico) ? dadosJson.historico : []);
         setObservacoesGerais(data.observacoes_gerais || '');
       } else {
         setDentes({});
+        setHistorico([]);
         setObservacoesGerais('');
       }
     } catch (err: unknown) {
@@ -225,12 +248,17 @@ export function OdontogramaModal({
 
   const handleToothClick = (numero: number) => {
     setSelectedTooth(numero);
+  };
+
+  const handleApplyStatusToSelected = () => {
+    if (selectedTooth === null) return;
+    const key = String(selectedTooth);
     setDentes((prev) => ({
       ...prev,
-      [numero]: {
-        numero,
+      [key]: {
+        numero: selectedTooth,
         status: activeStatus,
-        observacao: prev[numero]?.observacao || '',
+        observacao: prev[key]?.observacao || '',
         atualizado_em: new Date().toISOString(),
       },
     }));
@@ -238,11 +266,12 @@ export function OdontogramaModal({
 
   const handleToothObservacaoChange = (obs: string) => {
     if (selectedTooth === null) return;
+    const key = String(selectedTooth);
     setDentes((prev) => ({
       ...prev,
-      [selectedTooth]: {
+      [key]: {
         numero: selectedTooth,
-        status: prev[selectedTooth]?.status || 'higido',
+        status: prev[key]?.status || 'higido',
         observacao: obs,
         atualizado_em: new Date().toISOString(),
       },
@@ -255,6 +284,14 @@ export function OdontogramaModal({
     setSuccessMessage(null);
 
     try {
+      const dentesAlterados = Object.values(dentes).filter((d) => d.status !== 'higido' || d.observacao?.trim());
+      const novaEntradaHistorico: FichaHistoricoItem = {
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
+        data: new Date().toLocaleString('pt-BR'),
+        resumo: `Odontograma atualizado (${dentesAlterados.length} ${dentesAlterados.length === 1 ? 'dente registrado' : 'dentes registrados'})`,
+      };
+      const proximoHistorico = [novaEntradaHistorico, ...historico].slice(0, 20);
+
       const { error } = await supabase
         .from('fichas_clinicas')
         .upsert(
@@ -262,7 +299,7 @@ export function OdontogramaModal({
             lojista_id: lojistaId,
             cliente_id: clienteId,
             tipo_ficha: 'odontograma',
-            dados_json: { dentes },
+            dados_json: { dentes, historico: proximoHistorico },
             observacoes_gerais: observacoesGerais.trim() || null,
             updated_at: new Date().toISOString(),
           },
@@ -274,6 +311,7 @@ export function OdontogramaModal({
         return;
       }
 
+      setHistorico(proximoHistorico);
       setSuccessMessage('Odontograma salvo com sucesso!');
       setTimeout(() => setSuccessMessage(null), 3500);
     } catch (err: unknown) {
@@ -285,7 +323,7 @@ export function OdontogramaModal({
 
   if (!isOpen) return null;
 
-  const selectedToothData = selectedTooth ? dentes[selectedTooth] : null;
+  const selectedToothData = selectedTooth ? dentes[String(selectedTooth)] : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
@@ -330,11 +368,26 @@ export function OdontogramaModal({
             </div>
           )}
 
-          {/* Barra de Status Ativo */}
-          <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252] p-3.5">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0] block mb-2.5">
-              Status Ativo para Marcação
-            </span>
+          {/* Barra de Status Ativo + Botão Rápido */}
+          <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252] p-3.5 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0]">
+                Status Ativo para Marcação
+              </span>
+              <button
+                type="button"
+                disabled={selectedTooth === null}
+                onClick={handleApplyStatusToSelected}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#88C0D0] hover:bg-[#88C0D0]/90 disabled:opacity-40 px-3 py-1.5 text-xs font-bold text-[#2E3440] transition"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>
+                  {selectedTooth
+                    ? `Aplicar status ao dente ${selectedTooth}`
+                    : 'Aplicar status ao dente selecionado'}
+                </span>
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {STATUS_OPTIONS.map((opt) => {
                 const isActive = activeStatus === opt.value;
@@ -483,6 +536,27 @@ export function OdontogramaModal({
               />
             </div>
           </div>
+
+          {/* Histórico de Evolução */}
+          {historico.length > 0 && (
+            <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252]/70 p-4 space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0] flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5" />
+                <span>Histórico de Evolução ({historico.length})</span>
+              </span>
+              <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                {historico.map((h) => (
+                  <div
+                    key={h.id}
+                    className="flex items-center justify-between gap-2 text-[11px] rounded-lg bg-[#2E3440] px-3 py-1.5 text-[#D8DEE9]"
+                  >
+                    <span>{h.resumo}</span>
+                    <span className="font-mono text-[10px] text-[#81A1C1] shrink-0">{h.data}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Rodapé */}
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#4C566A]/40">

@@ -33,7 +33,8 @@ export type StatusDenteFDI =
   | 'tratamento'
   | 'concluido'
   | 'atencao'
-  | 'ausente';
+  | 'ausente'
+  | 'implante';
 
 export interface DenteEstado {
   numero: number;
@@ -55,14 +56,21 @@ export interface MarcadorEstetico {
   dataRegistro: string;
 }
 
+export interface FichaHistoricoItem {
+  id: string;
+  data: string;
+  resumo: string;
+}
+
 export interface FichaClinica {
   id: string;
   lojista_id: string;
   cliente_id: string;
   tipo_ficha: TipoFichaClinica;
   dados_json: {
-    dentes?: Record<number, DenteEstado>;
+    dentes?: Record<string, DenteEstado>;
     marcadores?: MarcadorEstetico[];
+    historico?: FichaHistoricoItem[];
     [key: string]: unknown;
   };
   observacoes_gerais?: string | null;

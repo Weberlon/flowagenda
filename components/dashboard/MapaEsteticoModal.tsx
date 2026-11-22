@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { MarcadorEstetico, VistaMapaEstetico } from '@/types/niche';
+import { FichaHistoricoItem, MarcadorEstetico, VistaMapaEstetico } from '@/types/niche';
 import {
   X,
   Save,
@@ -13,6 +13,7 @@ import {
   Trash2,
   Plus,
   Sparkles,
+  History,
 } from 'lucide-react';
 
 interface MapaEsteticoModalProps {
@@ -109,6 +110,7 @@ export function MapaEsteticoModal({
 
   const [vista, setVista] = useState<VistaMapaEstetico>('facial');
   const [marcadores, setMarcadores] = useState<MarcadorEstetico[]>([]);
+  const [historico, setHistorico] = useState<FichaHistoricoItem[]>([]);
   const [observacoesGerais, setObservacoesGerais] = useState('');
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
@@ -143,11 +145,16 @@ export function MapaEsteticoModal({
       }
 
       if (data) {
-        const dadosJson = (data.dados_json || {}) as { marcadores?: MarcadorEstetico[] };
+        const dadosJson = (data.dados_json || {}) as {
+          marcadores?: MarcadorEstetico[];
+          historico?: FichaHistoricoItem[];
+        };
         setMarcadores(dadosJson.marcadores || []);
+        setHistorico(Array.isArray(dadosJson.historico) ? dadosJson.historico : []);
         setObservacoesGerais(data.observacoes_gerais || '');
       } else {
         setMarcadores([]);
+        setHistorico([]);
         setObservacoesGerais('');
       }
     } catch (err: unknown) {
@@ -212,6 +219,13 @@ export function MapaEsteticoModal({
     setSuccessMessage(null);
 
     try {
+      const novaEntradaHistorico: FichaHistoricoItem = {
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`,
+        data: new Date().toLocaleString('pt-BR'),
+        resumo: `Mapa estético atualizado (${marcadores.length} ${marcadores.length === 1 ? 'marcador' : 'marcadores'})`,
+      };
+      const proximoHistorico = [novaEntradaHistorico, ...historico].slice(0, 20);
+
       const { error } = await supabase
         .from('fichas_clinicas')
         .upsert(
@@ -219,7 +233,7 @@ export function MapaEsteticoModal({
             lojista_id: lojistaId,
             cliente_id: clienteId,
             tipo_ficha: 'mapa_estetico',
-            dados_json: { marcadores },
+            dados_json: { marcadores, historico: proximoHistorico },
             observacoes_gerais: observacoesGerais.trim() || null,
             updated_at: new Date().toISOString(),
           },
@@ -231,6 +245,7 @@ export function MapaEsteticoModal({
         return;
       }
 
+      setHistorico(proximoHistorico);
       setSuccessMessage('Mapa estético salvo com sucesso!');
       setTimeout(() => setSuccessMessage(null), 3500);
     } catch (err: unknown) {
@@ -525,6 +540,26 @@ export function MapaEsteticoModal({
                     className="w-full rounded-xl border border-[#4C566A] bg-[#2E3440] p-3 text-xs text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
                   />
                 </div>
+
+                {historico.length > 0 && (
+                  <div className="rounded-2xl border border-[#4C566A]/50 bg-[#3B4252]/70 p-4 space-y-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#B48EAD] flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5" />
+                      <span>Histórico de Evolução ({historico.length})</span>
+                    </span>
+                    <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1">
+                      {historico.map((h) => (
+                        <div
+                          key={h.id}
+                          className="flex items-center justify-between gap-2 text-[11px] rounded-lg bg-[#2E3440] px-3 py-1.5 text-[#D8DEE9]"
+                        >
+                          <span>{h.resumo}</span>
+                          <span className="font-mono text-[10px] text-[#81A1C1] shrink-0">{h.data}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
