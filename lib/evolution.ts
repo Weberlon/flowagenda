@@ -785,3 +785,60 @@ export async function sendWhatsAppMessage({
   }
 }
 
+/**
+ * Atualiza a foto de perfil de uma instância conectada na Evolution API v2
+ * POST /chat/updateProfilePicture/{instanceName}
+ */
+export async function updateInstanceProfilePicture(
+  instanceName: string,
+  pictureUrl: string
+): Promise<EvolutionApiResult<{ updated: boolean }>> {
+  try {
+    const { apiUrl, apiKey } = getEvolutionConfig();
+    const encodedInstance = encodeURIComponent(instanceName.trim());
+
+    const response = await fetch(
+      `${apiUrl}/chat/updateProfilePicture/${encodedInstance}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: apiKey,
+        },
+        body: JSON.stringify({
+          picture: pictureUrl,
+        }),
+      }
+    );
+
+    const resText = await response.text();
+    let data: any = {};
+    try {
+      data = JSON.parse(resText);
+    } catch {
+      data = { raw: resText };
+    }
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error:
+          data?.response?.message ||
+          data?.message ||
+          `Falha ao atualizar foto de perfil na Evolution API (HTTP ${response.status})`,
+      };
+    }
+
+    return {
+      success: true,
+      data: { updated: true },
+    };
+  } catch (error: any) {
+    console.error('[Evolution API] updateInstanceProfilePicture Error:', error);
+    return {
+      success: false,
+      error: error?.message || 'Erro ao atualizar foto de perfil da instância.',
+    };
+  }
+}
+

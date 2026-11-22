@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { login } from '@/app/actions/auth';
+import { BrandLogo } from '@/components/BrandLogo';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -11,10 +13,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     const formData = new FormData(e.currentTarget);
     const result = await login(formData);
-    
+
     if (result?.error) {
       setError(result.error);
       setLoading(false);
@@ -22,62 +24,69 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 font-sans text-slate-900">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-sm border border-slate-200">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Entrar no FlowAgenda</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Acesse o seu painel administrativo.
-          </p>
+    <main className="flex min-h-screen items-center justify-center bg-[#242933] p-4 font-sans text-[#ECEFF4]">
+      <div className="w-full max-w-md rounded-2xl bg-[#2E3440] p-8 shadow-2xl border border-[#4C566A]/60">
+        <div className="mb-8 flex flex-col items-center text-center space-y-4">
+          <Link href="/" className="inline-flex">
+            <BrandLogo variant="lg" showText={false} />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-[#ECEFF4]">
+              Entrar no FlowAgenda
+            </h1>
+            <p className="mt-1.5 text-xs text-[#D8DEE9]/75">
+              Acesse o painel administrativo do seu estabelecimento.
+            </p>
+          </div>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700 border border-red-200">
+          <div className="mb-6 rounded-xl bg-[#BF616A]/15 p-3.5 text-xs font-medium text-[#BF616A] border border-[#BF616A]/40">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700">
-              Email
+            <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-[#D8DEE9]">
+              E-mail
             </label>
-            <div className="mt-2">
+            <div className="mt-1.5">
               <input
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
                 required
-                className="block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-xl border border-[#4C566A] bg-[#242933] px-3.5 py-2.5 text-sm text-[#ECEFF4] placeholder-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
                 placeholder="exemplo@email.com"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-[#D8DEE9]">
               Senha
             </label>
-            <div className="mt-2">
+            <div className="mt-1.5">
               <input
                 id="password"
                 name="password"
                 type="password"
                 autoComplete="current-password"
                 required
-                className="block w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+                className="block w-full rounded-xl border border-[#4C566A] bg-[#242933] px-3.5 py-2.5 text-sm text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
               />
             </div>
           </div>
 
-          <div>
+          <div className="pt-1">
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full justify-center rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex w-full justify-center rounded-xl bg-[#88C0D0] px-4 py-3 text-sm font-black text-[#242933] shadow-lg hover:bg-[#88C0D0]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? 'Entrando...' : 'Entrar no Painel'}
             </button>
           </div>
         </form>

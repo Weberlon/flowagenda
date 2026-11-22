@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { BrandLogo } from '@/components/BrandLogo';
 
 export type CheckoutTierId = 'tier_1' | 'tier_2' | 'tier_3';
 export type CheckoutCycleId = 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY';
@@ -211,13 +212,16 @@ export default function CheckoutModal({
       >
         {/* Header do Modal */}
         <div className="flex items-start justify-between gap-4 border-b border-[#3B4252] bg-[#2E3440] px-6 py-5">
-          <div>
-            <h3 className="text-xl sm:text-2xl font-black text-[#ECEFF4]">
-              Ativar Minha Conta FlowAgenda
-            </h3>
-            <p className="text-xs text-[#D8DEE9]/70 mt-1">
-              Preencha seus dados para criar o ambiente e seguir direto para o pagamento seguro (Pix, Cartão ou Boleto).
-            </p>
+          <div className="flex items-center gap-3.5">
+            <BrandLogo variant="icon" showText={false} />
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black text-[#ECEFF4]">
+                Ativar Minha Conta FlowAgenda
+              </h3>
+              <p className="text-xs text-[#D8DEE9]/70 mt-1">
+                Preencha seus dados para criar o ambiente e seguir direto para o pagamento seguro (Pix, Cartão ou Boleto).
+              </p>
+            </div>
           </div>
 
           <button

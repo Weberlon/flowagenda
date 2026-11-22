@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Calendar, ShieldCheck, Heart } from 'lucide-react';
+import { ShieldCheck, Heart } from 'lucide-react';
+import { BrandLogo } from '@/components/BrandLogo';
 import { CONTACT_CONFIG } from '@/config/contact';
 
 interface FooterProps {
@@ -22,11 +23,8 @@ export default function Footer({ whatsappConsultorUrl }: FooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12">
           {/* Coluna 1 & 2: Identidade e Proposta */}
           <div className="lg:col-span-2 space-y-4">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#88C0D0] to-[#81A1C1] text-[#242933] font-black shadow-md">
-                <Calendar className="h-5 w-5" />
-              </div>
-              <span className="text-xl font-black tracking-tight text-[#ECEFF4]">FlowAgenda</span>
+            <Link href="/" className="inline-flex items-center">
+              <BrandLogo variant="md" />
             </Link>
 
             <p className="text-xs sm:text-sm text-[#D8DEE9]/80 leading-relaxed max-w-sm font-normal">

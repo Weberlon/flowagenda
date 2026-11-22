@@ -8,8 +8,9 @@ import PricingTiers from '@/components/landing/PricingTiers';
 import FaqAccordion from '@/components/landing/FaqAccordion';
 import FinalCta from '@/components/landing/FinalCta';
 import Footer from '@/components/landing/Footer';
+import { BrandLogo } from '@/components/BrandLogo';
 import { CONTACT_CONFIG } from '@/config/contact';
-import { Calendar, ShieldCheck, Check } from 'lucide-react';
+import { ShieldCheck, Check } from 'lucide-react';
 
 export const metadata = {
   title: 'FlowAgenda | Secretária IA 24h no WhatsApp para o seu Negócio Local',
@@ -39,16 +40,11 @@ export default function AppPage() {
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Logo FlowAgenda */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#88C0D0] to-[#81A1C1] text-[#242933] shadow-lg shadow-[#88C0D0]/20 group-hover:scale-105 transition-transform">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <div>
-              <span className="text-xl font-black tracking-tight text-[#ECEFF4]">FlowAgenda</span>
-              <span className="hidden sm:inline-block ml-2 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] border border-[#88C0D0]/30 font-bold">
-                Secretária IA
-              </span>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <BrandLogo variant="md" className="group-hover:scale-[1.02] transition-transform" />
+            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] border border-[#88C0D0]/30 font-bold">
+              Secretária IA
+            </span>
           </Link>
 
           {/* Navegação Principal */}

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getWhatsAppComercialUrl } from '@/lib/contact';
 import { fetchPendingAsaasInvoiceUrl } from '@/lib/asaas-subscription';
 import { DashboardHeaderNav } from '@/components/dashboard/DashboardHeaderNav';
+import { BrandLogo } from '@/components/BrandLogo';
 import { Calendar, Scissors, Users, Settings, ExternalLink } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -144,11 +145,10 @@ export default async function DashboardLayout({
       
       {/* Sidebar Compacta (Nord Dark) */}
       <aside className="w-64 flex-col border-r border-[#3B4252] bg-[#242933] hidden md:flex">
-        <div className="flex h-16 items-center px-6 border-b border-[#3B4252] gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#88C0D0] to-[#81A1C1] text-[#242933] font-black">
-            <Calendar className="h-5 w-5" />
-          </div>
-          <span className="font-bold text-lg tracking-tight text-[#ECEFF4]">FlowAgenda</span>
+        <div className="flex h-16 items-center px-5 border-b border-[#3B4252]">
+          <Link href="/dashboard">
+            <BrandLogo variant="sm" />
+          </Link>
         </div>
         
         <nav className="flex-1 space-y-1.5 p-4 text-xs sm:text-sm font-semibold">

@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { NotificacoesFeed } from '@/components/dashboard/NotificacoesFeed';
+import { BrandLogo } from '@/components/BrandLogo';
 
 interface DashboardHeaderNavProps {
   lojista: {
@@ -92,12 +93,7 @@ export function DashboardHeaderNav({ lojista, userEmail }: DashboardHeaderNavPro
           <div className="relative flex flex-col w-72 max-w-[85vw] bg-[#242933] border-r border-[#3B4252] text-[#ECEFF4] shadow-2xl p-5 space-y-6 z-10">
             {/* Topo do Drawer */}
             <div className="flex items-center justify-between pb-4 border-b border-[#3B4252]">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#88C0D0] to-[#81A1C1] text-[#242933] font-black">
-                  <Calendar className="h-5 w-5" />
-                </div>
-                <span className="font-bold text-base text-[#ECEFF4]">FlowAgenda</span>
-              </div>
+              <BrandLogo variant="sm" />
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(false)}

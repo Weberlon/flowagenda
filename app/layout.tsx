@@ -3,6 +3,10 @@ import './globals.css';
 export const metadata = {
   title: 'FlowAgenda',
   description: 'Sistema de Agendamento Inteligente',
+  icons: {
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
+  },
 };
 
 export default function RootLayout({

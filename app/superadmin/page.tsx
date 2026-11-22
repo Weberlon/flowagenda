@@ -5,6 +5,7 @@ import { OnboardingForm } from './onboarding-form';
 import { AsaasSubscribeButton } from './asaas-subscribe-button';
 import { HealthCheckPanel } from './health-check-panel';
 import { SuperAdminAnalytics } from './superadmin-analytics';
+import { BrandLogo } from '@/components/BrandLogo';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -195,19 +196,22 @@ export default async function SuperAdminPage() {
       <div className="max-w-6xl mx-auto space-y-10">
         {/* Top Header Super Admin (Nord Dark) */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#3B4252] pb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-extrabold tracking-tight text-[#ECEFF4]">
-                Painel Super Admin
-              </h1>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#88C0D0]/15 border border-[#88C0D0]/30 px-3 py-1 text-xs font-semibold text-[#88C0D0]">
-                <span className="h-2 w-2 rounded-full bg-[#A3BE8C]" />
-                SaaS Central
-              </span>
+          <div className="flex items-center gap-4">
+            <BrandLogo variant="lg" showText={false} />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-extrabold tracking-tight text-[#ECEFF4]">
+                  Painel Super Admin
+                </h1>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#88C0D0]/15 border border-[#88C0D0]/30 px-3 py-1 text-xs font-semibold text-[#88C0D0]">
+                  <span className="h-2 w-2 rounded-full bg-[#A3BE8C]" />
+                  SaaS Central
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-[#D8DEE9]/80">
+                Gestão executiva de Lojistas, Assinaturas Asaas, Instâncias WhatsApp e Inteligência Analítica.
+              </p>
             </div>
-            <p className="mt-1 text-sm text-[#D8DEE9]/80">
-              Gestão executiva de Lojistas, Assinaturas Asaas, Instâncias WhatsApp e Inteligência Analítica.
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-xl border border-[#4C566A] bg-[#2E3440] px-3.5 py-1.5 text-xs font-semibold text-[#ECEFF4] shadow-sm">
