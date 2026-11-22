@@ -148,6 +148,14 @@ export function OnboardingForm() {
           }
         }
 
+        if (result.invoiceUrl) {
+          try {
+            window.open(result.invoiceUrl, '_blank', 'noopener,noreferrer');
+          } catch {
+            // Popup bloqueado pelo navegador: botões diretos ficam em destaque abaixo
+          }
+        }
+
         setFeedback({
           text: result.message || 'Lojista cadastrado com sucesso!',
           isError: Boolean(result.asaasWarning),
@@ -486,64 +494,85 @@ export function OnboardingForm() {
 
       {feedback && (
         <div
-          className={`mt-4 rounded-xl p-4 text-xs sm:text-sm border space-y-3 ${
+          className={`mt-4 rounded-2xl p-5 text-xs sm:text-sm border space-y-4 shadow-lg ${
             feedback.isError
               ? 'bg-[#BF616A]/15 text-[#ECEFF4] border-[#BF616A]/50'
-              : 'bg-[#A3BE8C]/15 text-[#ECEFF4] border-[#A3BE8C]/50'
+              : 'bg-[#2E3440] text-[#ECEFF4] border-[#A3BE8C]/60'
           }`}
         >
-          <div className="font-semibold">
-            {feedback.isError ? '⚠️ ' : '✓ '}
-            {feedback.text}
+          <div className="flex items-start justify-between gap-3">
+            <div className="font-bold text-sm text-[#ECEFF4]">
+              {feedback.isError ? '⚠️ ' : '✓ '}
+              {feedback.text}
+            </div>
+            <button
+              type="button"
+              onClick={() => setFeedback(null)}
+              className="text-xs text-[#D8DEE9]/60 hover:text-[#ECEFF4] cursor-pointer"
+              aria-label="Fechar aviso"
+            >
+              ✕
+            </button>
           </div>
 
           {feedback.copied && (
             <p className="text-xs text-[#A3BE8C] font-medium">
-              📋 Link(s) de pagamento copiado(s) automaticamente para a área de transferência!
+              📋 Link da fatura copiado automaticamente para a área de transferência!
             </p>
           )}
 
           {feedback.invoiceUrl && (
-            <div className="space-y-1">
-              <span className="block text-[11px] font-bold text-[#88C0D0]">
-                Link da Fatura da Assinatura:
+            <div className="rounded-xl border border-[#3B4252] bg-[#242933] p-4 space-y-3">
+              <span className="block text-xs font-bold text-[#88C0D0]">
+                Fatura da Assinatura Pronta para Pagamento:
               </span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={feedback.invoiceUrl}
-                  className="w-full rounded-lg border border-[#3B4252] bg-[#242933] px-3 py-1.5 text-xs font-mono text-[#ECEFF4]"
-                />
+              <div className="flex flex-wrap items-center gap-2.5">
+                <a
+                  href={feedback.invoiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#A3BE8C] px-4 py-2.5 text-xs font-black text-[#242933] hover:bg-[#A3BE8C]/90 transition shadow-sm"
+                >
+                  <span>💳 Abrir Fatura / Checkout Agora</span>
+                  <span>↗</span>
+                </a>
                 <button
                   type="button"
                   onClick={() => navigator.clipboard.writeText(feedback.invoiceUrl!)}
-                  className="shrink-0 rounded-lg bg-[#3B4252] px-3 py-1.5 text-xs font-semibold text-[#ECEFF4] hover:bg-[#4C566A] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#4C566A] bg-[#3B4252] px-4 py-2.5 text-xs font-semibold text-[#ECEFF4] hover:bg-[#434C5E] transition cursor-pointer"
                 >
-                  Copiar
+                  Copiar Link da Fatura
                 </button>
               </div>
+              <input
+                type="text"
+                readOnly
+                value={feedback.invoiceUrl}
+                className="w-full rounded-lg border border-[#3B4252] bg-[#2E3440] px-3 py-1.5 text-[11px] font-mono text-[#D8DEE9]/80"
+              />
             </div>
           )}
 
           {feedback.setupInvoiceUrl && (
-            <div className="space-y-1">
-              <span className="block text-[11px] font-bold text-[#EBCB8B]">
-                Link da Taxa de Implantação (Setup):
+            <div className="rounded-xl border border-[#3B4252] bg-[#242933] p-4 space-y-3">
+              <span className="block text-xs font-bold text-[#EBCB8B]">
+                Fatura da Taxa de Implantação (Setup):
               </span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={feedback.setupInvoiceUrl}
-                  className="w-full rounded-lg border border-[#3B4252] bg-[#242933] px-3 py-1.5 text-xs font-mono text-[#ECEFF4]"
-                />
+              <div className="flex flex-wrap items-center gap-2.5">
+                <a
+                  href={feedback.setupInvoiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#EBCB8B] px-4 py-2 text-xs font-black text-[#242933] hover:bg-[#EBCB8B]/90 transition"
+                >
+                  <span>Abrir Fatura Setup Agora ↗</span>
+                </a>
                 <button
                   type="button"
                   onClick={() => navigator.clipboard.writeText(feedback.setupInvoiceUrl!)}
-                  className="shrink-0 rounded-lg bg-[#3B4252] px-3 py-1.5 text-xs font-semibold text-[#ECEFF4] hover:bg-[#4C566A] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-[#4C566A] bg-[#3B4252] px-4 py-2 text-xs font-semibold text-[#ECEFF4] hover:bg-[#434C5E] transition cursor-pointer"
                 >
-                  Copiar
+                  Copiar Link Setup
                 </button>
               </div>
             </div>

@@ -3,10 +3,35 @@ import {
   PLANOS_CONFIG,
   AsaasCycle,
   processAsaasTenantSubscription,
+  fetchPendingAsaasInvoiceUrl,
 } from '@/lib/asaas-subscription';
 
 export { PLANOS_CONFIG };
 export type { AsaasCycle };
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const subscriptionId = searchParams.get('subscriptionId');
+    const customerId = searchParams.get('customerId');
+
+    if (!subscriptionId && !customerId) {
+      return NextResponse.json(
+        { error: 'Informe subscriptionId ou customerId.' },
+        { status: 400 }
+      );
+    }
+
+    const invoiceUrl = await fetchPendingAsaasInvoiceUrl(subscriptionId, customerId);
+    return NextResponse.json({ success: true, invoiceUrl });
+  } catch (err: any) {
+    console.error('[ASAAS_FETCH_INVOICE_ERROR]:', err);
+    return NextResponse.json(
+      { error: err?.message || 'Erro ao consultar fatura no Asaas.' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(req: Request) {
   try {
