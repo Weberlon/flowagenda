@@ -6,10 +6,33 @@
 // ==============================================================================
 
 import React, { useState } from 'react';
-import { CONTACT_CONFIG, BillingCycle } from '@/config/contact';
+import { BillingCycle } from '@/config/contact';
+import CheckoutModal, {
+  CheckoutCycleId,
+  CheckoutTierId,
+} from '@/components/landing/CheckoutModal';
 
 export default function PricingTiers() {
   const [cycle, setCycle] = useState<BillingCycle>('annual');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<CheckoutTierId>('tier_3');
+
+  const mapBillingCycleToAsaas = (c: BillingCycle): CheckoutCycleId => {
+    if (c === 'monthly') return 'MONTHLY';
+    if (c === 'semiannual') return 'SEMIANNUALLY';
+    return 'YEARLY';
+  };
+
+  const mapTierIdToCheckoutTier = (id: string): CheckoutTierId => {
+    if (id === 'tier-2') return 'tier_2';
+    if (id === 'tier-3') return 'tier_3';
+    return 'tier_1';
+  };
+
+  const handleOpenCheckout = (tierId: string) => {
+    setSelectedTier(mapTierIdToCheckoutTier(tierId));
+    setCheckoutOpen(true);
+  };
 
   const cycleLabels: Record<BillingCycle, string> = {
     monthly: 'MENSAL',
@@ -149,9 +172,6 @@ export default function PricingTiers() {
         {tiers.map((tier) => {
           const currentPlan = tier.pricing[cycle];
           const isAnnual = cycle === 'annual';
-          const whatsappUrl = CONTACT_CONFIG.getUrl(
-            CONTACT_CONFIG.getPlanMessage(tier.name, cycle)
-          );
 
           return (
             <div
@@ -231,11 +251,10 @@ export default function PricingTiers() {
 
               {/* Botão de Chamada para Ação (CTA) */}
               <div className="pt-8">
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 px-4 text-xs sm:text-sm font-black transition-all duration-200 shadow-lg text-center ${
+                <button
+                  type="button"
+                  onClick={() => handleOpenCheckout(tier.id)}
+                  className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl py-3.5 px-4 text-xs sm:text-sm font-black transition-all duration-200 shadow-lg text-center cursor-pointer ${
                     tier.isHighlight
                       ? 'bg-[#88C0D0] text-[#242933] hover:bg-[#88C0D0]/90 shadow-[#88C0D0]/20 hover:scale-[1.02]'
                       : 'bg-[#3B4252] text-[#ECEFF4] hover:bg-[#4C566A] hover:text-white border border-[#4C566A]'
@@ -243,12 +262,19 @@ export default function PricingTiers() {
                 >
                   <span>{tier.ctaText}</span>
                   <span>&rarr;</span>
-                </a>
+                </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      <CheckoutModal
+        isOpen={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        initialTier={selectedTier}
+        initialCycle={mapBillingCycleToAsaas(cycle)}
+      />
     </section>
   );
 }

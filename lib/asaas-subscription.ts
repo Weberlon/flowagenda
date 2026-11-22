@@ -219,6 +219,7 @@ export async function processAsaasTenantSubscription(params: {
   lojistaId: string;
   cycle?: AsaasCycle;
   cpfCnpj?: string;
+  email?: string;
   incluirSetup?: boolean;
 }): Promise<{
   ok: boolean;
@@ -302,7 +303,7 @@ export async function processAsaasTenantSubscription(params: {
     const customerResult = await registerAsaasCustomerForTenant({
       lojistaId: lojista.id,
       name: lojista.nome_estabelecimento || lojista.nome_negocio,
-      email: lojista.email,
+      email: params.email || lojista.email || lojista.configuracoes?.responsavel_email,
       mobilePhone: lojista.whatsapp_notificacao || lojista.whatsapp,
       cpfCnpj: documentoLimpo,
     });
