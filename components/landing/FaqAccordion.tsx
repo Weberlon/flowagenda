@@ -39,9 +39,9 @@ export default function FaqAccordion() {
         'Nossa equipe de especialistas configura sua tabela de horários, cadastra seus serviços com durações e valores corretos, personaliza a página com seu logotipo/cores e realiza o primeiro teste de pareamento no WhatsApp. Nos planos Semestral e Anual, o Setup é bonificado com desconto ou 100% grátis.',
     },
     {
-      question: 'Existe contrato de fidelidade forçada ou multa por cancelamento?',
+      question: 'Como funcionam a vigência, a renovação e o cancelamento dos planos?',
       answer:
-        'Não. Você pode cancelar sua assinatura a qualquer momento diretamente pelo painel ou com nosso suporte, sem multas, sem burocracia e sem letras miúdas. Confiamos na qualidade da ferramenta para manter você conosco pelos resultados gerados.',
+        'Cada ciclo possui regras claras desde o momento da contratação via Asaas, sem renovações indesejadas: no plano Mensal, você tem liberdade para interromper a renovação do mês seguinte a qualquer momento. Nos ciclos Semestral e Anual, você recebe preço mensal reduzido e vantagens no setup (como 50% de desconto ou isenção) pelo compromisso do período contratado; nesses casos, o cancelamento encerra a renovação automática do próximo ciclo e mantém seu painel ativo até o fim da vigência já paga, conforme os termos do plano.',
     },
     {
       question: 'Como a trava de 10 minutos (PIN) evita furos e agendamentos falsos?',
