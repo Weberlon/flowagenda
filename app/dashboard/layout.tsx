@@ -234,6 +234,7 @@ export default async function DashboardLayout({
             tier: lojista.tier,
           }}
           userEmail={user.email}
+          isImpersonating={isImpersonating}
         />
 
         {/* Banner Superior de Pendência Financeira */}

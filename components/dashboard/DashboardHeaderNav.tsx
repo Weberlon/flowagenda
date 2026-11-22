@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { NotificacoesFeed } from '@/components/dashboard/NotificacoesFeed';
 import { BrandLogo } from '@/components/BrandLogo';
+import { AuthNavigationGuard } from '@/components/AuthNavigationGuard';
+import { logoutAction } from '@/app/actions/auth';
+import { LogOut } from 'lucide-react';
 
 interface DashboardHeaderNavProps {
   lojista: {
@@ -24,9 +27,14 @@ interface DashboardHeaderNavProps {
     tier: string;
   };
   userEmail?: string;
+  isImpersonating?: boolean;
 }
 
-export function DashboardHeaderNav({ lojista, userEmail }: DashboardHeaderNavProps) {
+export function DashboardHeaderNav({
+  lojista,
+  userEmail,
+  isImpersonating = false,
+}: DashboardHeaderNavProps) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const pathname = usePathname();
 
@@ -52,6 +60,12 @@ export function DashboardHeaderNav({ lojista, userEmail }: DashboardHeaderNavPro
             <Menu className="h-5 w-5" />
           </button>
 
+          <AuthNavigationGuard
+            rootPath="/dashboard"
+            isImpersonating={isImpersonating}
+            showExitButton={false}
+          />
+
           <div>
             <h2 className="text-base sm:text-lg font-bold tracking-tight text-[#ECEFF4] truncate max-w-[200px] sm:max-w-md">
               {lojista.nome_estabelecimento}
@@ -70,13 +84,23 @@ export function DashboardHeaderNav({ lojista, userEmail }: DashboardHeaderNavPro
           </div>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
           <NotificacoesFeed lojistaId={lojista.id} />
           {userEmail && (
-            <div className="text-xs sm:text-sm font-medium text-[#88C0D0] font-mono truncate max-w-[140px] sm:max-w-xs">
+            <div className="hidden sm:block text-xs sm:text-sm font-medium text-[#88C0D0] font-mono truncate max-w-[140px] sm:max-w-xs">
               {userEmail}
             </div>
           )}
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#BF616A]/40 bg-[#BF616A]/10 px-3 py-1.5 text-xs font-semibold text-[#BF616A] hover:bg-[#BF616A] hover:text-[#ECEFF4] transition-colors"
+              title="Encerrar sessão com segurança"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </form>
         </div>
       </header>
 

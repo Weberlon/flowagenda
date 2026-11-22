@@ -10,6 +10,7 @@ import FinalCta from '@/components/landing/FinalCta';
 import Footer from '@/components/landing/Footer';
 import { BrandLogo } from '@/components/BrandLogo';
 import { CONTACT_CONFIG } from '@/config/contact';
+import { createClient } from '@/utils/supabase/server';
 import { ShieldCheck, Check } from 'lucide-react';
 
 export const metadata = {
@@ -27,7 +28,34 @@ export const metadata = {
   },
 };
 
-export default function AppPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function AppPage() {
+  let painelHref: '/dashboard' | '/superadmin' | null = null;
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      painelHref =
+        profile?.role === 'super_admin' ||
+        profile?.role === 'superadmin' ||
+        profile?.role === 'admin'
+          ? '/superadmin'
+          : '/dashboard';
+    }
+  } catch {
+    // Mantém renderização pública mesmo sem sessão
+  }
+
   const whatsappConsultor = CONTACT_CONFIG.getUrl(
     CONTACT_CONFIG.getConsultantMessage()
   );
@@ -60,12 +88,21 @@ export default function AppPage() {
 
           {/* CTAs do Header */}
           <div className="flex items-center gap-3 sm:gap-4">
-            <Link
-              href="/login"
-              className="text-xs sm:text-sm font-bold text-[#D8DEE9] hover:text-[#ECEFF4] transition-colors px-2 py-1"
-            >
-              Entrar
-            </Link>
+            {painelHref ? (
+              <Link
+                href={painelHref}
+                className="rounded-full border border-[#88C0D0]/50 bg-[#2E3440] px-4 py-2 text-xs sm:text-sm font-bold text-[#88C0D0] hover:bg-[#3B4252] transition-colors"
+              >
+                Ir para o Painel
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="text-xs sm:text-sm font-bold text-[#D8DEE9] hover:text-[#ECEFF4] transition-colors px-2 py-1"
+              >
+                Entrar
+              </Link>
+            )}
             <a
               href="#planos"
               className="rounded-full bg-[#88C0D0] px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-all hover:scale-102"

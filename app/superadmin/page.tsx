@@ -6,6 +6,7 @@ import { AsaasSubscribeButton } from './asaas-subscribe-button';
 import { HealthCheckPanel } from './health-check-panel';
 import { SuperAdminAnalytics } from './superadmin-analytics';
 import { BrandLogo } from '@/components/BrandLogo';
+import { AuthNavigationGuard } from '@/components/AuthNavigationGuard';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -213,7 +214,8 @@ export default async function SuperAdminPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <AuthNavigationGuard rootPath="/superadmin" />
             <span className="inline-flex items-center gap-2 rounded-xl border border-[#4C566A] bg-[#2E3440] px-3.5 py-1.5 text-xs font-semibold text-[#ECEFF4] shadow-sm">
               <span className="h-2 w-2 rounded-full bg-[#A3BE8C] animate-pulse" />
               Super Admin: {user.email}
