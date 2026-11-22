@@ -30,13 +30,10 @@ export type TipoFichaClinica = 'odontograma' | 'mapa_estetico' | 'anamnese';
 
 export type StatusDenteFDI =
   | 'higido'
-  | 'carie'
-  | 'restaurado'
-  | 'ausente'
-  | 'canal'
-  | 'implante'
-  | 'coroa'
-  | 'extracao';
+  | 'tratamento'
+  | 'concluido'
+  | 'atencao'
+  | 'ausente';
 
 export interface DenteEstado {
   numero: number;
@@ -45,21 +42,24 @@ export interface DenteEstado {
   atualizado_em?: string;
 }
 
+export type VistaMapaEstetico = 'facial' | 'corporal_frente' | 'corporal_costas';
+
 export interface MarcadorEstetico {
   id: string;
+  vista: VistaMapaEstetico;
   x: number;
   y: number;
-  regiao: string;
   procedimento: string;
+  produtoOuDose?: string;
   observacao?: string;
-  data?: string;
+  dataRegistro: string;
 }
 
 export interface FichaClinica {
   id: string;
   lojista_id: string;
   cliente_id: string;
-  tipo: TipoFichaClinica;
+  tipo_ficha: TipoFichaClinica;
   dados_json: {
     dentes?: Record<number, DenteEstado>;
     marcadores?: MarcadorEstetico[];

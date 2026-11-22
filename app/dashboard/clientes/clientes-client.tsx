@@ -18,7 +18,9 @@ import {
 import VoiceNoteRecorder from '@/components/crm/VoiceNoteRecorder';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { PetsManagerModal } from '@/components/dashboard/PetsManagerModal';
-import { PawPrint } from 'lucide-react';
+import { OdontogramaModal } from '@/components/dashboard/OdontogramaModal';
+import { MapaEsteticoModal } from '@/components/dashboard/MapaEsteticoModal';
+import { PawPrint, Stethoscope, Sparkles } from 'lucide-react';
 
 const SYSTEM_METADATA_KEYS = new Set([
   'ai_paused_until',
@@ -88,9 +90,11 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [isTogglingAi, setIsTogglingAi] = useState(false);
   const [isPendingHandoff, setIsPendingHandoff] = useState(false);
 
-  // Modal Novo Cliente
+  // Modal Novo Cliente e Modais de Nicho
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [petModalCliente, setPetModalCliente] = useState<ClienteCRM | null>(null);
+  const [odontogramaModalCliente, setOdontogramaModalCliente] = useState<ClienteCRM | null>(null);
+  const [mapaEsteticoModalCliente, setMapaEsteticoModalCliente] = useState<ClienteCRM | null>(null);
   const [novoNome, setNovoNome] = useState('');
   const [novoTelefone, setNovoTelefone] = useState('');
   const [novaEtapa, setNovaEtapa] = useState('lead');
@@ -775,6 +779,28 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                     <span>Pets</span>
                                   </button>
                                 )}
+
+                                {dict.features.hasOdontograma && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setOdontogramaModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-md bg-[#88C0D0]/15 border border-[#88C0D0]/40 px-2 py-0.5 text-[10px] font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                                  >
+                                    <Stethoscope className="w-3 h-3" />
+                                    <span>Odontograma</span>
+                                  </button>
+                                )}
+
+                                {dict.features.hasMapaEstetico && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setMapaEsteticoModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-md bg-[#B48EAD]/15 border border-[#B48EAD]/40 px-2 py-0.5 text-[10px] font-bold text-[#B48EAD] hover:bg-[#B48EAD] hover:text-[#2E3440] transition"
+                                  >
+                                    <Sparkles className="w-3 h-3" />
+                                    <span>Mapa Estético</span>
+                                  </button>
+                                )}
                               </div>
 
                               {/* Menu Rápido de 1 Clique */}
@@ -906,6 +932,26 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                   >
                                     <PawPrint className="w-3.5 h-3.5" />
                                     <span>Pets</span>
+                                  </button>
+                                )}
+                                {dict.features.hasOdontograma && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setOdontogramaModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[#88C0D0]/15 border border-[#88C0D0]/40 px-2.5 py-1 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                                  >
+                                    <Stethoscope className="w-3.5 h-3.5" />
+                                    <span>Odontograma</span>
+                                  </button>
+                                )}
+                                {dict.features.hasMapaEstetico && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setMapaEsteticoModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[#B48EAD]/15 border border-[#B48EAD]/40 px-2.5 py-1 text-xs font-bold text-[#B48EAD] hover:bg-[#B48EAD] hover:text-[#2E3440] transition"
+                                  >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span>Mapa Estético</span>
                                   </button>
                                 )}
                                 <a
@@ -1095,6 +1141,28 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                 >
                   <PawPrint className="w-4 h-4" />
                   <span>Gerenciar Pets deste Tutor</span>
+                </button>
+              )}
+
+              {dict.features.hasOdontograma && (
+                <button
+                  type="button"
+                  onClick={() => setOdontogramaModalCliente(activeCliente)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#88C0D0]/50 bg-[#88C0D0]/15 px-3 py-2.5 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                >
+                  <Stethoscope className="w-4 h-4" />
+                  <span>Abrir Odontograma do Paciente</span>
+                </button>
+              )}
+
+              {dict.features.hasMapaEstetico && (
+                <button
+                  type="button"
+                  onClick={() => setMapaEsteticoModalCliente(activeCliente)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#B48EAD]/50 bg-[#B48EAD]/15 px-3 py-2.5 text-xs font-bold text-[#B48EAD] hover:bg-[#B48EAD] hover:text-[#2E3440] transition"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Abrir Mapa Estético do Paciente</span>
                 </button>
               )}
 
@@ -1529,6 +1597,26 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
           lojistaId={lojista.id}
           clienteId={petModalCliente.id}
           clienteNome={petModalCliente.nome}
+        />
+      )}
+
+      {dict.features.hasOdontograma && odontogramaModalCliente && (
+        <OdontogramaModal
+          isOpen={Boolean(odontogramaModalCliente)}
+          onClose={() => setOdontogramaModalCliente(null)}
+          lojistaId={lojista.id}
+          clienteId={odontogramaModalCliente.id}
+          clienteNome={odontogramaModalCliente.nome}
+        />
+      )}
+
+      {dict.features.hasMapaEstetico && mapaEsteticoModalCliente && (
+        <MapaEsteticoModal
+          isOpen={Boolean(mapaEsteticoModalCliente)}
+          onClose={() => setMapaEsteticoModalCliente(null)}
+          lojistaId={lojista.id}
+          clienteId={mapaEsteticoModalCliente.id}
+          clienteNome={mapaEsteticoModalCliente.nome}
         />
       )}
     </div>
