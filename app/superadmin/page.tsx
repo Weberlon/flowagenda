@@ -5,6 +5,7 @@ import { OnboardingForm } from './onboarding-form';
 import { AsaasSubscribeButton } from './asaas-subscribe-button';
 import { HealthCheckPanel } from './health-check-panel';
 import { SuperAdminAnalytics } from './superadmin-analytics';
+import { SiteLojistaPanel, type SiteLojistaRegistro } from './site-lojista-panel';
 import { BrandLogo } from '@/components/BrandLogo';
 import { AuthNavigationGuard } from '@/components/AuthNavigationGuard';
 import Link from 'next/link';
@@ -64,8 +65,8 @@ export default async function SuperAdminPage() {
 
   const lojistas = lojistasData || [];
 
-  // 2. Busca métricas analíticas da plataforma em paralelo
-  const [agendamentosRes, chatQueueCountRes, webhookEventosCountRes] =
+  // 2. Busca métricas analíticas da plataforma e sites publicados em paralelo
+  const [agendamentosRes, chatQueueCountRes, webhookEventosCountRes, sitesLojistasRes] =
     await Promise.all([
       adminClient
         .from('agendamentos')
@@ -76,7 +77,14 @@ export default async function SuperAdminPage() {
       adminClient
         .from('webhook_eventos_processados')
         .select('id', { count: 'exact', head: true }),
+      adminClient
+        .from('sites_lojistas')
+        .select('id, lojista_id, slug, status, liberacao_manual, dominio_proprio, blueprint, updated_at'),
     ]);
+
+  const sitesIniciais = (
+    sitesLojistasRes.error ? [] : sitesLojistasRes.data || []
+  ) as SiteLojistaRegistro[];
 
   const allAgendamentos = agendamentosRes.data || [];
   const totalAgendamentosCount = allAgendamentos.length;
@@ -354,12 +362,27 @@ export default async function SuperAdminPage() {
           </div>
         </div>
 
-        {/* Seção 2: Diagnóstico & Reparação do Sistema */}
+        {/* Seção 2: Sites e Landing Pages por Lojista */}
+        <div>
+          <SiteLojistaPanel
+            lojistas={lojistas.map((l: any) => ({
+              id: l.id,
+              nome_estabelecimento: l.nome_estabelecimento,
+              slug_subdominio: l.slug_subdominio,
+              tier: l.tier,
+              status_pagamento: l.status_pagamento,
+              is_founder: l.is_founder,
+            }))}
+            sitesIniciais={sitesIniciais}
+          />
+        </div>
+
+        {/* Seção 3: Diagnóstico & Reparação do Sistema */}
         <div>
           <HealthCheckPanel />
         </div>
 
-        {/* Seção 3: Formulário de Onboarding de Novo Lojista */}
+        {/* Seção 4: Formulário de Onboarding de Novo Lojista */}
         <div>
           <OnboardingForm />
         </div>
