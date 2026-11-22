@@ -34,3 +34,88 @@
     box-shadow: 0 0 25px -5px rgba(136, 192, 208, 0.25);
   }
 }
+
+/* ============================================================================
+ * Animação CSS pura do Calendário Mensal na Hero (GPU: transform + opacity)
+ * ============================================================================ */
+@keyframes flowCalendarZoomGrow {
+  0% {
+    opacity: 0.92;
+    transform: scale(0.92);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+  68% {
+    opacity: 1;
+    transform: scale(1.042) translateY(-3px);
+  }
+  90% {
+    opacity: 1;
+    transform: scale(1.03) translateY(0px);
+  }
+  100% {
+    opacity: 0.88;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes flowCellFill {
+  0% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes flowCellCheck {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.flow-calendar-stage {
+  transform-origin: center center;
+  will-change: transform, opacity;
+  animation: flowCalendarZoomGrow 8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.flow-calendar-fill {
+  opacity: 0;
+  transform: scale(0.75);
+  will-change: transform, opacity;
+  animation: flowCellFill 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--cell-index, 0) * 120ms);
+}
+
+.flow-calendar-check {
+  opacity: 0;
+  transform: scale(0.35);
+  will-change: transform, opacity;
+  animation: flowCellCheck 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--cell-index, 0) * 120ms + 40ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-calendar-stage {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .flow-calendar-fill,
+  .flow-calendar-check {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+}

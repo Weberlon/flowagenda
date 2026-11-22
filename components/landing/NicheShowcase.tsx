@@ -102,24 +102,25 @@ export default function NicheShowcase() {
   const [activeNiche, setActiveNiche] = useState<NicheItem>(niches[0]);
 
   return (
-    <section id="nichos" className="py-20 sm:py-28 bg-[#2E3440] border-t border-[#3B4252]/60 overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Cabeçalho */}
-        <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-          <span className="inline-block px-3.5 py-1 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] text-xs font-bold border border-[#88C0D0]/30 mb-4">
-            Feito Sob Medida Para o Seu Mercado
-          </span>
+    <section id="nichos" className="py-16 sm:py-24 bg-[#2E3440] border-t border-[#3B4252]/60 overflow-x-clip">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* Cabeçalho Minimalista */}
+        <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#ECEFF4] tracking-tight">
-            A Secretária IA adaptada para o{' '}
+            Adaptado para o{' '}
             <span className="text-[#88C0D0]">seu tipo de negócio</span>
           </h2>
-          <p className="text-sm sm:text-base text-[#D8DEE9]/80 mt-4 leading-relaxed">
-            Seja um corte de 20 minutos ou uma harmonização facial de 2 horas, o FlowAgenda entende o vocabulário e a dinâmica do seu segmento.
+          <p className="text-sm sm:text-base text-[#D8DEE9]/80 mt-3 leading-relaxed">
+            De um corte rápido de 20 min a uma sessão de 2 horas, a IA entende seus serviços, durações e regras.
           </p>
         </div>
 
-        {/* Seletor de Nichos em Pílulas */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-10 no-scrollbar justify-start lg:justify-center">
+        {/* Seletor Minimalista em Grade (sem barra de rolagem, 100% visível) */}
+        <div
+          role="tablist"
+          aria-label="Segmentos atendidos pelo FlowAgenda"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-8"
+        >
           {niches.map((niche) => {
             const Icon = niche.icon;
             const isSelected = activeNiche.id === niche.id;
@@ -127,15 +128,17 @@ export default function NicheShowcase() {
               <button
                 key={niche.id}
                 type="button"
+                role="tab"
+                aria-selected={isSelected}
                 onClick={() => setActiveNiche(niche)}
-                className={`flex shrink-0 items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all ${
+                className={`min-h-[44px] flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#88C0D0] ${
                   isSelected
-                    ? 'bg-[#88C0D0] text-[#242933] shadow-lg shadow-[#88C0D0]/20 scale-102'
-                    : 'bg-[#242933] text-[#D8DEE9] hover:bg-[#3B4252] border border-[#3B4252]'
+                    ? 'bg-[#88C0D0] text-[#242933] shadow-md shadow-[#88C0D0]/20'
+                    : 'bg-[#242933]/90 text-[#D8DEE9] hover:bg-[#3B4252] border border-[#3B4252]'
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                <span>{niche.name}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{niche.shortName}</span>
               </button>
             );
           })}
@@ -145,11 +148,11 @@ export default function NicheShowcase() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeNiche.id}
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.35 }}
-            className="rounded-3xl border border-[#3B4252] bg-gradient-to-br from-[#242933] to-[#242933]/90 p-6 sm:p-10 lg:p-12 shadow-2xl"
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.28 }}
+            className="rounded-3xl border border-[#3B4252] bg-[#242933]/95 p-6 sm:p-8 lg:p-10 shadow-2xl"
           >
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               {/* Coluna Esquerda: Benefícios */}
@@ -176,9 +179,17 @@ export default function NicheShowcase() {
                   ))}
                 </div>
 
-                <div className="pt-4 border-t border-[#3B4252] flex items-center gap-2 text-xs font-mono font-bold text-[#A3BE8C]">
-                  <span>✦ Impacto medido:</span>
-                  <span className="text-[#ECEFF4] font-normal">{activeNiche.metrics}</span>
+                <div className="pt-4 border-t border-[#3B4252] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#A3BE8C]">
+                    <span>✦ Impacto medido:</span>
+                    <span className="text-[#ECEFF4] font-normal">{activeNiche.metrics}</span>
+                  </div>
+                  <a
+                    href="#planos"
+                    className="inline-flex shrink-0 items-center justify-center rounded-xl bg-[#88C0D0] px-4 py-2 text-xs font-black text-[#242933] hover:bg-[#88C0D0]/90 transition-colors"
+                  >
+                    Ativar no meu negócio →
+                  </a>
                 </div>
               </div>
 

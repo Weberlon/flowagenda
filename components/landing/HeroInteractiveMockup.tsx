@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Check } from 'lucide-react';
 
 export default function HeroInteractiveMockup() {
   const [mounted, setMounted] = useState(false);
@@ -19,6 +20,7 @@ export default function HeroInteractiveMockup() {
   // Step 3: Revelação sequencial do PIN + contagem regressiva
   const [simStep, setSimStep] = useState<number>(0);
   const [countdownSecs, setCountdownSecs] = useState<number>(582); // 09:42
+  const [calendarCycle, setCalendarCycle] = useState<number>(0);
 
   useEffect(() => {
     setMounted(true);
@@ -31,9 +33,15 @@ export default function HeroInteractiveMockup() {
       setCountdownSecs((prev) => (prev > 0 ? prev - 1 : 582));
     }, 1000);
 
+    // Sincroniza o loop de preenchimento + zoom do calendário a cada 8 segundos
+    const calendarInterval = setInterval(() => {
+      setCalendarCycle((prev) => prev + 1);
+    }, 8000);
+
     return () => {
       clearInterval(stepInterval);
       clearInterval(countdownInterval);
+      clearInterval(calendarInterval);
     };
   }, []);
 
@@ -44,6 +52,8 @@ export default function HeroInteractiveMockup() {
   };
 
   const pinDigits = ['8', '4', '9', '2'];
+  const weekLabels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  const calendarDays = Array.from({ length: 30 }, (_, index) => index + 1);
 
   return (
     <div className="w-full max-w-full overflow-hidden rounded-3xl border border-white/[0.08] bg-[#2E3440]/90 text-[#ECEFF4] shadow-2xl shadow-black/50 hover:border-[#88C0D0]/40 hover:shadow-[#88C0D0]/5 backdrop-blur-xl transition-all duration-500">
@@ -128,89 +138,74 @@ export default function HeroInteractiveMockup() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch min-w-0">
           
           {/* ============================================================== */}
-          {/* COLUNA ESQUERDA: Grade da Agenda com Slot das 15:30            */}
+          {/* COLUNA ESQUERDA: Calendário Mensal (30 células com Zoom + CSS)  */}
           {/* ============================================================== */}
-          <div className="lg:col-span-7 min-w-0 rounded-2xl border border-white/[0.06] bg-[#242933]/90 p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-inner">
-            <div className="flex items-center justify-between text-xs font-mono text-[#D8DEE9]/70">
-              <span className="font-bold uppercase tracking-wider text-[#ECEFF4]">Grade de Horários • Hoje</span>
-              <span className="text-[#88C0D0]">Tempo Real</span>
-            </div>
-
-            {/* Grid com 6 Slots de Horário */}
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {/* 10:00 - Ocupado */}
-              <div className="rounded-xl border border-white/[0.05] bg-[#2E3440]/60 p-2.5 text-center text-[#D8DEE9]/50">
-                <span className="font-mono block">10:00</span>
-                <span className="text-[10px] text-[#BF616A] font-semibold mt-0.5 block">Ocupado</span>
-              </div>
-
-              {/* 11:30 - Ocupado */}
-              <div className="rounded-xl border border-white/[0.05] bg-[#2E3440]/60 p-2.5 text-center text-[#D8DEE9]/50">
-                <span className="font-mono block">11:30</span>
-                <span className="text-[10px] text-[#BF616A] font-semibold mt-0.5 block">Ocupado</span>
-              </div>
-
-              {/* 14:00 - Livre */}
-              <div className="rounded-xl border border-[#3B4252] bg-[#2E3440] p-2.5 text-center text-[#ECEFF4]">
-                <span className="font-mono block">14:00</span>
-                <span className="text-[10px] text-[#A3BE8C] font-semibold mt-0.5 block">Disponível</span>
-              </div>
-
-              {/* 15:30 - O SLOT ALVO QUE MUDA DE ESTADO (Step 2 e 3) */}
-              <motion.div 
-                animate={{
-                  borderColor: simStep >= 2 ? '#88C0D0' : '#3B4252',
-                  backgroundColor: simStep >= 2 ? 'rgba(136, 192, 208, 0.15)' : 'rgba(46, 52, 64, 1)',
-                  scale: simStep >= 2 ? [1, 1.03, 1] : 1,
-                }}
-                transition={{ duration: 0.4 }}
-                className={`rounded-xl border p-2.5 text-center transition-all ${
-                  simStep >= 2
-                    ? 'border-[#88C0D0] ring-2 ring-[#88C0D0]/30 shadow-lg shadow-[#88C0D0]/10'
-                    : 'border-[#3B4252] bg-[#2E3440]'
-                }`}
-              >
-                <div className="flex items-center justify-center gap-1 font-mono font-bold text-[#ECEFF4]">
-                  <span>15:30</span>
-                  {simStep >= 2 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="text-[#88C0D0] text-[11px]"
-                    >
-                      🔒
-                    </motion.span>
-                  )}
+          <div className="lg:col-span-7 min-w-0 p-1 sm:p-1.5 flex items-stretch">
+            <div
+              key={calendarCycle}
+              className="flow-calendar-stage w-full min-h-[316px] rounded-2xl border border-[#3B4252] bg-[#242933]/95 p-4 sm:p-5 flex flex-col justify-between space-y-3 shadow-xl shadow-black/30"
+            >
+              {/* Cabeçalho explícito de valor: Agenda Cheia + Google 5★ */}
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#EBCB8B]/40 bg-[#EBCB8B]/10 px-2.5 py-0.5 text-[10px] font-bold text-[#EBCB8B]">
+                    <span>★ 5.0 no Google Meu Negócio</span>
+                  </span>
+                  <span className="shrink-0 rounded-full border border-[#A3BE8C]/35 bg-[#A3BE8C]/10 px-2.5 py-0.5 text-[10px] font-mono font-semibold text-[#A3BE8C]">
+                    Ocupação Automática
+                  </span>
                 </div>
-                <span className={`text-[10px] font-bold mt-0.5 block transition-colors ${
-                  simStep >= 2 ? 'text-[#88C0D0]' : 'text-[#A3BE8C]'
-                }`}>
-                  {simStep >= 2 ? 'Pré-reservado' : 'Disponível'}
+                <p className="font-black tracking-tight text-[#ECEFF4] text-sm sm:text-base leading-snug">
+                  Agenda lotada todo mês e <span className="text-[#EBCB8B]">5★ no Google</span>
+                </p>
+                <p className="text-[11px] text-[#D8DEE9]/75 leading-snug">
+                  Cada horário confirmado no WhatsApp gera avaliação automática no seu perfil.
+                </p>
+              </div>
+
+              {/* Cabeçalho dos dias da semana */}
+              <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-mono font-bold text-[#D8DEE9]/55">
+                {weekLabels.map((label, idx) => (
+                  <span key={`${label}-${idx}`}>{label}</span>
+                ))}
+              </div>
+
+              {/* Grade fixa de 30 células (CLS = 0) */}
+              <div className="grid grid-cols-7 gap-1.5">
+                {calendarDays.map((day, idx) => (
+                  <div
+                    key={day}
+                    style={{ '--cell-index': idx } as React.CSSProperties}
+                    className="relative h-9 sm:h-10 rounded-lg border border-[#3B4252] bg-[#2E3440]/90 p-1.5 flex items-start justify-between overflow-hidden"
+                  >
+                    {/* Bloco de reserva preenchido progressivamente via CSS em Verde Sálvia */}
+                    <span
+                      aria-hidden="true"
+                      className="flow-calendar-fill absolute inset-0 rounded-lg border border-[#A3BE8C]/40 bg-[#A3BE8C]/15"
+                    />
+                    <span className="relative z-10 text-[10px] sm:text-[11px] font-mono font-bold text-[#ECEFF4] leading-none">
+                      {String(day).padStart(2, '0')}
+                    </span>
+                    {/* Check (✓) em verde sálvia no canto inferior direito */}
+                    <Check
+                      aria-hidden="true"
+                      strokeWidth={3}
+                      className="flow-calendar-check absolute bottom-1 right-1 z-10 h-3 w-3 text-[#A3BE8C]"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Rodapé do Calendário com Status da Trava */}
+              <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between gap-2 text-[11px] text-[#D8DEE9]/75 font-mono">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-[#88C0D0]" />
+                  Trava Atômica: 10 min
                 </span>
-              </motion.div>
-
-              {/* 17:00 - Disponível */}
-              <div className="rounded-xl border border-[#3B4252] bg-[#2E3440] p-2.5 text-center text-[#ECEFF4]">
-                <span className="font-mono block">17:00</span>
-                <span className="text-[10px] text-[#A3BE8C] font-semibold mt-0.5 block">Disponível</span>
+                <span className="text-[#A3BE8C] font-bold">
+                  ✓ 30/30 dias confirmados
+                </span>
               </div>
-
-              {/* 18:30 - Ocupado */}
-              <div className="rounded-xl border border-white/[0.05] bg-[#2E3440]/60 p-2.5 text-center text-[#D8DEE9]/50">
-                <span className="font-mono block">18:30</span>
-                <span className="text-[10px] text-[#BF616A] font-semibold mt-0.5 block">Ocupado</span>
-              </div>
-            </div>
-
-            {/* Rodapé da Grade com Status da Trava */}
-            <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-[#D8DEE9]/70 font-mono">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#88C0D0]" />
-                Trava Atômica: 10 min
-              </span>
-              <span className="text-[#A3BE8C] font-bold">
-                {simStep >= 2 ? '✓ Slot Bloqueado' : 'Pronto para Reserva'}
-              </span>
             </div>
           </div>
 

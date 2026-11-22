@@ -88,7 +88,7 @@ export default function HeroSection({
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#A3BE8C]" />
               </span>
               <span className="text-[#D8DEE9] text-[11px] sm:text-xs">
-                Secretária IA 24h no WhatsApp • <strong className="text-[#88C0D0] font-mono">Evolution API v2</strong>
+                Secretária IA 24h no WhatsApp • <strong className="text-[#A3BE8C]">Agenda Cheia & 5★ no Google</strong>
               </span>
             </motion.div>
 
@@ -99,9 +99,9 @@ export default function HeroSection({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
             >
-              A Secretária IA que lota a sua agenda no WhatsApp.{' '}
-              <span className="bg-gradient-to-r from-[#ECEFF4] via-[#88C0D0] to-[#81A1C1] bg-clip-text text-transparent">
-                24 horas por dia, sem você parar de trabalhar.
+              A Secretária IA que lota sua agenda no WhatsApp.{' '}
+              <span className="bg-gradient-to-r from-[#ECEFF4] via-[#88C0D0] to-[#A3BE8C] bg-clip-text text-transparent">
+                24h por dia, sem você largar o atendimento.
               </span>
             </motion.h1>
 
@@ -112,7 +112,7 @@ export default function HeroSection({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
             >
-              Projetado sob medida para <strong>Barbearias, Salões de Beleza, Clínicas de Estética, Odontologia, Pet Shops e Estúdios de Tatuagem</strong>. O robô atende imediatamente, valida horários com código PIN e dispara lembretes que eliminam as faltas.
+              Feito para <strong>Barbearias, Salões, Estética, Odontologia, Pet Shops e Estúdios de Tatuagem</strong>. O robô responde na hora, confirma horários com código PIN, evita faltas com lembretes e pede avaliações 5★ no Google automaticamente.
             </motion.p>
 
             {/* CTAs com Estilo Pill e Efeitos de Hover */}
@@ -126,9 +126,9 @@ export default function HeroSection({
                 href="#planos"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-full bg-[#88C0D0] px-8 py-4 text-xs sm:text-sm font-black text-[#242933] shadow-xl shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-colors text-center cursor-pointer"
+                className="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2.5 rounded-full bg-[#88C0D0] px-8 py-4 text-xs sm:text-sm font-black text-[#242933] shadow-xl shadow-[#88C0D0]/25 hover:bg-[#88C0D0]/90 transition-colors text-center cursor-pointer"
               >
-                <span>Começar Agora</span>
+                <span>Quero Lotar Minha Agenda</span>
                 <ArrowRight className="h-4 w-4" />
               </motion.a>
 
@@ -139,10 +139,10 @@ export default function HeroSection({
               >
                 <Link
                   href="/tenant/barbeariamodelo"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-[#2E3440]/80 px-7 py-4 text-xs sm:text-sm font-bold text-[#ECEFF4] hover:border-[#88C0D0]/40 hover:bg-[#2E3440] transition-all text-center backdrop-blur-xl"
+                  className="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-[#2E3440]/85 px-7 py-4 text-xs sm:text-sm font-bold text-[#ECEFF4] hover:border-[#88C0D0]/50 hover:bg-[#2E3440] transition-colors text-center backdrop-blur-xl"
                 >
                   <Eye className="h-4 w-4 text-[#88C0D0]" />
-                  <span>Ver Demonstração ao Vivo</span>
+                  <span>Ver Agenda ao Vivo</span>
                 </Link>
               </motion.div>
             </motion.div>
