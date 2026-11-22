@@ -138,7 +138,7 @@ export default function HeroSection({
                 className="w-full sm:w-auto"
               >
                 <Link
-                  href="/tenant/barbeariamodelo"
+                  href="/demo"
                   className="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2 rounded-full border border-white/[0.1] bg-[#2E3440]/85 px-7 py-4 text-xs sm:text-sm font-bold text-[#ECEFF4] hover:border-[#88C0D0]/50 hover:bg-[#2E3440] transition-colors text-center backdrop-blur-xl"
                 >
                   <Eye className="h-4 w-4 text-[#88C0D0]" />

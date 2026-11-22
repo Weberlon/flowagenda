@@ -6,6 +6,7 @@ import { AsaasSubscribeButton } from './asaas-subscribe-button';
 import { HealthCheckPanel } from './health-check-panel';
 import { SuperAdminAnalytics } from './superadmin-analytics';
 import { SiteLojistaPanel, type SiteLojistaRegistro } from './site-lojista-panel';
+import { ManutencaoPanel } from './manutencao-panel';
 import { BrandLogo } from '@/components/BrandLogo';
 import { AuthNavigationGuard } from '@/components/AuthNavigationGuard';
 import Link from 'next/link';
@@ -377,7 +378,22 @@ export default async function SuperAdminPage() {
           />
         </div>
 
-        {/* Seção 3: Diagnóstico & Reparação do Sistema */}
+        {/* Seção 3: Limpeza de Testes, Cobranças e Cortesia Segura */}
+        <div>
+          <ManutencaoPanel
+            lojistas={lojistas.map((l: any) => ({
+              id: l.id,
+              nome_estabelecimento: l.nome_estabelecimento,
+              slug_subdominio: l.slug_subdominio,
+              tier: l.tier,
+              status_pagamento: l.status_pagamento,
+              is_founder: l.is_founder,
+              asaas_subscription_id: l.asaas_subscription_id,
+            }))}
+          />
+        </div>
+
+        {/* Seção 4: Diagnóstico & Reparação do Sistema */}
         <div>
           <HealthCheckPanel />
         </div>
