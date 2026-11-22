@@ -4,8 +4,9 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { getWhatsAppComercialUrl } from '@/lib/contact';
-import { NotificacoesFeed } from '@/components/dashboard/NotificacoesFeed';
 import { fetchPendingAsaasInvoiceUrl } from '@/lib/asaas-subscription';
+import { DashboardHeaderNav } from '@/components/dashboard/DashboardHeaderNav';
+import { Calendar, Scissors, Users, Settings, ExternalLink } from 'lucide-react';
 
 export default async function DashboardLayout({
   children,
@@ -143,27 +144,62 @@ export default async function DashboardLayout({
       
       {/* Sidebar Compacta (Nord Dark) */}
       <aside className="w-64 flex-col border-r border-[#3B4252] bg-[#242933] hidden md:flex">
-        <div className="flex h-16 items-center px-6 border-b border-[#3B4252]">
+        <div className="flex h-16 items-center px-6 border-b border-[#3B4252] gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#88C0D0] to-[#81A1C1] text-[#242933] font-black">
+            <Calendar className="h-5 w-5" />
+          </div>
           <span className="font-bold text-lg tracking-tight text-[#ECEFF4]">FlowAgenda</span>
         </div>
         
-        <nav className="flex-1 space-y-2 p-4 text-sm font-medium">
-          <Link href="/dashboard" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
-            Agenda
+        <nav className="flex-1 space-y-1.5 p-4 text-xs sm:text-sm font-semibold">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors"
+          >
+            <Calendar className="h-4 w-4 text-[#88C0D0]" />
+            <span>Agenda & Métricas</span>
           </Link>
-          <Link href="/dashboard/servicos" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
-            Serviços
+          <Link
+            href="/dashboard/servicos"
+            className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors"
+          >
+            <Scissors className="h-4 w-4 text-[#81A1C1]" />
+            <span>Serviços</span>
           </Link>
-          <Link href="/dashboard/clientes" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
-            Clientes
+          <Link
+            href="/dashboard/clientes"
+            className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors"
+          >
+            <Users className="h-4 w-4 text-[#A3BE8C]" />
+            <span>Clientes (CRM)</span>
           </Link>
-          <Link href="/dashboard/configuracoes" className="block rounded-md px-3 py-2 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors">
-            Configurações
+          <Link
+            href="/dashboard/configuracoes"
+            className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[#D8DEE9] hover:bg-[#3B4252] hover:text-[#ECEFF4] transition-colors"
+          >
+            <Settings className="h-4 w-4 text-[#EBCB8B]" />
+            <span>Configurações IA</span>
           </Link>
         </nav>
         
-        <div className="p-4 border-t border-[#3B4252] text-xs text-[#88C0D0]/80">
-          <p>Plano: {lojista.tier}</p>
+        <div className="p-4 border-t border-[#3B4252] text-xs space-y-2">
+          <div className="flex items-center justify-between text-[#88C0D0]">
+            <span className="font-semibold">Plano</span>
+            <span className="font-mono uppercase bg-[#88C0D0]/10 px-2 py-0.5 rounded border border-[#88C0D0]/30 text-[10px]">
+              {lojista.tier}
+            </span>
+          </div>
+          {lojista.slug_subdominio && (
+            <a
+              href={`https://${lojista.slug_subdominio}.flowagenda.online`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between text-[11px] text-[#D8DEE9]/70 hover:text-[#88C0D0] transition-colors"
+            >
+              <span>Ver Página Pública</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </div>
       </aside>
 
@@ -189,18 +225,16 @@ export default async function DashboardLayout({
           </div>
         )}
 
-        {/* Header (Nord Dark) */}
-        <header className="relative z-30 flex h-16 items-center justify-between border-b border-[#3B4252] bg-[#2E3440] px-6 shadow-sm">
-          <h2 className="text-lg font-semibold tracking-tight text-[#ECEFF4]">
-            {lojista.nome_estabelecimento}
-          </h2>
-          <div className="flex items-center gap-4">
-            <NotificacoesFeed lojistaId={lojistaId} />
-            <div className="text-sm font-medium text-[#88C0D0]">
-              {user.email}
-            </div>
-          </div>
-        </header>
+        {/* Header Responsivo (Nord Dark com Drawer Mobile) */}
+        <DashboardHeaderNav
+          lojista={{
+            id: lojistaId,
+            nome_estabelecimento: lojista.nome_estabelecimento,
+            slug_subdominio: lojista.slug_subdominio,
+            tier: lojista.tier,
+          }}
+          userEmail={user.email}
+        />
 
         {/* Banner Superior de Pendência Financeira */}
         {isPaymentBlocked && (

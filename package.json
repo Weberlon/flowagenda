@@ -16,6 +16,7 @@
     "@supabase/supabase-js": "latest",
     "dayjs": "^1.11.23",
     "framer-motion": "^14.1.0",
+    "lucide-react": "^1.77.0",
     "next": "latest",
     "openai": "^7.53.0",
     "react": "latest",

@@ -182,13 +182,13 @@ export function ConfiguracoesClient({
   };
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-8 pb-12 text-[#ECEFF4]">
       {/* Top Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-2xl font-bold tracking-tight text-[#ECEFF4]">
           Configurações do Estabelecimento
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-[#D8DEE9]/80">
           Gerencie a integração do robô de WhatsApp, links de agendamento e automações de atendimento.
         </p>
       </div>
@@ -209,29 +209,29 @@ export function ConfiguracoesClient({
           />
           
           {/* Card WhatsApp Connection */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-5 border-b border-slate-100 gap-4">
+          <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-5 border-b border-[#3B4252] gap-4">
               <div>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-bold text-slate-900">Robô WhatsApp (Evolution API)</h2>
+                  <h2 className="text-lg font-bold text-[#ECEFF4]">Robô WhatsApp (Evolution API)</h2>
                   {isConnected ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#A3BE8C]/15 px-2.5 py-1 text-xs font-semibold text-[#A3BE8C] border border-[#A3BE8C]/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#A3BE8C] animate-pulse" />
                       Conectado
                     </span>
                   ) : isConnecting ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 border border-blue-200">
-                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#88C0D0]/15 px-2.5 py-1 text-xs font-semibold text-[#88C0D0] border border-[#88C0D0]/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#88C0D0] animate-ping" />
                       Conectando...
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 border border-amber-200">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EBCB8B]/15 px-2.5 py-1 text-xs font-semibold text-[#EBCB8B] border border-[#EBCB8B]/30">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#EBCB8B]" />
                       Aguardando Pareamento
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-1 font-mono">
+                <p className="text-xs text-[#D8DEE9]/70 mt-1 font-mono">
                   Instância: {configRobo?.instance_name || 'Não inicializada'}
                 </p>
               </div>
@@ -241,10 +241,10 @@ export function ConfiguracoesClient({
                   type="button"
                   onClick={handleRefreshStatus}
                   disabled={isRefreshing}
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-sm"
+                  className="inline-flex items-center justify-center rounded-xl border border-[#4C566A] bg-[#242933] px-3.5 py-2 text-xs font-semibold text-[#ECEFF4] hover:bg-[#3B4252] disabled:opacity-50 transition-colors shadow-sm"
                   title="Atualizar Status"
                 >
-                  <svg className={`h-4 w-4 mr-1.5 text-slate-500 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className={`h-4 w-4 mr-1.5 text-[#88C0D0] ${isRefreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   {isRefreshing ? 'Verificando...' : 'Sincronizar'}
@@ -253,7 +253,7 @@ export function ConfiguracoesClient({
             </div>
 
             {statusFeedback && (
-              <div className="mt-4 rounded-lg bg-slate-100 p-3 text-xs font-medium text-slate-800 border border-slate-200">
+              <div className="mt-4 rounded-xl bg-[#242933] p-3 text-xs font-medium text-[#ECEFF4] border border-[#4C566A]">
                 {statusFeedback}
               </div>
             )}
@@ -261,16 +261,16 @@ export function ConfiguracoesClient({
             {/* Conteúdo do Estado */}
             <div className="pt-6">
               {isConnected ? (
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 rounded-xl bg-emerald-50/50 border border-emerald-100 p-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6 rounded-2xl bg-[#A3BE8C]/10 border border-[#A3BE8C]/30 p-6">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#A3BE8C]/20 text-[#A3BE8C]">
                       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-emerald-900">Robô Ativo e Operando</h3>
-                      <p className="text-xs text-emerald-700 mt-1 max-w-md">
+                      <h3 className="text-sm font-bold text-[#ECEFF4]">Robô Ativo e Operando 24/7</h3>
+                      <p className="text-xs text-[#D8DEE9]/80 mt-1 max-w-md">
                         O número do seu estabelecimento está conectado. O robô responderá clientes com o link da agenda e disparará os códigos PIN de confirmação em tempo real.
                       </p>
                     </div>
@@ -281,7 +281,7 @@ export function ConfiguracoesClient({
                       type="button"
                       onClick={handleRestart}
                       disabled={isPendingRestart}
-                      className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-emerald-50 transition-colors"
+                      className="rounded-xl border border-[#A3BE8C]/40 bg-[#242933] px-3.5 py-2 text-xs font-semibold text-[#A3BE8C] hover:bg-[#3B4252] transition-colors"
                     >
                       {isPendingRestart ? 'Reiniciando...' : 'Reiniciar Conexão'}
                     </button>
@@ -289,7 +289,7 @@ export function ConfiguracoesClient({
                       type="button"
                       onClick={handleDisconnect}
                       disabled={isPendingDisconnect}
-                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                      className="rounded-xl border border-[#BF616A]/40 bg-[#242933] px-3.5 py-2 text-xs font-semibold text-[#BF616A] hover:bg-[#3B4252] transition-colors"
                     >
                       {isPendingDisconnect ? 'Desconectando...' : 'Desconectar WhatsApp'}
                     </button>
@@ -298,9 +298,9 @@ export function ConfiguracoesClient({
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                   {/* QR Code Container */}
-                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/60 text-center">
+                  <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-[#4C566A] rounded-2xl bg-[#242933]/60 text-center">
                     {whatsappStatus?.qrcode ? (
-                      <div className="relative p-2 bg-white rounded-lg shadow-sm border border-slate-200">
+                      <div className="relative p-2.5 bg-white rounded-xl shadow-md border border-[#4C566A]">
                         <img
                           src={whatsappStatus.qrcode}
                           alt="QR Code de Conexão WhatsApp"
@@ -308,8 +308,8 @@ export function ConfiguracoesClient({
                         />
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-56 w-56 bg-slate-100 rounded-lg text-slate-400">
-                        <svg className="h-12 w-12 animate-pulse text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="flex flex-col items-center justify-center h-56 w-56 bg-[#242933] rounded-xl text-[#D8DEE9]/50 border border-[#3B4252]">
+                        <svg className="h-12 w-12 animate-pulse text-[#88C0D0] mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                         </svg>
                         <span className="text-xs">Gerando QR Code...</span>
@@ -321,7 +321,7 @@ export function ConfiguracoesClient({
                         type="button"
                         onClick={handleRefreshStatus}
                         disabled={isRefreshing}
-                        className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
+                        className="rounded-xl bg-[#88C0D0] px-4 py-2 text-xs font-bold text-[#242933] hover:bg-[#88C0D0]/90 transition-colors shadow-sm"
                       >
                         {isRefreshing ? 'Atualizando...' : 'Novo QR Code'}
                       </button>
@@ -329,7 +329,7 @@ export function ConfiguracoesClient({
                         type="button"
                         onClick={handleRestart}
                         disabled={isPendingRestart}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                        className="rounded-xl border border-[#4C566A] bg-[#2E3440] px-3.5 py-2 text-xs font-semibold text-[#ECEFF4] hover:bg-[#3B4252] transition-colors"
                       >
                         {isPendingRestart ? 'Reiniciando...' : 'Reiniciar Instância'}
                       </button>
@@ -338,27 +338,27 @@ export function ConfiguracoesClient({
 
                   {/* Instruções de Conexão */}
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-900">Como conectar o seu WhatsApp:</h3>
-                    <ol className="space-y-3 text-xs text-slate-600">
+                    <h3 className="text-sm font-bold text-[#ECEFF4]">Como conectar o seu WhatsApp:</h3>
+                    <ol className="space-y-3 text-xs text-[#D8DEE9]/80">
                       <li className="flex items-start gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">1</span>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#88C0D0] text-[10px] font-bold text-[#242933]">1</span>
                         <span>Abra o aplicativo do <strong>WhatsApp</strong> no seu celular.</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">2</span>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#88C0D0] text-[10px] font-bold text-[#242933]">2</span>
                         <span>Toque em <strong>Configurações</strong> (iOS) ou <strong>Mais opções</strong> (Android, três pontinhos).</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">3</span>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#88C0D0] text-[10px] font-bold text-[#242933]">3</span>
                         <span>Selecione <strong>Aparelhos Conectados</strong> e toque em <strong>Conectar um aparelho</strong>.</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">4</span>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#88C0D0] text-[10px] font-bold text-[#242933]">4</span>
                         <span>Aponte a câmera para o <strong>QR Code</strong> ao lado. A tela atualizará em alguns segundos.</span>
                       </li>
                     </ol>
-                    <div className="rounded-lg bg-slate-100 p-3 text-xs text-slate-500">
-                      🔒 <strong>Segurança e Isolamento:</strong> Sua conexão é operada em instância dedicada e isolada na VPS. Nenhuma outra loja tem acesso aos seus dados.
+                    <div className="rounded-xl bg-[#242933] p-3 text-xs text-[#D8DEE9]/70 border border-[#3B4252]">
+                      🔒 <strong>Segurança e Isolamento:</strong> Sua conexão é operada em instância dedicada e isolada na VPS via Evolution API v2. Nenhuma outra loja tem acesso aos seus dados.
                     </div>
                   </div>
                 </div>
@@ -367,37 +367,37 @@ export function ConfiguracoesClient({
           </div>
 
           {/* Card Mensagem de Boas-Vindas */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+          <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-6 shadow-xl space-y-5">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Mensagem Automática de Atendimento</h2>
-              <p className="text-xs text-slate-500 mt-1">
+              <h2 className="text-lg font-bold text-[#ECEFF4]">Mensagem Automática de Atendimento</h2>
+              <p className="text-xs text-[#D8DEE9]/70 mt-1">
                 Essa é a mensagem disparada automaticamente quando um cliente entra em contato no WhatsApp do estabelecimento.
               </p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700">Texto da Mensagem</label>
+              <label className="text-xs font-semibold text-[#D8DEE9]">Texto da Mensagem</label>
               <textarea
                 rows={4}
                 value={mensagem}
                 onChange={(e) => setMensagem(e.target.value)}
                 placeholder="Digite a mensagem que o robô enviará..."
-                className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 font-sans"
+                className="w-full rounded-xl border border-[#4C566A] bg-[#242933] p-3 text-sm text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0] font-sans"
               />
               
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-xs text-slate-500 font-medium">Inserir tags:</span>
+                <span className="text-xs text-[#D8DEE9]/60 font-medium">Inserir tags:</span>
                 <button
                   type="button"
                   onClick={() => insertVariable('{nome_estabelecimento}')}
-                  className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-mono text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="rounded-lg border border-[#4C566A] bg-[#242933] px-2.5 py-1 text-[11px] font-mono text-[#88C0D0] hover:bg-[#3B4252] transition-colors"
                 >
                   {'{nome_estabelecimento}'}
                 </button>
                 <button
                   type="button"
                   onClick={() => insertVariable('{link_agendamento}')}
-                  className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-mono text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="rounded-lg border border-[#4C566A] bg-[#242933] px-2.5 py-1 text-[11px] font-mono text-[#88C0D0] hover:bg-[#3B4252] transition-colors"
                 >
                   {'{link_agendamento}'}
                 </button>
@@ -405,18 +405,18 @@ export function ConfiguracoesClient({
             </div>
 
             {/* Preview do WhatsApp */}
-            <div className="rounded-xl border border-slate-200 bg-[#E5DDD5] dark:bg-[#0B141A] p-4 space-y-2">
-              <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+            <div className="rounded-2xl border border-[#3B4252] bg-[#242933] p-4 space-y-2">
+              <div className="text-[11px] font-semibold text-[#88C0D0] uppercase tracking-wider">
                 Pré-visualização da conversa
               </div>
-              <div className="max-w-md rounded-lg bg-white dark:bg-[#202C33] p-3 text-xs text-slate-800 dark:text-slate-100 shadow-sm border border-slate-200 dark:border-slate-700 whitespace-pre-wrap leading-relaxed">
+              <div className="max-w-md rounded-2xl bg-[#2E3440] p-3 text-xs text-[#ECEFF4] shadow-sm border border-[#4C566A] whitespace-pre-wrap leading-relaxed">
                 {mensagemPreview}
-                <div className="text-right text-[10px] text-slate-400 mt-1">10:00 • Robô FlowAgenda ✓✓</div>
+                <div className="text-right text-[10px] text-[#D8DEE9]/50 mt-1">10:00 • Robô FlowAgenda ✓✓</div>
               </div>
             </div>
 
             {msgFeedback && (
-              <div className={`rounded-lg p-3 text-xs font-medium ${msgFeedback.includes('sucesso') ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              <div className={`rounded-xl p-3 text-xs font-medium ${msgFeedback.includes('sucesso') ? 'bg-[#A3BE8C]/15 text-[#A3BE8C] border border-[#A3BE8C]/30' : 'bg-[#BF616A]/15 text-[#BF616A] border border-[#BF616A]/30'}`}>
                 {msgFeedback}
               </div>
             )}
@@ -426,7 +426,7 @@ export function ConfiguracoesClient({
                 type="button"
                 onClick={handleSalvarMensagem}
                 disabled={isPendingMsg}
-                className="rounded-lg bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm"
+                className="rounded-xl bg-[#88C0D0] px-5 py-2.5 text-xs font-bold text-[#242933] hover:bg-[#88C0D0]/90 transition-colors disabled:opacity-50 shadow-md"
               >
                 {isPendingMsg ? 'Salvando...' : 'Salvar Mensagem'}
               </button>
@@ -446,60 +446,60 @@ export function ConfiguracoesClient({
         <div className="space-y-8">
           
           {/* Card Link de Agendamento do Tenant */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Seu Link de Agendamentos</h3>
-            <p className="text-xs text-slate-500">
+          <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-6 shadow-xl space-y-4">
+            <h3 className="text-sm font-bold text-[#ECEFF4]">Seu Link de Agendamentos</h3>
+            <p className="text-xs text-[#D8DEE9]/70">
               Divulgue este link no Instagram, bio das redes e envie diretamente para seus clientes.
             </p>
 
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
-              <span className="block text-xs font-mono font-medium text-slate-800 truncate">
+            <div className="rounded-xl border border-[#3B4252] bg-[#242933] p-3 space-y-2">
+              <span className="block text-xs font-mono font-medium text-[#88C0D0] truncate">
                 {linkAgendamento}
               </span>
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="w-full rounded-md bg-white border border-slate-300 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+                className="w-full rounded-xl bg-[#3B4252] border border-[#4C566A] py-2 text-xs font-bold text-[#ECEFF4] hover:bg-[#434C5E] transition-colors shadow-xs"
               >
                 {copiedLink ? '✓ Link Copiado!' : 'Copiar Link Público'}
               </button>
             </div>
 
-            <div className="text-xs text-slate-500 space-y-1 pt-1">
-              <p><strong>Subdomínio:</strong> {lojista.slug_subdominio}.flowagenda.online</p>
+            <div className="text-xs text-[#D8DEE9]/70 space-y-1 pt-1 font-mono">
+              <p>Subdomínio: <span className="text-[#88C0D0]">{lojista.slug_subdominio}.flowagenda.online</span></p>
               {lojista.dominio_proprio ? (
-                <p><strong>Domínio Próprio:</strong> {lojista.dominio_proprio}</p>
+                <p>Domínio Próprio: <span className="text-[#A3BE8C]">{lojista.dominio_proprio}</span></p>
               ) : (
-                <p className="text-slate-400">Domínio Próprio: Disponível no Tier 3</p>
+                <p className="text-[#D8DEE9]/50">Domínio Próprio: Disponível no Tier 3</p>
               )}
             </div>
           </div>
 
           {/* Card WhatsApp de Notificação do Lojista */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-6 shadow-xl space-y-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">WhatsApp para Notificações</h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <h3 className="text-sm font-bold text-[#ECEFF4]">WhatsApp para Notificações</h3>
+              <p className="text-xs text-[#D8DEE9]/70 mt-1">
                 Número do responsável que recebe avisos de clientes que solicitam atendimento humano e alertas operacionais.
               </p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700">Número com DDD</label>
+              <label className="text-xs font-semibold text-[#D8DEE9]">Número com DDD</label>
               <input
                 type="text"
                 value={whatsappNotificacao}
                 onChange={(e) => setWhatsappNotificacao(e.target.value)}
                 placeholder="Ex: 11999998888"
-                className="w-full rounded-lg border border-slate-300 p-2.5 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full rounded-xl border border-[#4C566A] bg-[#242933] p-2.5 text-sm text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
               />
-              <span className="text-[11px] text-slate-400 block">
+              <span className="text-[11px] text-[#D8DEE9]/60 block">
                 Insira o DDD e o número completo (apenas números).
               </span>
             </div>
 
             {zapFeedback && (
-              <div className={`rounded-lg p-2.5 text-xs font-medium ${zapFeedback.includes('atualizado') ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              <div className={`rounded-xl p-2.5 text-xs font-medium ${zapFeedback.includes('atualizado') ? 'bg-[#A3BE8C]/15 text-[#A3BE8C] border border-[#A3BE8C]/30' : 'bg-[#BF616A]/15 text-[#BF616A] border border-[#BF616A]/30'}`}>
                 {zapFeedback}
               </div>
             )}
@@ -508,54 +508,54 @@ export function ConfiguracoesClient({
               type="button"
               onClick={handleSalvarWhatsApp}
               disabled={isPendingZap}
-              className="w-full rounded-lg bg-slate-900 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm"
+              className="w-full rounded-xl bg-[#88C0D0] py-2.5 text-xs font-bold text-[#242933] hover:bg-[#88C0D0]/90 transition-colors disabled:opacity-50 shadow-md"
             >
               {isPendingZap ? 'Salvando...' : 'Salvar Telefone'}
             </button>
           </div>
 
           {/* Card Google Meu Negócio & Avaliações 5 Estrelas */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">Google Meu Negócio</h3>
+              <h3 className="text-sm font-bold text-[#ECEFF4]">Google Meu Negócio</h3>
               {googleReviewUrl ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#A3BE8C]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#A3BE8C] border border-[#A3BE8C]/30">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#A3BE8C]" />
                   Otimizado SwaS
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#EBCB8B]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#EBCB8B] border border-[#EBCB8B]/30">
                   Pendente
                 </span>
               )}
             </div>
 
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#D8DEE9]/70">
               O robô envia este link para o WhatsApp do cliente 2 horas após o atendimento solicitando uma avaliação de 5 estrelas.
             </p>
 
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700">Link Direto de Avaliação</label>
+              <label className="text-xs font-semibold text-[#D8DEE9]">Link Direto de Avaliação</label>
               <input
                 type="url"
                 value={googleReviewUrl}
                 onChange={(e) => setGoogleReviewUrl(e.target.value)}
                 placeholder="https://g.page/r/.../review"
-                className="w-full rounded-lg border border-slate-300 p-2.5 text-xs font-mono text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full rounded-xl border border-[#4C566A] bg-[#242933] p-2.5 text-xs font-mono text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
               />
             </div>
 
             {googleReviewUrl && (
-              <div className="rounded-lg bg-amber-50/60 border border-amber-200 p-3 text-[11px] text-amber-800 space-y-1">
+              <div className="rounded-xl bg-[#242933] border border-[#EBCB8B]/30 p-3 text-[11px] text-[#EBCB8B] space-y-1">
                 <span className="font-semibold block">⭐ Prévia da Mensagem Automática:</span>
-                <p className="italic text-slate-600">
-                  "Olá! Muito obrigado pela visita ao {lojista.nome_estabelecimento} hoje! Poderia nos avaliar com 5 estrelas no Google? Leva menos de 30s: {googleReviewUrl}"
+                <p className="italic text-[#D8DEE9]/80">
+                  &ldquo;Olá! Muito obrigado pela visita ao {lojista.nome_estabelecimento} hoje! Poderia nos avaliar com 5 estrelas no Google? Leva menos de 30s: {googleReviewUrl}&rdquo;
                 </p>
               </div>
             )}
 
             {googleFeedback && (
-              <div className={`rounded-lg p-2.5 text-xs font-medium ${googleFeedback.includes('atualizado') ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              <div className={`rounded-xl p-2.5 text-xs font-medium ${googleFeedback.includes('atualizado') ? 'bg-[#A3BE8C]/15 text-[#A3BE8C] border border-[#A3BE8C]/30' : 'bg-[#BF616A]/15 text-[#BF616A] border border-[#BF616A]/30'}`}>
                 {googleFeedback}
               </div>
             )}
@@ -564,22 +564,22 @@ export function ConfiguracoesClient({
               type="button"
               onClick={handleSalvarGoogleReview}
               disabled={isPendingGoogle}
-              className="w-full rounded-lg bg-slate-900 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 shadow-sm"
+              className="w-full rounded-xl bg-[#88C0D0] py-2.5 text-xs font-bold text-[#242933] hover:bg-[#88C0D0]/90 transition-colors disabled:opacity-50 shadow-md"
             >
               {isPendingGoogle ? 'Salvando...' : 'Salvar Link do Google'}
             </button>
           </div>
 
           {/* Card Resumo do Plano */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
-            <h3 className="text-sm font-bold text-slate-900">Plano Atual</h3>
+          <div className="rounded-2xl border border-[#3B4252] bg-[#2E3440] p-6 shadow-xl space-y-3">
+            <h3 className="text-sm font-bold text-[#ECEFF4]">Plano Atual</h3>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-600">Assinatura</span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-800 uppercase tracking-wide">
+              <span className="text-xs font-medium text-[#D8DEE9]">Assinatura</span>
+              <span className="rounded-full bg-[#88C0D0]/15 border border-[#88C0D0]/30 px-2.5 py-0.5 text-xs font-bold text-[#88C0D0] uppercase tracking-wide">
                 {lojista.tier.replace('_', ' ')}
               </span>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#D8DEE9]/70">
               Para upgrades de plano ou alteração de domínio próprio, contate o suporte no painel do administrador.
             </p>
           </div>

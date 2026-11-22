@@ -269,6 +269,24 @@ export default function PricingTiers() {
         })}
       </div>
 
+      {/* Selo de Segurança e Confiança Asaas */}
+      <div className="mt-12 rounded-2xl border border-[#3B4252] bg-[#2E3440] p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 text-xs text-[#D8DEE9]/80 shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#88C0D0]/10 border border-[#88C0D0]/30 text-[#88C0D0] font-bold">
+            🛡️
+          </div>
+          <div>
+            <p className="font-bold text-[#ECEFF4]">Processamento 100% Seguro via Asaas IP S.A.</p>
+            <p className="text-[11px] text-[#D8DEE9]/60">Criptografia bancária de ponta a ponta. Pix com confirmação em tempo real e cartão de crédito.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 text-[11px] font-mono text-[#A3BE8C]">
+          <span>✓ Sem Fidelidade</span>
+          <span>✓ Cancele Quando Quiser</span>
+          <span>✓ Ativação Imediata</span>
+        </div>
+      </div>
+
       <CheckoutModal
         isOpen={checkoutOpen}
         onClose={() => setCheckoutOpen(false)}

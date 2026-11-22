@@ -128,8 +128,8 @@ export function MerchantAnalytics({
     ocupacao.percentual >= 85
       ? '#EBCB8B' // Alta ocupação (alerta positivo)
       : ocupacao.percentual >= 50
-      ? '#A3BE8C' // Saudável
-      : '#88C0D0'; // Capacidade disponível
+        ? '#A3BE8C' // Saudável
+        : '#88C0D0'; // Capacidade disponível
 
   const gaugeData = [
     { name: 'Ocupado', value: Math.max(ocupacao.percentual, 1) },
@@ -270,11 +270,10 @@ export function MerchantAnalytics({
                 {kpis.agendamentosMes}
               </p>
               <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                  kpis.variacaoPercentual >= 0
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${kpis.variacaoPercentual >= 0
                     ? 'bg-[#A3BE8C]/15 text-[#A3BE8C] border border-[#A3BE8C]/30'
                     : 'bg-[#BF616A]/15 text-[#BF616A] border border-[#BF616A]/30'
-                }`}
+                  }`}
               >
                 {kpis.variacaoPercentual >= 0 ? `+${kpis.variacaoPercentual}%` : `${kpis.variacaoPercentual}%`}
               </span>
@@ -560,22 +559,20 @@ export function MerchantAnalytics({
               <button
                 type="button"
                 onClick={() => setRankingTab('servicos')}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  rankingTab === 'servicos'
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${rankingTab === 'servicos'
                     ? 'bg-[#88C0D0] text-[#242933] shadow-sm'
                     : 'text-[#D8DEE9] hover:text-[#ECEFF4]'
-                }`}
+                  }`}
               >
                 Serviços
               </button>
               <button
                 type="button"
                 onClick={() => setRankingTab('profissionais')}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  rankingTab === 'profissionais'
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${rankingTab === 'profissionais'
                     ? 'bg-[#81A1C1] text-[#242933] shadow-sm'
                     : 'text-[#D8DEE9] hover:text-[#ECEFF4]'
-                }`}
+                  }`}
               >
                 Profissionais
               </button>
@@ -710,22 +707,22 @@ export function MerchantAnalytics({
                     const statusBadgeClass = isConfirmado
                       ? 'bg-[#A3BE8C]/15 text-[#A3BE8C] border-[#A3BE8C]/40'
                       : isPendente
-                      ? 'bg-[#EBCB8B]/15 text-[#EBCB8B] border-[#EBCB8B]/40'
-                      : isConcluido
-                      ? 'bg-[#88C0D0]/15 text-[#88C0D0] border-[#88C0D0]/40'
-                      : isCancelado
-                      ? 'bg-[#BF616A]/15 text-[#BF616A] border-[#BF616A]/40'
-                      : 'bg-[#3B4252] text-[#D8DEE9] border-[#4C566A]';
+                        ? 'bg-[#EBCB8B]/15 text-[#EBCB8B] border-[#EBCB8B]/40'
+                        : isConcluido
+                          ? 'bg-[#88C0D0]/15 text-[#88C0D0] border-[#88C0D0]/40'
+                          : isCancelado
+                            ? 'bg-[#BF616A]/15 text-[#BF616A] border-[#BF616A]/40'
+                            : 'bg-[#3B4252] text-[#D8DEE9] border-[#4C566A]';
 
                     const statusLabel = isConfirmado
                       ? 'Confirmado'
                       : isPendente
-                      ? 'Aguardando PIN'
-                      : isConcluido
-                      ? 'Concluído'
-                      : isCancelado
-                      ? 'Cancelado'
-                      : item.status;
+                        ? 'Aguardando PIN'
+                        : isConcluido
+                          ? 'Concluído'
+                          : isCancelado
+                            ? 'Cancelado'
+                            : item.status;
 
                     return (
                       <tr key={item.id} className="hover:bg-[#3B4252]/40 transition-colors">

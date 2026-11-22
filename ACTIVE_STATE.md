@@ -1,46 +1,56 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-11-22T02:15:00-03:00  
-**Fase do Projeto:** Produção / Etapa 4 Homologada — Dashboards Executivas Modernas (/dashboard e /superadmin) em Nord Dark  
-**Integridade do Código:** `npx tsc --noEmit` exit code 0 (Zero erros TypeScript)  
+**Atualizado em:** 2026-11-22T10:35:00-03:00  
+**Fase do Projeto:** Produção / Finalização Estética Completa de Alto Padrão (Landing Page, Dashboard Lojista, SuperAdmin e Vitrine Pública) em Nord Dark  
+**Integridade do Código:** `npm run build` e `npx tsc --noEmit` exit code 0 (Zero erros TypeScript / 15 rotas compiladas com sucesso)  
 **Branch Atual:** `main`  
 
 ---
 
-## 1. Compilado do que Já Está Pronto e em Produção (`main`)
+## 1. Compilado das 4 Frentes de Design e Engenharia Concluídas em Disco
 
-1. **Redesign Executivo da Dashboard do Lojista (`/dashboard`):**
-   - **Componente `MerchantAnalytics` (`app/dashboard/merchant-analytics.tsx`):**
-     * **4 KPI Cards (Topo):** Faturamento Previsto no Mês (cruzando agendamentos confirmados/concluídos com o valor do serviço ou `ticket_medio_padrao`), Agendamentos do Mês (com variação percentual vs mês anterior), Fechados pela Secretária IA (WhatsApp Bot) e Taxa de Comparecimento (%).
-     * **Linha Analítica Central (3 Colunas):** Gráfico de Área Suave Recharts (evolução de faturamento e agendamentos nos últimos 14 dias), Gráfico de Rosca/Donut de Canais (Secretária IA vs Link Público vs Manual) com totalizador central em SVG, e Medidor Semicircular / Gauge de Ocupação da Grade (horas agendadas vs capacidade comercial de 8h/22 dias úteis).
-     * **Linha Inferior:** Barras Horizontais com ranking dos Serviços e Profissionais em destaque (com abas) + Tabela moderna da Agenda de Hoje com horários em monospace e badges arredondadas de status Nord Dark.
-     * **Módulo WhatsApp Integrado:** Badge de conexão ativa no topo com ping em tempo real, ou card de leitura com QR Code e link direto para configurações caso desconectado.
-   - **Pipeline de Dados (`app/actions/dashboard.ts`):** Agregação analítica server-side com resolução de lojista (inclusive sob impersonação Super Admin), isolamento multi-tenant estrito e fallback de ticket médio.
+1. **Frente 1: Landing Page Institucional (`app/page.tsx` e componentes da Home):**
+   - **Hero Section (`components/landing/HeroSection.tsx`):** Headline de alto impacto focada na Secretária IA 24h no WhatsApp para negócios locais (Barbearias, Salões, Clínicas de Estética, Odontologia, Pet Shops e Tatuagem), CTA principal em `#88C0D0`, mockup de chat IA e métricas de prova social.
+   - **Como Funciona (`components/landing/HowItWorks.tsx`):** 3 etapas intuitivas (QR Code, Configuração em 2 min, IA 24/7) e garantia de satisfação.
+   - **Bento Grid de Recursos:** IA 24/7 sem encargos, Grade Blindada com Lock de 10 min (PIN / Sinal Pix), Zero No-Show com Lembretes e Gestão Financeira.
+   - **Vitrine Interativa de Nichos (`components/landing/NicheShowcase.tsx`):** Seletor de 6 nichos com mockups dinâmicos de atendimento real.
+   - **Bloco White Label & Depoimentos (`components/landing/TestimonialsSection.tsx`):** 4 cases reais detalhados + prova social.
+   - **Planos & Preços (`components/landing/PricingTiers.tsx`):** Preservada a lógica estrita dos planos Essencial, Profissional, Autoridade e selo de segurança bancária Asaas IP S.A.
+   - **FAQ & CTA Final (`components/landing/FaqAccordion.tsx`, `components/landing/FinalCta.tsx`, `components/landing/Footer.tsx`):** Acordeão interativo, CTA final de conversão e rodapé com conformidade LGPD.
 
-2. **Redesign Executivo da Dashboard Super Admin (`/superadmin`):**
-   - **Fundo Global Unificado:** Conversão completa para o tema Nord Dark (`#242933` fundo global, `#2E3440` cards/superfícies, `#3B4252` divisórias, `#ECEFF4` texto principal).
-   - **Componente `SuperAdminAnalytics` (`app/superadmin/superadmin-analytics.tsx`):**
-     * **4 KPI Cards SaaS:** MRR Estimado (soma das assinaturas ativas com conversão mensal equivalente), Lojistas Ativos vs Pendentes/Inadimplentes, Total de Agendamentos na Plataforma e Total de Interações IA (fila DeepSeek + webhooks Evolution API).
-     * **Linha Analítica (3 Colunas):** Gráfico de Rosca/Donut com distribuição por plano (`Essencial`, `Profissional`, `Autoridade`) com totalizador central, Gráfico de Barras de novos cadastros/receita nos últimos 6 meses e Barras Horizontais de estabelecimentos mais ativos.
-   - **Preservação Funcional Estrita (100%):**
-     * Tabela de Estabelecimentos Cadastrados mantendo botões `Ver / Nova Cobrança` (`AsaasSubscribeButton`), `QR Code WhatsApp` e `Acessar Painel` (impersonação segura).
-     * Seção Diagnóstico & Reparação do Sistema (`<HealthCheckPanel />`).
-     * Seção Formulário de Novo Lojista (`<OnboardingForm />`).
+2. **Frente 2: Painel do Lojista (`app/dashboard/*`):**
+   - **Métricas Executivas (`app/dashboard/merchant-analytics.tsx`):** 4 KPI Cards (Faturamento Previsto, Agendamentos do Mês, Fechados pela IA e Comparecimento).
+   - **Gráficos Recharts em Nord Dark:** Gráfico de Área Suave (Evolução 14 dias), Gráfico de Rosca/Donut de Canais com totalizador central em SVG e Medidor Semicircular de Ocupação da Grade.
+   - **Ranking & Agenda do Dia:** Abas de Serviços/Profissionais em destaque + tabela de agendamentos com badges de status.
+   - **Navegação & Mobile:** Drawer responsivo slide-over com ícones Lucide (`components/dashboard/DashboardHeaderNav.tsx`) e harmonização total das telas de serviços e configurações em Nord Dark.
 
-3. **Homologação e Harmonia Visual nos Módulos de Suporte:**
-   - Atualizados `app/dashboard/layout.tsx`, `app/dashboard/servicos/page.tsx` e `app/dashboard/servicos/servicos-form.tsx` para o mesmo padrão estético Nord Dark.
+3. **Frente 3: Painel Super Admin (`app/superadmin/*`):**
+   - **Unificação Nord Dark (`#242933` / `#2E3440`):** 4 KPI Cards SaaS (MRR Estimado, Lojistas Ativos vs Pendentes, Agendamentos e Interações IA).
+   - **Gráficos Recharts:** Donut de Planos, Barras de novos cadastros e Ranking de estabelecimentos.
+   - **Preservação Funcional 100%:** Mantidos botões de cobrança Asaas, QR Code WhatsApp, Impersonação, Diagnóstico em tempo real (`HealthCheckPanel`) e Auto-Reparação.
+
+4. **Frente 4: Vitrine Pública de Agendamento (`app/tenant/[slug]/*` e `app/loja/[slug]/*`):**
+   - **Estética Mobile-First Estilo App Nativo (Apple / Uber):**
+     * Cabeçalho público em `#2E3440` com logo, status pulsante "Aberto para Agendamentos", botões de ação e suporte opcional a site institucional completo.
+     * Stepper moderno com barra de progresso em 4 etapas numeradas.
+     * Passo 1 (Serviços): Cards táteis com duração, preço em destaque (`#A3BE8C`) e sinal Pix.
+     * Passo 2 (Profissionais): Opção destacada "Qualquer Profissional Disponível" (mais rápido) e cards nominais.
+     * Passo 3 (Data & Horário): Carrossel horizontal de datas iOS-style e chips de horários livres com fonte mono.
+     * Passo 4 (Identificação): Formulário de contato com ícones e resumo completo.
+     * Passo 5 (Lock Provisório): Contagem regressiva de 10 min (PIN WhatsApp) ou 13 min (QR Code Pix Copia e Cola Asaas).
+     * Passo 6 (Sucesso): Resumo da reserva com 4 ações imediatas — "Adicionar ao Google Agenda" (link dinâmico com parâmetros de início/fim), "Falar no WhatsApp com o Estabelecimento", "Ver Localização no Mapa" e "Novo Agendamento".
 
 ---
 
-## 2. Decisões de Arquitetura Tomadas
+## 2. Decisões de Arquitetura e Contenção Respeitadas
 
-- **Recharts com Hidratação Segura:** Componentes analíticos usam `'use client'` com verificação `mounted` e skeletons estilizados em `#3B4252]/40 animate-pulse` para garantir zero erro de mismatch SSR no Next.js 16 / React 19.
-- **Tooltips Padronizados em Nord Dark:** `NordTooltip` customizado em `#2E3440` com borda `#4C566A`, formatação monetária em Real (R$) e indicadores circulares com as cores dos eixos.
-- **Regras de Contenção Respeitadas:** Nenhuma rota de checkout, landing page pública (`app/page.tsx`), webhooks (`/api/webhooks/*`) ou APIs de agendamento foi alterada.
+- **Nenhuma quebra de rotas:** Rotas de API (`/api/*`), webhooks (Asaas/WhatsApp), travas atômicas e queries com isolamento multi-tenant (`lojista_id`) preservadas integralmente.
+- **Next.js 16 / React 19 Homologado:** Hidratação segura em Recharts com skeletons sem mismatch de SSR.
+- **Build de Produção Verificado:** `npm run build` executado com êxito em 15 rotas estáticas e dinâmicas.
 
 ---
 
-## 3. Próximos Passos Imediatos
+## 3. Próximos Passos Recomendados
 
-1. Executar testes ponta a ponta e auditoria de navegação no painel do lojista e superadmin em ambiente de staging / produção.
-2. Avançar para refinamentos de UX nas telas de Clientes (CRM) e Configurações de IA, se solicitado.
+1. Realizar o commit Git dos arquivos modificados e criados.
+2. Fazer `git push origin main` para deploy automático em produção na Vercel (https://www.flowagenda.online).

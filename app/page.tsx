@@ -1,15 +1,22 @@
 import Link from 'next/link';
 import HeroSection from '@/components/landing/HeroSection';
+import HowItWorks from '@/components/landing/HowItWorks';
 import BentoShowcase from '@/components/landing/BentoShowcase';
+import NicheShowcase from '@/components/landing/NicheShowcase';
+import TestimonialsSection from '@/components/landing/TestimonialsSection';
 import PricingTiers from '@/components/landing/PricingTiers';
+import FaqAccordion from '@/components/landing/FaqAccordion';
+import FinalCta from '@/components/landing/FinalCta';
+import Footer from '@/components/landing/Footer';
 import { CONTACT_CONFIG } from '@/config/contact';
+import { Calendar, ShieldCheck, Check } from 'lucide-react';
 
 export const metadata = {
-  title: 'FlowAgenda | Sua Máquina de Tração Local e Agendamentos no WhatsApp',
+  title: 'FlowAgenda | Secretária IA 24h no WhatsApp para o seu Negócio Local',
   description:
-    'Sua agenda cheia e seu negócio no topo do Google. Sem você perder horas no WhatsApp. Automação inteligente com validação de PIN e robô de avaliações 5 estrelas.',
+    'Sua agenda cheia e seu negócio no topo do Google. Automação inteligente no WhatsApp para Barbearias, Salões, Clínicas de Estética, Odontologia, Pet Shops e Tatuagem.',
   openGraph: {
-    title: 'FlowAgenda | Máquina de Tração Local & Agendamento no WhatsApp',
+    title: 'FlowAgenda | Secretária IA 24h no WhatsApp',
     description:
       'Atendimento autônomo 24/7 no WhatsApp, trava de 10 min com PIN de segurança, lembretes anti no-show e robô de avaliações 5★ no Google Meu Negócio.',
     url: 'https://flowagenda.online',
@@ -25,48 +32,47 @@ export default function AppPage() {
   );
 
   return (
-    <div className="min-h-screen bg-nord-bg text-nord-text font-sans selection:bg-nord-accent selection:text-nord-bg overflow-x-hidden">
+    <div className="min-h-screen bg-[#242933] text-[#ECEFF4] font-sans selection:bg-[#88C0D0] selection:text-[#242933] overflow-x-hidden">
       
       {/* 1. Header / Navbar Moderna com Glassmorphism Nord */}
-      <header className="sticky top-0 z-50 w-full glass-nord-header">
+      <header className="sticky top-0 z-50 w-full border-b border-[#3B4252]/80 bg-[#242933]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Logo FlowAgenda */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-nord-accent to-nord-accent-dark shadow-lg shadow-nord-accent/20 group-hover:scale-105 transition-transform">
-              <svg className="h-6 w-6 text-nord-bg font-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#88C0D0] to-[#81A1C1] text-[#242933] shadow-lg shadow-[#88C0D0]/20 group-hover:scale-105 transition-transform">
+              <Calendar className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-nord-text">FlowAgenda</span>
-              <span className="hidden sm:inline-block ml-2 text-[10px] font-mono px-2 py-0.5 rounded-full bg-nord-accent/10 text-nord-accent border border-nord-accent/30 font-bold">
-                SwaS Local
+              <span className="text-xl font-black tracking-tight text-[#ECEFF4]">FlowAgenda</span>
+              <span className="hidden sm:inline-block ml-2 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] border border-[#88C0D0]/30 font-bold">
+                Secretária IA
               </span>
             </div>
           </Link>
 
           {/* Navegação Principal */}
-          <nav className="hidden md:flex items-center gap-8 text-xs sm:text-sm font-semibold text-nord-muted">
-            <a href="#motor" className="hover:text-nord-accent transition-colors">Como Funciona</a>
-            <a href="#marca-propria" className="hover:text-nord-accent transition-colors">Marca Própria</a>
-            <a href="#planos" className="hover:text-nord-accent transition-colors">Planos & Preços</a>
-            <a href="#faq" className="hover:text-nord-accent transition-colors">Dúvidas</a>
+          <nav className="hidden lg:flex items-center gap-7 text-xs sm:text-sm font-semibold text-[#D8DEE9]">
+            <a href="#como-funciona" className="hover:text-[#88C0D0] transition-colors">Como Funciona</a>
+            <a href="#motor" className="hover:text-[#88C0D0] transition-colors">Benefícios</a>
+            <a href="#nichos" className="hover:text-[#88C0D0] transition-colors">Nichos</a>
+            <a href="#marca-propria" className="hover:text-[#88C0D0] transition-colors">Marca Própria</a>
+            <a href="#depoimentos" className="hover:text-[#88C0D0] transition-colors">Depoimentos</a>
+            <a href="#planos" className="hover:text-[#88C0D0] transition-colors">Planos & Preços</a>
+            <a href="#faq" className="hover:text-[#88C0D0] transition-colors">Dúvidas</a>
           </nav>
 
           {/* CTAs do Header */}
           <div className="flex items-center gap-3 sm:gap-4">
             <Link
               href="/login"
-              className="text-xs sm:text-sm font-bold text-nord-muted hover:text-nord-text transition-colors px-2 py-1"
+              className="text-xs sm:text-sm font-bold text-[#D8DEE9] hover:text-[#ECEFF4] transition-colors px-2 py-1"
             >
               Entrar
             </Link>
             <a
-              href={whatsappConsultor}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full bg-nord-accent px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black text-nord-bg shadow-md shadow-nord-accent/20 hover:bg-nord-accent/90 transition-all hover:scale-102"
+              href="#planos"
+              className="rounded-full bg-[#88C0D0] px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-all hover:scale-102"
             >
               Começar Agora
             </a>
@@ -77,63 +83,76 @@ export default function AppPage() {
       {/* 2. Hero Section com Framer Motion e Mockup Interativo */}
       <HeroSection whatsappConsultorUrl={whatsappConsultor} />
 
-      {/* 3. Bento Grid Showcase (A Máquina de Faturamento) */}
+      {/* 3. Como Funciona em 3 Etapas Simples */}
+      <HowItWorks />
+
+      {/* 4. Bento Grid Showcase (A Máquina de Faturamento) */}
       <BentoShowcase />
 
-      {/* 4. Seção de Destaque "Sua Marca em Primeiro Lugar" (White Label) */}
-      <section id="marca-propria" className="py-20 sm:py-28 bg-nord-bg/70 overflow-hidden border-t border-nord-border/50">
+      {/* 5. Destaque de Funcionalidades por Nicho */}
+      <NicheShowcase />
+
+      {/* 6. Seção de Destaque "Sua Marca em Primeiro Lugar" (White Label) */}
+      <section id="marca-propria" className="py-20 sm:py-28 bg-[#242933] overflow-hidden border-t border-[#3B4252]/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="rounded-3xl border border-nord-border bg-gradient-to-br from-nord-surface via-nord-bg to-[#1E232A] p-8 sm:p-12 lg:p-16 shadow-2xl relative overflow-hidden">
+          <div className="rounded-3xl border border-[#3B4252] bg-gradient-to-br from-[#2E3440] via-[#242933] to-[#1E232A] p-8 sm:p-12 lg:p-16 shadow-2xl relative overflow-hidden">
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-7 space-y-5 text-left">
-                <span className="inline-block px-3.5 py-1 rounded-full bg-nord-accent/10 text-nord-accent text-xs font-bold border border-nord-accent/30">
-                  🛡️ Autoridade & Marca Própria (White Label)
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] text-xs font-bold border border-[#88C0D0]/30">
+                  <ShieldCheck className="h-4 w-4" />
+                  Autoridade & Marca Própria (White Label)
                 </span>
 
-                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-nord-text tracking-tight leading-tight">
-                  Seu cliente vê a <span className="text-nord-accent">sua marca</span>. Não um aplicativo genérico.
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#ECEFF4] tracking-tight leading-tight">
+                  Seu cliente vê a <span className="text-[#88C0D0]">sua marca</span>. Não um aplicativo genérico.
                 </h2>
 
-                <p className="text-sm sm:text-base text-nord-muted/90 leading-relaxed font-normal">
-                  Esqueça catálogos impessoais que expõem seus concorrentes para o seu próprio cliente. No FlowAgenda, a tela de agendamento adota as suas cores, seu logotipo, sua tipografia e até o seu domínio próprio (<span className="text-nord-accent font-mono font-bold">suaclinica.com.br</span>).
+                <p className="text-sm sm:text-base text-[#D8DEE9]/90 leading-relaxed font-normal">
+                  Esqueça catálogos impessoais que expõem seus concorrentes para o seu próprio cliente. No FlowAgenda, a tela de agendamento adota as suas cores, seu logotipo, sua tipografia e até o seu domínio próprio (<span className="text-[#88C0D0] font-mono font-bold">suaempresa.com.br</span>).
                 </p>
 
-                <ul className="space-y-3 pt-2 text-xs sm:text-sm text-nord-text font-medium">
+                <ul className="space-y-3 pt-2 text-xs sm:text-sm text-[#ECEFF4] font-medium">
                   <li className="flex items-center gap-2.5">
-                    <span className="h-5 w-5 rounded-full bg-nord-success/20 text-nord-success flex items-center justify-center text-xs font-bold">✓</span>
+                    <span className="h-5 w-5 rounded-full bg-[#A3BE8C]/20 text-[#A3BE8C] flex items-center justify-center text-xs font-bold">
+                      <Check className="h-3 w-3" />
+                    </span>
                     <span>Favicon e título na aba do navegador com o nome da sua empresa</span>
                   </li>
                   <li className="flex items-center gap-2.5">
-                    <span className="h-5 w-5 rounded-full bg-nord-success/20 text-nord-success flex items-center justify-center text-xs font-bold">✓</span>
+                    <span className="h-5 w-5 rounded-full bg-[#A3BE8C]/20 text-[#A3BE8C] flex items-center justify-center text-xs font-bold">
+                      <Check className="h-3 w-3" />
+                    </span>
                     <span>Rodapé exclusivo com os seus direitos autorais, sem marcas de terceiros</span>
                   </li>
                   <li className="flex items-center gap-2.5">
-                    <span className="h-5 w-5 rounded-full bg-nord-success/20 text-nord-success flex items-center justify-center text-xs font-bold">✓</span>
+                    <span className="h-5 w-5 rounded-full bg-[#A3BE8C]/20 text-[#A3BE8C] flex items-center justify-center text-xs font-bold">
+                      <Check className="h-3 w-3" />
+                    </span>
                     <span>Fotos profissionais e prova social personalizada para o seu segmento</span>
                   </li>
                 </ul>
               </div>
 
               {/* Box Demonstrativo de Marca Própria */}
-              <div className="lg:col-span-5 rounded-2xl border border-nord-border bg-nord-bg p-6 shadow-xl space-y-4">
-                <div className="flex items-center gap-3 pb-3 border-b border-nord-border">
-                  <div className="h-10 w-10 rounded-xl bg-nord-accent text-nord-bg flex items-center justify-center font-black text-sm shadow-md">
+              <div className="lg:col-span-5 rounded-2xl border border-[#3B4252] bg-[#2E3440] p-6 shadow-xl space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-[#3B4252]">
+                  <div className="h-10 w-10 rounded-xl bg-[#88C0D0] text-[#242933] flex items-center justify-center font-black text-sm shadow-md">
                     CL
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-nord-text">Sua Marca em Evidência</p>
-                    <p className="text-[10px] text-nord-accent font-mono">suaempresa.com.br</p>
+                    <p className="text-xs font-bold text-[#ECEFF4]">Sua Marca em Evidência</p>
+                    <p className="text-[10px] text-[#88C0D0] font-mono">suaempresa.com.br</p>
                   </div>
                 </div>
 
-                <div className="space-y-2 text-xs text-nord-muted/80 italic leading-relaxed">
+                <div className="space-y-2 text-xs text-[#D8DEE9]/80 italic leading-relaxed">
                   <p>
                     &ldquo;O cliente sente que está utilizando uma solução tecnológica proprietária de altíssimo padrão desenvolvida especialmente para o seu espaço.&rdquo;
                   </p>
                 </div>
 
-                <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-nord-success border-t border-nord-border">
+                <div className="pt-2 flex items-center justify-between text-[11px] font-mono text-[#A3BE8C] border-t border-[#3B4252]">
                   <span>Status: 100% White Label</span>
                   <span>🔒 SSL Ativo</span>
                 </div>
@@ -144,86 +163,22 @@ export default function AppPage() {
         </div>
       </section>
 
-      {/* 5. Seção de Preços (3 Ciclos de Faturamento & Setup Ancorado) */}
-      <div id="planos" className="border-t border-nord-border/60 bg-nord-surface/30">
+      {/* 7. Depoimentos de Lojistas */}
+      <TestimonialsSection />
+
+      {/* 8. Seção de Preços (3 Ciclos de Faturamento & Setup Ancorado) */}
+      <div id="planos" className="border-t border-[#3B4252]/60 bg-[#242933]">
         <PricingTiers />
       </div>
 
-      {/* 6. FAQ (Perguntas Frequentes) */}
-      <section id="faq" className="py-20 sm:py-24 border-t border-nord-border/60 bg-nord-bg">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-10">
-          <div className="text-center space-y-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-nord-accent">
-              Tire Suas Dúvidas
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-black text-nord-text">
-              Perguntas Frequentes
-            </h2>
-          </div>
+      {/* 9. FAQ (Perguntas Frequentes) */}
+      <FaqAccordion />
 
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-nord-border bg-nord-surface/90 p-5 sm:p-6 space-y-2 shadow-sm">
-              <h3 className="text-sm sm:text-base font-bold text-nord-text">
-                O meu cliente precisa baixar algum aplicativo?
-              </h3>
-              <p className="text-xs sm:text-sm text-nord-muted/80 leading-relaxed font-normal">
-                Não! O cliente clica no link direto pelo WhatsApp e agenda pelo próprio navegador do celular em menos de 30 segundos, sem login cansativo e sem preencher cadastros demorados.
-              </p>
-            </div>
+      {/* 10. CTA Final de Conversão */}
+      <FinalCta whatsappConsultorUrl={whatsappConsultor} />
 
-            <div className="rounded-2xl border border-nord-border bg-nord-surface/90 p-5 sm:p-6 space-y-2 shadow-sm">
-              <h3 className="text-sm sm:text-base font-bold text-nord-text">
-                Meu número de WhatsApp corre risco de bloqueio?
-              </h3>
-              <p className="text-xs sm:text-sm text-nord-muted/80 leading-relaxed font-normal">
-                Zero risco. Nós operamos com instâncias individuais e isoladas via Evolution API v2, com disparos estritamente transacionais (respostas solicitadas pelo cliente, PIN de confirmação e lembretes prévios). Nunca realizamos spam em massa.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-nord-border bg-nord-surface/90 p-5 sm:p-6 space-y-2 shadow-sm">
-              <h3 className="text-sm sm:text-base font-bold text-nord-text">
-                Como funciona o pagamento dos atendimentos?
-              </h3>
-              <p className="text-xs sm:text-sm text-nord-muted/80 leading-relaxed font-normal">
-                Seus clientes pagam diretamente para você no momento do atendimento (Pix, Cartão ou Dinheiro). O FlowAgenda não cobra nenhuma comissão ou porcentagem sobre os seus cortes ou consultas.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-nord-border bg-nord-surface/90 p-5 sm:p-6 space-y-2 shadow-sm">
-              <h3 className="text-sm sm:text-base font-bold text-nord-text">
-                Como funciona a taxa de implantação/setup?
-              </h3>
-              <p className="text-xs sm:text-sm text-nord-muted/80 leading-relaxed font-normal">
-                Nossa equipe configura sua tabela de horários, cadastra seus serviços, personaliza a sua página com suas cores e conecta seu robô de WhatsApp. No plano Anual, o Setup é 100% GRÁTIS!
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 7. Rodapé Institucional Minimalista */}
-      <footer className="border-t border-nord-border bg-nord-surface py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-xs text-nord-muted/70">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-nord-text">FlowAgenda</span>
-            <span>• Máquina de Tração Local & Agendamento Autônomo no WhatsApp</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <Link href="/login" className="hover:text-nord-accent transition-colors font-medium">
-              Painel do Lojista
-            </Link>
-            <a
-              href={whatsappConsultor}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-nord-accent transition-colors font-medium"
-            >
-              Falar com Consultor
-            </a>
-          </div>
-        </div>
-      </footer>
+      {/* 11. Rodapé Institucional Completo */}
+      <Footer whatsappConsultorUrl={whatsappConsultor} />
     </div>
   );
 }
