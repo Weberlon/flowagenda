@@ -11,6 +11,7 @@ import {
 } from '@/app/actions/configuracoes';
 import { MensagensWhatsAppForm } from './mensagens-form';
 import { AiOnboardingWizard } from './ai-onboarding-wizard';
+import { getNicheDictionary } from '@/lib/niche-dictionary';
 
 interface ConfiguracoesClientProps {
   lojista: {
@@ -72,6 +73,9 @@ export function ConfiguracoesClient({
   const [isPendingZap, startTransitionZap] = useTransition();
   const [isPendingRestart, startTransitionRestart] = useTransition();
   const [isPendingDisconnect, startTransitionDisconnect] = useTransition();
+
+  const dict = getNicheDictionary(lojista.business_niche);
+  const isPsicologia = dict.features.hasProntuarioPsico;
 
   const isConnected = whatsappStatus?.state === 'open';
   const isConnecting = whatsappStatus?.state === 'connecting';
@@ -531,11 +535,19 @@ export function ConfiguracoesClient({
             </div>
 
             <p className="text-xs text-[#D8DEE9]/70">
-              O robô envia este link para o WhatsApp do cliente 2 horas após o atendimento solicitando uma avaliação de 5 estrelas.
+              Envie este link pelo WhatsApp após o atendimento para convidar seus clientes a avaliarem no Google Meu Negócio.
             </p>
 
+            {isPsicologia && (
+              <div className="rounded-xl border border-[#EBCB8B]/40 bg-[#3B4252] p-3 text-xs text-[#EBCB8B] leading-relaxed">
+                <strong>Diretriz Ética (CRP / LGPD):</strong> Para o nicho de Psicologia / Terapia, os pedidos públicos de avaliação no Google ficam desabilitados por padrão para preservar o sigilo profissional dos pacientes.
+              </div>
+            )}
+
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-[#D8DEE9]">Link Direto de Avaliação</label>
+              <label className="text-xs font-semibold text-[#D8DEE9]">
+                Link de Avaliação no Google Meu Negócio
+              </label>
               <input
                 type="url"
                 value={googleReviewUrl}

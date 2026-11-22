@@ -428,6 +428,22 @@ export async function updateGoogleReviewUrlAction(reviewUrl: string, explicitLoj
 
   const cleanUrl = reviewUrl.trim();
 
+  if (cleanUrl) {
+    let isValidUrl = false;
+    try {
+      const parsed = new URL(cleanUrl);
+      isValidUrl = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      isValidUrl = false;
+    }
+    if (!isValidUrl) {
+      return {
+        success: false,
+        error: 'Informe uma URL válida iniciando com http:// ou https://',
+      };
+    }
+  }
+
   const { error } = await supabase
     .from('lojistas')
     .update({ google_review_url: cleanUrl || null })

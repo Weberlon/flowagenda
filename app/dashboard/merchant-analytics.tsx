@@ -7,7 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import { createDashboardAgendamentoAction } from '@/app/actions/dashboard';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { Pet } from '@/types/niche';
-import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle, Sparkles, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle, Sparkles, MessageCircle, CheckCircle2, Star } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -28,6 +28,7 @@ export interface MerchantAnalyticsProps {
     ticket_medio_padrao: number;
     tier: string;
     business_niche?: string | null;
+    google_review_url?: string | null;
   };
   whatsappStatus: {
     state?: string;
@@ -82,6 +83,7 @@ export interface MerchantAnalyticsProps {
     petDetalhes?: string | null;
     triagemResumo?: string | null;
     lembreteEnviado?: boolean;
+    avaliacaoEnviada?: boolean;
   }>;
   servicos?: Array<{
     id: string;
@@ -158,13 +160,64 @@ export function MerchantAnalytics({
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isPendingBooking, startTransitionBooking] = useTransition();
 
-  // Estados de disparo de lembrete manual via WhatsApp
+  // Estados de disparo de lembrete manual e avaliação Google via WhatsApp
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [sentReminderIds, setSentReminderIds] = useState<Record<string, boolean>>({});
+  const [sendingReviewId, setSendingReviewId] = useState<string | null>(null);
+  const [sentReviewIds, setSentReviewIds] = useState<Record<string, boolean>>({});
   const [reminderFeedback, setReminderFeedback] = useState<{
     tipo: 'sucesso' | 'erro';
     texto: string;
   } | null>(null);
+
+  const handlePedirAvaliacao = async (agendamentoId: string) => {
+    if (!lojista.google_review_url?.trim()) {
+      setReminderFeedback({
+        tipo: 'erro',
+        texto: 'Configure o Link de Avaliação no Google Meu Negócio na aba Configurações antes de enviar.',
+      });
+      setTimeout(() => setReminderFeedback(null), 6000);
+      return;
+    }
+
+    setSendingReviewId(agendamentoId);
+    setReminderFeedback(null);
+
+    try {
+      const response = await fetch('/api/dashboard/agendamentos/avaliacao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agendamentoId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSentReviewIds((prev) => ({ ...prev, [agendamentoId]: true }));
+        setReminderFeedback({
+          tipo: 'sucesso',
+          texto: 'Pedido de avaliação no Google enviado no WhatsApp do cliente!',
+        });
+        router.refresh();
+      } else {
+        if (data.alreadySent) {
+          setSentReviewIds((prev) => ({ ...prev, [agendamentoId]: true }));
+        }
+        setReminderFeedback({
+          tipo: 'erro',
+          texto: data.error || 'Não foi possível enviar o pedido de avaliação.',
+        });
+      }
+    } catch {
+      setReminderFeedback({
+        tipo: 'erro',
+        texto: 'Erro de comunicação ao solicitar avaliação no Google.',
+      });
+    } finally {
+      setSendingReviewId(null);
+      setTimeout(() => setReminderFeedback(null), 6000);
+    }
+  };
 
   const handleEnviarLembrete = async (agendamentoId: string) => {
     setSendingReminderId(agendamentoId);
@@ -999,6 +1052,49 @@ export function MerchantAnalytics({
                                       <>
                                         <MessageCircle className="w-3 h-3 text-[#88C0D0]" />
                                         <span>Enviar Lembrete WhatsApp</span>
+                                      </>
+                                    )}
+                                  </button>
+                                );
+                              })()
+                            )}
+
+                            {!dict.features.hasProntuarioPsico && (isConfirmado || isConcluido) && (
+                              (() => {
+                                const avaliacaoJaEnviada =
+                                  Boolean(item.avaliacaoEnviada) || Boolean(sentReviewIds[item.id]);
+                                const isSendingReview = sendingReviewId === item.id;
+
+                                if (avaliacaoJaEnviada) {
+                                  return (
+                                    <span className="inline-flex items-center gap-1 rounded-lg border border-[#A3BE8C]/40 bg-[#A3BE8C]/10 px-2.5 py-1 text-[10px] font-semibold text-[#A3BE8C]">
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>Avaliação solicitada</span>
+                                    </span>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    type="button"
+                                    disabled={isSendingReview}
+                                    onClick={() => handlePedirAvaliacao(item.id)}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-[#4C566A] bg-[#3B4252] px-2.5 py-1 text-[10px] font-semibold text-[#ECEFF4] hover:border-[#EBCB8B] hover:text-[#EBCB8B] disabled:opacity-50 transition"
+                                    title={
+                                      lojista.google_review_url
+                                        ? 'Enviar convite de avaliação no Google via WhatsApp'
+                                        : 'Configure o link do Google nas Configurações para habilitar'
+                                    }
+                                  >
+                                    {isSendingReview ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        <span>Enviando...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Star className="w-3 h-3 text-[#EBCB8B]" />
+                                        <span>Pedir Avaliação Google</span>
                                       </>
                                     )}
                                   </button>
