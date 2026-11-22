@@ -7,6 +7,11 @@ import {
   ColdLeadsFollowUpSummary,
 } from '@/lib/ai-handoff';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
+import {
+  resolveClienteByPhone,
+  loadNicheClientContext,
+  saveNichePreTriagem,
+} from '@/lib/ai-niche-context';
 
 /**
  * ==============================================================================
@@ -78,6 +83,8 @@ export function buildDeskcommSystemPrompt(params: {
   linkAgendamento: string;
   senderName?: string | null;
   aiPersonaInstructions?: string;
+  nicheClientContext?: string;
+  nicheTriagemInstruction?: string;
 }): string {
   const {
     nomeEstabelecimento,
@@ -86,6 +93,8 @@ export function buildDeskcommSystemPrompt(params: {
     linkAgendamento,
     senderName,
     aiPersonaInstructions,
+    nicheClientContext,
+    nicheTriagemInstruction,
   } = params;
 
   const personaInstructions =
@@ -97,6 +106,8 @@ export function buildDeskcommSystemPrompt(params: {
     ``,
     `=== PERSONA E COMPORTAMENTO DO NICHO ===`,
     personaInstructions,
+    nicheClientContext ? `\n=== CONTEXTO DO CLIENTE NO NICHO ===\n${nicheClientContext}` : '',
+    nicheTriagemInstruction ? `\n=== PRÉ-TRIAGEM FLUÍDA (NÃO BLOQUEANTE) ===\n${nicheTriagemInstruction}` : '',
     ``,
     `=== BASE DE CONHECIMENTO E REGRAS DO ESTABELECIMENTO ===`,
     knowledgeBase || `Estabelecimento: ${nomeEstabelecimento} (${businessNiche}). Link oficial de agendamento: ${linkAgendamento}`,
@@ -366,7 +377,16 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         }
       }
 
+      const recipientPhone = remoteJid.replace(/@.*$/, '').replace(/\D/g, '');
       const nicheDict = getNicheDictionary(lojista.business_niche || 'geral');
+      const clienteIdentificado = await resolveClienteByPhone(supabase, lojistaId, recipientPhone);
+      const { contextText, triagemInstructions } = await loadNicheClientContext({
+        supabase,
+        lojistaId,
+        clienteId: clienteIdentificado?.id || null,
+        nicheDict,
+      });
+
       const systemPrompt = buildDeskcommSystemPrompt({
         nomeEstabelecimento,
         businessNiche,
@@ -374,6 +394,8 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         linkAgendamento,
         senderName,
         aiPersonaInstructions: nicheDict.aiPersonaInstructions,
+        nicheClientContext: contextText,
+        nicheTriagemInstruction: triagemInstructions,
       });
 
       const messagesPayload: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -407,22 +429,98 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         continue;
       }
 
-      // 3.d) Invocar o modelo deepseek-chat via SDK oficial OpenAI
+      // 3.d) Invocar o modelo deepseek-chat via SDK oficial OpenAI (com tool opcional de pré-triagem)
       const deepseek = createDeepSeekClient();
+      const useNicheTriagemTool =
+        nicheDict.features.hasPets ||
+        nicheDict.features.hasOdontograma ||
+        nicheDict.features.hasMapaEstetico ||
+        nicheDict.features.hasProntuarioPsico;
+
+      const preTriagemTool: OpenAI.Chat.ChatCompletionTool = {
+        type: 'function',
+        function: {
+          name: 'registrar_pre_triagem_nicho',
+          description:
+            'Registra dados de pré-triagem informados pelo cliente (pet_nome/especie/porte para pet_shop; objetivo_queixa/alergias_restricoes para odontologia/estética; modalidade_preferida/faixa_etaria/tipo_atendimento para psicologia).',
+          parameters: {
+            type: 'object',
+            properties: {
+              pet_nome: { type: 'string', description: 'Nome do pet (pet_shop)' },
+              pet_especie: { type: 'string', description: 'Espécie: cachorro, gato, ave, roedor ou outro' },
+              pet_porte: { type: 'string', description: 'Porte: pequeno, medio, grande ou gigante' },
+              pet_raca: { type: 'string', description: 'Raça do pet, se informada' },
+              pet_alergias: { type: 'string', description: 'Alergias ou temperamento do pet' },
+              objetivo_queixa: { type: 'string', description: 'Objetivo ou queixa principal (odonto/estética)' },
+              alergias_restricoes: { type: 'string', description: 'Alergias ou restrições informadas' },
+              modalidade_preferida: { type: 'string', description: 'Modalidade em psicologia: online ou presencial' },
+              faixa_etaria: { type: 'string', description: 'Público em psicologia: Adulto, Adolescente ou Infantil' },
+              tipo_atendimento: { type: 'string', description: 'Tipo em psicologia: primeira_consulta ou retorno' },
+            },
+          },
+        },
+      };
+
       const completion = await deepseek.chat.completions.create({
         model: 'deepseek-chat',
         messages: messagesPayload,
         temperature: 0.3,
         max_tokens: 450,
+        ...(useNicheTriagemTool
+          ? { tools: [preTriagemTool], tool_choice: 'auto' as const }
+          : {}),
       });
 
-      const aiReply = completion.choices?.[0]?.message?.content?.trim();
+      const firstChoiceMessage = completion.choices?.[0]?.message;
+      let aiReply = firstChoiceMessage?.content?.trim();
+
+      if (firstChoiceMessage?.tool_calls && firstChoiceMessage.tool_calls.length > 0) {
+        const followUpMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+          ...messagesPayload,
+          firstChoiceMessage as OpenAI.Chat.ChatCompletionMessageParam,
+        ];
+
+        for (const toolCall of firstChoiceMessage.tool_calls) {
+          if (toolCall.type === 'function' && toolCall.function.name === 'registrar_pre_triagem_nicho') {
+            let parsedArgs: Record<string, any> = {};
+            try {
+              parsedArgs = JSON.parse(toolCall.function.arguments || '{}');
+            } catch {
+              parsedArgs = {};
+            }
+
+            const triagemResult = await saveNichePreTriagem({
+              supabase,
+              lojistaId,
+              clienteId: clienteIdentificado?.id || null,
+              telefone: recipientPhone,
+              senderName,
+              nicheDict,
+              args: parsedArgs,
+            });
+
+            followUpMessages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: JSON.stringify(triagemResult),
+            });
+          }
+        }
+
+        const secondCompletion = await deepseek.chat.completions.create({
+          model: 'deepseek-chat',
+          messages: followUpMessages,
+          temperature: 0.3,
+          max_tokens: 450,
+        });
+        aiReply = secondCompletion.choices?.[0]?.message?.content?.trim();
+      }
+
       if (!aiReply) {
         throw new Error('A API DeepSeek retornou uma resposta vazia.');
       }
 
       // 3.e) Disparar o texto de retorno para a instância do lojista na Evolution API
-      const recipientPhone = remoteJid.replace(/@.*$/, '').replace(/\D/g, '');
       const sendResult = await sendWhatsAppMessage({
         instanceName,
         number: recipientPhone,

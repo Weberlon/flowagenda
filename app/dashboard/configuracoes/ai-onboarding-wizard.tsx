@@ -29,6 +29,7 @@ const NICHOS_DISPONIVEIS = [
   { id: 'pet_shop', label: 'Pet Shop / Veterinária', icon: '🐾', desc: 'Banho e tosa, consultas veterinárias e estética pet' },
   { id: 'estetica', label: 'Estética & Spa', icon: '✨', desc: 'Procedimentos faciais, corporais e laser' },
   { id: 'odontologia', label: 'Clínica / Dentista', icon: '🦷', desc: 'Consultório odontológico e saúde' },
+  { id: 'psicologia', label: 'Psicologia / Terapia', icon: '🧠', desc: 'Atendimento psicológico presencial e online' },
   { id: 'outros', label: 'Outro Serviço Local', icon: '🏢', desc: 'Atendimento geral com hora marcada' },
 ];
 

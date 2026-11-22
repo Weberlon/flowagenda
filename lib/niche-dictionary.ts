@@ -16,12 +16,14 @@ export type BusinessNiche =
   | 'dentista'
   | 'clinica_estetica'
   | 'estudio_tatuagem'
+  | 'psicologia'
   | 'geral';
 
 export interface NicheFeatures {
   hasPets: boolean;
   hasOdontograma: boolean;
   hasMapaEstetico: boolean;
+  hasProntuarioPsico: boolean;
 }
 
 export interface NicheDictionary {
@@ -68,7 +70,7 @@ const DEFAULT_DICTIONARY: NicheDictionary = {
   },
   sugestoesTags: ['VIP', 'Pontual', 'Recorrente', 'Sensível', 'Indicação'],
   sugestoesMetadataKeys: ['preferencia_horario', 'profissional_preferido', 'observacao_ia'],
-  features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+  features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false, hasProntuarioPsico: false },
   aiPersonaInstructions:
     'Você é a secretária virtual oficial do estabelecimento. Seja objetiva, educada e eficiente para tirar dúvidas e conduzir o cliente ao agendamento.',
 };
@@ -83,6 +85,55 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
+
+  // 0. Psicologia / Terapia (antes de 'clinica' para evitar captura indevida)
+  if (
+    normalized.includes('psicolog') ||
+    normalized.includes('terap') ||
+    normalized.includes('psicanal')
+  ) {
+    return {
+      nicheKey: 'psicologia',
+      clienteSingular: 'Paciente',
+      clientePlural: 'Pacientes',
+      profissionalSingular: 'Psicólogo(a)',
+      profissionalPlural: 'Psicólogos(as)',
+      agendamentoSingular: 'Sessão',
+      agendamentoPlural: 'Sessões',
+      visitaSingular: 'sessão',
+      visitaPlural: 'sessões',
+      historicoLabel: 'Prontuário de Sessões',
+      etapasKanban: {
+        lead: 'Novos Contatos',
+        agendado: 'Sessões Agendadas',
+        atendido: 'Sessões Realizadas',
+        no_show: 'Faltas / Remarcações',
+        fidelizado: 'Em Acompanhamento',
+      },
+      sugestoesTags: [
+        'Online',
+        'Presencial',
+        'Adulto',
+        'Adolescente',
+        'Infantil',
+        'Primeira Sessão',
+        'Retorno',
+      ],
+      sugestoesMetadataKeys: [
+        'modalidade_preferida',
+        'faixa_etaria',
+        'contato_emergencia',
+      ],
+      features: {
+        hasPets: false,
+        hasOdontograma: false,
+        hasMapaEstetico: false,
+        hasProntuarioPsico: true,
+      },
+      aiPersonaInstructions:
+        'Você atende em um consultório de Psicologia / Terapia. Adote um tom acolhedor, calmo, empático e discreto. REGRA ÉTICA E LGPD CRÍTICA: É TERMINANTEMENTE PROIBIDO solicitar relatos de sintomas emocionais, traumas, diagnósticos ou detalhes clínicos pelo WhatsApp. Se o paciente iniciar um relato pessoal, acolha brevemente e informe: "Para preservar seu sigilo e privacidade, não precisa detalhar questões pessoais por aqui — isso será conversado diretamente em sessão com o(a) profissional."',
+    };
+  }
 
   // 1. Clínica / Dentista / Odontologia / Saúde
   if (
@@ -126,7 +177,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'turno_preferido',
         'dentista_preferido',
       ],
-      features: { hasPets: false, hasOdontograma: true, hasMapaEstetico: false },
+      features: { hasPets: false, hasOdontograma: true, hasMapaEstetico: false, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você é a secretária virtual de uma clínica odontológica. Mantenha postura ética, empática e profissional. Nunca faça diagnósticos clínicos nem prescreva medicamentos; oriente agendar uma consulta de avaliação.',
     };
@@ -167,7 +218,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'bebida_preferida',
         'frequencia_corte',
       ],
-      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você atende em uma barbearia. Use um tom cordial, direto e moderno. Chame os atendimentos de serviços/horários e ajude o cliente a escolher o barbeiro e o corte/barba desejado.',
     };
@@ -213,7 +264,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'tipo_cabelo_quimica',
         'frequencia_retorno',
       ],
-      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você atende em um salão de beleza. Seja acolhedora, atenciosa e elegante. Verifique se o procedimento exige tempo estendido (como coloração ou mechas) antes de confirmar.',
     };
@@ -259,7 +310,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'temperamento_observacoes',
         'pacote_banho',
       ],
-      features: { hasPets: true, hasOdontograma: false, hasMapaEstetico: false },
+      features: { hasPets: true, hasOdontograma: false, hasMapaEstetico: false, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você atende em um Pet Shop / Clínica Veterinária. Trate o cliente como Tutor e SEMPRE pergunte o nome do pet, porte (pequeno, médio, grande) e se possui alguma alergia ou restrição de temperamento antes de finalizar o agendamento.',
     };
@@ -304,7 +355,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'tipo_pele_cabelo',
         'pacote_sessoes',
       ],
-      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: true },
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: true, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você atende em uma clínica de estética avançada. Use comunicação sofisticada, acolhedora e segura. Nunca faça diagnósticos nem prescreva tratamentos ou medicamentos; caso o paciente pergunte sobre procedimentos invasivos ou injetáveis, destaque a importância da avaliação presencial.',
     };
@@ -349,7 +400,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'artista_preferido',
         'referencia_projeto',
       ],
-      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você atende em um estúdio de tatuagem. Pergunte sempre sobre a ideia da arte, local do corpo e tamanho aproximado em centímetros para alinhar a duração da sessão.',
     };
@@ -388,7 +439,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
         'Frota / VIP',
       ],
       sugestoesMetadataKeys: ['modelo_veiculo', 'placa', 'servico_solicitado', 'ano_veiculo'],
-      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você atende em uma oficina / estética automotiva. Seja claro e técnico na medida certa, perguntando modelo e ano do veículo quando necessário para agilizar o atendimento.',
     };
@@ -422,7 +473,7 @@ export function getNicheDictionary(businessNiche?: string | null): NicheDictiona
       },
       sugestoesTags: ['Experimental', 'Plano Mensal', 'Plano Anual', 'Manhã', 'Noite'],
       sugestoesMetadataKeys: ['objetivo_treino', 'horario_preferido', 'instrutor_preferido'],
-      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false },
+      features: { hasPets: false, hasOdontograma: false, hasMapaEstetico: false, hasProntuarioPsico: false },
       aiPersonaInstructions:
         'Você atende em um estúdio fitness / academia / escola. Seja motivador, cordial e objetivo ao apresentar horários de aulas e conduzir para aula experimental ou matrícula.',
     };

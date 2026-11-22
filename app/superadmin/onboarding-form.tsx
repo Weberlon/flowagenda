@@ -283,6 +283,7 @@ export function OnboardingForm() {
             <option value="clinica_estetica">Clínica de Estética / Spa (clinica_estetica)</option>
             <option value="dentista">Dentista / Odontologia (dentista)</option>
             <option value="pet_shop">Pet Shop / Veterinária (pet_shop)</option>
+            <option value="psicologia">Psicologia / Terapia (psicologia)</option>
             <option value="tatuagem">Estúdio de Tatuagem / Piercing (tatuagem)</option>
           </select>
         </div>

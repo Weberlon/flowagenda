@@ -7,7 +7,7 @@ import { createClient } from '@/utils/supabase/client';
 import { createDashboardAgendamentoAction } from '@/app/actions/dashboard';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { Pet } from '@/types/niche';
-import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -78,6 +78,9 @@ export interface MerchantAnalyticsProps {
     servicoPreco: number;
     profissionalNome: string;
     status: string;
+    petNome?: string | null;
+    petDetalhes?: string | null;
+    triagemResumo?: string | null;
   }>;
   servicos?: Array<{
     id: string;
@@ -854,6 +857,27 @@ export function MerchantAnalytics({
                           {item.clienteTelefone && (
                             <span className="text-[11px] font-mono font-normal text-[#D8DEE9]/60 block">
                               {item.clienteTelefone}
+                            </span>
+                          )}
+                          {item.petNome && (
+                            <span
+                              className="mt-1 inline-flex items-center gap-1 rounded-md border border-[#4C566A] bg-[#3B4252] px-2 py-0.5 text-[10px] font-semibold text-[#88C0D0]"
+                              title={item.petDetalhes || undefined}
+                            >
+                              <PawPrint className="w-3 h-3 shrink-0" />
+                              <span>
+                                {item.petNome}
+                                {item.petDetalhes ? ` (${item.petDetalhes})` : ''}
+                              </span>
+                            </span>
+                          )}
+                          {item.triagemResumo && (
+                            <span
+                              className="mt-1 inline-flex items-center gap-1 rounded-md border border-[#4C566A] bg-[#3B4252] px-2 py-0.5 text-[10px] font-medium text-[#88C0D0] max-w-[240px] truncate"
+                              title={item.triagemResumo}
+                            >
+                              <Sparkles className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{item.triagemResumo}</span>
                             </span>
                           )}
                         </td>

@@ -21,7 +21,8 @@ import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { PetsManagerModal } from '@/components/dashboard/PetsManagerModal';
 import { OdontogramaModal } from '@/components/dashboard/OdontogramaModal';
 import { MapaEsteticoModal } from '@/components/dashboard/MapaEsteticoModal';
-import { PawPrint, Stethoscope, Sparkles, ShieldAlert, Calendar } from 'lucide-react';
+import { ProntuarioPsicoModal } from '@/components/crm/ProntuarioPsicoModal';
+import { PawPrint, Stethoscope, Sparkles, ShieldAlert, Calendar, Brain } from 'lucide-react';
 
 const SYSTEM_METADATA_KEYS = new Set([
   'ai_paused_until',
@@ -96,6 +97,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [petModalCliente, setPetModalCliente] = useState<ClienteCRM | null>(null);
   const [odontogramaModalCliente, setOdontogramaModalCliente] = useState<ClienteCRM | null>(null);
   const [mapaEsteticoModalCliente, setMapaEsteticoModalCliente] = useState<ClienteCRM | null>(null);
+  const [prontuarioPsicoModalCliente, setProntuarioPsicoModalCliente] = useState<ClienteCRM | null>(null);
   const [odontoResumoDrawer, setOdontoResumoDrawer] = useState<{
     alertaCritico: boolean;
     alergias?: string;
@@ -854,6 +856,17 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                     <span>Mapa Estético</span>
                                   </button>
                                 )}
+
+                                {dict.features.hasProntuarioPsico && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setProntuarioPsicoModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-md bg-[#B48EAD]/15 border border-[#B48EAD]/40 px-2 py-0.5 text-[10px] font-bold text-[#B48EAD] hover:bg-[#B48EAD] hover:text-[#2E3440] transition"
+                                  >
+                                    <Brain className="w-3 h-3" />
+                                    <span>Prontuário</span>
+                                  </button>
+                                )}
                               </div>
 
                               {/* Menu Rápido de 1 Clique */}
@@ -1005,6 +1018,16 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                   >
                                     <Sparkles className="w-3.5 h-3.5" />
                                     <span>Mapa Estético</span>
+                                  </button>
+                                )}
+                                {dict.features.hasProntuarioPsico && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setProntuarioPsicoModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[#B48EAD]/15 border border-[#B48EAD]/40 px-2.5 py-1 text-xs font-bold text-[#B48EAD] hover:bg-[#B48EAD] hover:text-[#2E3440] transition"
+                                  >
+                                    <Brain className="w-3.5 h-3.5" />
+                                    <span>Prontuário</span>
                                   </button>
                                 )}
                                 <a
@@ -1253,6 +1276,17 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>Abrir Mapa Estético do Paciente</span>
+                </button>
+              )}
+
+              {dict.features.hasProntuarioPsico && (
+                <button
+                  type="button"
+                  onClick={() => setProntuarioPsicoModalCliente(activeCliente)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#B48EAD]/50 bg-[#B48EAD]/15 px-3 py-2.5 text-xs font-bold text-[#B48EAD] hover:bg-[#B48EAD] hover:text-[#2E3440] transition"
+                >
+                  <Brain className="w-4 h-4" />
+                  <span>Abrir Prontuário de Sessões</span>
                 </button>
               )}
 
@@ -1712,6 +1746,16 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
           lojistaId={lojista.id}
           clienteId={mapaEsteticoModalCliente.id}
           clienteNome={mapaEsteticoModalCliente.nome}
+        />
+      )}
+
+      {dict.features.hasProntuarioPsico && prontuarioPsicoModalCliente && (
+        <ProntuarioPsicoModal
+          isOpen={Boolean(prontuarioPsicoModalCliente)}
+          onClose={() => setProntuarioPsicoModalCliente(null)}
+          lojistaId={lojista.id}
+          clienteId={prontuarioPsicoModalCliente.id}
+          clienteNome={prontuarioPsicoModalCliente.nome}
         />
       )}
     </div>

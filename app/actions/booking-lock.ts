@@ -20,6 +20,8 @@ export interface BookingPayload {
   data_horario: string; // ISO string UTC
   cliente_nome: string;
   cliente_telefone: string;
+  pet_id?: string | null;
+  observacoes?: string;
 }
 
 export type BookingResult =

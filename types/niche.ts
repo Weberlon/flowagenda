@@ -26,7 +26,12 @@ export interface Pet {
   updated_at: string;
 }
 
-export type TipoFichaClinica = 'odontograma' | 'mapa_estetico' | 'anamnese';
+export type TipoFichaClinica =
+  | 'odontograma'
+  | 'mapa_estetico'
+  | 'anamnese'
+  | 'triagem_ia'
+  | 'evolucao_psicologica';
 
 export type StatusDenteFDI =
   | 'higido'
@@ -86,6 +91,29 @@ export interface ExameClinicoItem {
   dataExame: string;
 }
 
+export interface TriagemIaDados {
+  objetivoOuQueixa?: string;
+  alergiasOuRestricoes?: string;
+  petNome?: string;
+  petEspecie?: string;
+  petPorte?: string;
+  modalidade_preferida?: 'online' | 'presencial' | string;
+  faixa_etaria?: string;
+  tipo_atendimento?: 'primeira_consulta' | 'retorno' | string;
+  atualizadoEm?: string;
+}
+
+export interface EvolucaoPsicologicaItem {
+  id: string;
+  data_sessao: string;
+  modalidade: 'online' | 'presencial';
+  queixa_demanda: string;
+  evolucao_clinica: string;
+  observacoes_privadas?: string;
+  proximo_passo?: string;
+  criado_em?: string;
+}
+
 export interface FichaClinica {
   id: string;
   lojista_id: string;
@@ -99,6 +127,8 @@ export interface FichaClinica {
     planoTratamento?: ItemPlanoTratamento[];
     retornoPrevisto?: string;
     exames?: ExameClinicoItem[];
+    triagemIa?: TriagemIaDados;
+    sessoes?: EvolucaoPsicologicaItem[];
     [key: string]: unknown;
   };
   observacoes_gerais?: string | null;

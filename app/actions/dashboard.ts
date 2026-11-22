@@ -158,21 +158,34 @@ export async function getDashboardData() {
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   // 4. Busca agendamentos do lojista (desde o início do mês anterior)
-  const { data: todosAgendamentos } = await dbClient
-    .from('agendamentos')
-    .select(`
+  let agendamentosList: any[] = [];
+  const baseSelect = `
       id, data_hora_inicio, data_hora_fim, data_horario, status,
       servico_id, profissional_id, cliente_id, pin_validacao, asaas_payment_id,
       confirmacao_cliente_at, cancelado_origem,
       cliente:clientes(nome, telefone),
       servico:servicos(nome_servico, duracao_minutos, preco),
       profissional:profissionais(nome)
-    `)
+    `;
+
+  const { data: todosAgendamentos, error: agErr } = await dbClient
+    .from('agendamentos')
+    .select(`${baseSelect}, pet_id`)
     .eq('lojista_id', lojista.id)
     .gte('data_hora_inicio', startOfLastMonth.toISOString())
     .order('data_hora_inicio', { ascending: true });
 
-  const agendamentosList = todosAgendamentos || [];
+  if (agErr && agErr.message?.includes('pet_id')) {
+    const { data: fallbackAg } = await dbClient
+      .from('agendamentos')
+      .select(baseSelect)
+      .eq('lojista_id', lojista.id)
+      .gte('data_hora_inicio', startOfLastMonth.toISOString())
+      .order('data_hora_inicio', { ascending: true });
+    agendamentosList = fallbackAg || [];
+  } else {
+    agendamentosList = todosAgendamentos || [];
+  }
 
   // 5. Agendamentos do Mês Atual vs Mês Anterior
   const currentMonthAppointments = agendamentosList.filter((a: any) => {
@@ -339,9 +352,9 @@ export async function getDashboardData() {
     .sort((a, b) => b.agendamentos - a.agendamentos)
     .slice(0, 5);
 
-  // 11. Tabela Moderna: Agendamentos do Dia
+  // 11. Tabela Moderna: Agendamentos do Dia + Contexto de Pets / Pré-Triagem IA
   const todayYmd = now.toISOString().split('T')[0];
-  const agendamentosHoje = agendamentosList
+  const hojeRaw = agendamentosList
     .filter((a: any) => {
       const aDate = (a.data_hora_inicio || a.data_horario || '').split('T')[0];
       return aDate === todayYmd;
@@ -349,36 +362,128 @@ export async function getDashboardData() {
     .sort(
       (a: any, b: any) =>
         new Date(a.data_hora_inicio).getTime() - new Date(b.data_hora_inicio).getTime()
-    )
-    .map((agendamento: any) => {
-      const horaInicio = new Date(agendamento.data_hora_inicio).toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      const horaFim = new Date(agendamento.data_hora_fim).toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      const s = agendamento.servico_id
-        ? servicoMap.get(agendamento.servico_id)
-        : agendamento.servico;
-      const p = agendamento.profissional_id
-        ? profissionalMap.get(agendamento.profissional_id)
-        : agendamento.profissional;
+    );
 
-      return {
-        id: agendamento.id,
-        horaInicio,
-        horaFim,
-        clienteNome: agendamento.cliente?.nome || 'Cliente',
-        clienteTelefone: agendamento.cliente?.telefone || '',
-        servicoNome: s?.nome_servico || 'Serviço',
-        servicoDuracao: s?.duracao_minutos || 45,
-        servicoPreco: Number(s?.preco) || ticketMedioPadrao,
-        profissionalNome: p?.nome || 'Titular',
-        status: agendamento.status,
-      };
+  const hojeClienteIds = Array.from(
+    new Set(hojeRaw.map((a: any) => a.cliente_id).filter(Boolean))
+  ) as string[];
+  const hojePetIds = Array.from(
+    new Set(hojeRaw.map((a: any) => a.pet_id).filter(Boolean))
+  ) as string[];
+
+  const petsById = new Map<string, any>();
+  const petsByClienteId = new Map<string, any>();
+  if (hojePetIds.length > 0 || hojeClienteIds.length > 0) {
+    try {
+      const { data: petsHoje } = await dbClient
+        .from('pets')
+        .select('id, cliente_id, nome, especie, porte')
+        .eq('lojista_id', lojista.id)
+        .in('cliente_id', hojeClienteIds.length > 0 ? hojeClienteIds : ['00000000-0000-0000-0000-000000000000']);
+
+      for (const p of petsHoje || []) {
+        petsById.set(p.id, p);
+        if (!petsByClienteId.has(p.cliente_id)) {
+          petsByClienteId.set(p.cliente_id, p);
+        }
+      }
+    } catch {
+      // Tabela pets pode não estar disponível em ambientes legados
+    }
+  }
+
+  const triagemByClienteId = new Map<string, string>();
+  if (hojeClienteIds.length > 0) {
+    try {
+      const { data: fichasHoje } = await dbClient
+        .from('fichas_clinicas')
+        .select('cliente_id, tipo_ficha, dados_json, observacoes_gerais')
+        .eq('lojista_id', lojista.id)
+        .in('cliente_id', hojeClienteIds)
+        .in('tipo_ficha', ['triagem_ia', 'odontograma', 'mapa_estetico']);
+
+      for (const f of fichasHoje || []) {
+        if (f.tipo_ficha === 'triagem_ia') {
+          const dj = (f.dados_json || {}) as any;
+          const psicoResumo =
+            dj.triagemIa?.modalidade_preferida || dj.triagemIa?.faixa_etaria
+              ? [
+                  dj.triagemIa?.modalidade_preferida
+                    ? String(dj.triagemIa.modalidade_preferida).charAt(0).toUpperCase() +
+                      String(dj.triagemIa.modalidade_preferida).slice(1)
+                    : null,
+                  dj.triagemIa?.faixa_etaria || null,
+                  dj.triagemIa?.tipo_atendimento === 'primeira_consulta'
+                    ? '1ª Sessão'
+                    : dj.triagemIa?.tipo_atendimento === 'retorno'
+                      ? 'Retorno'
+                      : null,
+                ]
+                  .filter(Boolean)
+                  .join(' • ')
+              : null;
+
+          const resumo =
+            psicoResumo ||
+            f.observacoes_gerais ||
+            dj.triagemIa?.objetivoOuQueixa ||
+            dj.triagemIa?.alergiasOuRestricoes;
+          if (resumo) {
+            triagemByClienteId.set(f.cliente_id, String(resumo));
+          }
+        }
+      }
+    } catch {
+      // Tabela fichas_clinicas pode não estar disponível em ambientes legados
+    }
+  }
+
+  const agendamentosHoje = hojeRaw.map((agendamento: any) => {
+    const horaInicio = new Date(agendamento.data_hora_inicio).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
     });
+    const horaFim = new Date(agendamento.data_hora_fim).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const s = agendamento.servico_id
+      ? servicoMap.get(agendamento.servico_id)
+      : agendamento.servico;
+    const p = agendamento.profissional_id
+      ? profissionalMap.get(agendamento.profissional_id)
+      : agendamento.profissional;
+
+    const petObj = agendamento.pet_id
+      ? petsById.get(agendamento.pet_id)
+      : agendamento.cliente_id
+        ? petsByClienteId.get(agendamento.cliente_id)
+        : null;
+
+    const petDetalhes = petObj
+      ? [petObj.especie, petObj.porte ? `Porte ${petObj.porte}` : null].filter(Boolean).join(' • ')
+      : null;
+
+    const triagemResumo = agendamento.cliente_id
+      ? triagemByClienteId.get(agendamento.cliente_id) || null
+      : null;
+
+    return {
+      id: agendamento.id,
+      horaInicio,
+      horaFim,
+      clienteNome: agendamento.cliente?.nome || 'Cliente',
+      clienteTelefone: agendamento.cliente?.telefone || '',
+      servicoNome: s?.nome_servico || 'Serviço',
+      servicoDuracao: s?.duracao_minutos || 45,
+      servicoPreco: Number(s?.preco) || ticketMedioPadrao,
+      profissionalNome: p?.nome || 'Titular',
+      status: agendamento.status,
+      petNome: petObj?.nome || null,
+      petDetalhes,
+      triagemResumo,
+    };
+  });
 
   // 12. Status da Instância do WhatsApp
   const { data: configRobo } = await dbClient
