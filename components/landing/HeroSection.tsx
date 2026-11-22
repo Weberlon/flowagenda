@@ -70,7 +70,7 @@ export default function HeroSection({
           
           {/* Coluna Esquerda: Copywriting de Alto Impacto */}
           <motion.div 
-            className="lg:col-span-6 space-y-6 text-center lg:text-left"
+            className="lg:col-span-6 min-w-0 space-y-6 text-center lg:text-left"
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.25 }}
@@ -176,7 +176,7 @@ export default function HeroSection({
           {/* Coluna Direita: Plano Médio (Simulador) + Plano Frontal (Selo de Trava) */}
           <motion.div
             style={{ y: mockupY }}
-            className="lg:col-span-6 w-full flex justify-center relative"
+            className="lg:col-span-6 w-full min-w-0 max-w-full flex flex-col items-center relative pb-4 sm:pb-6"
             initial={{ opacity: 0, scale: 0.96 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true, amount: 0.2 }}
@@ -186,7 +186,7 @@ export default function HeroSection({
 
             <motion.div
               style={{ y: fgY }}
-              className="hidden sm:flex items-center gap-2.5 rounded-2xl border border-[#88C0D0]/30 bg-[#242933]/95 px-4 py-2.5 shadow-xl shadow-black/50 backdrop-blur-xl absolute -bottom-4 -left-3 lg:-left-6 pointer-events-none"
+              className="hidden sm:flex items-center gap-2.5 rounded-2xl border border-[#88C0D0]/30 bg-[#242933]/95 px-4 py-2.5 shadow-xl shadow-black/50 backdrop-blur-xl self-start mt-3 sm:mt-0 sm:absolute sm:bottom-0 sm:left-2 lg:left-0 pointer-events-none"
               aria-hidden="true"
             >
               <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#A3BE8C]/15 text-[#A3BE8C] border border-[#A3BE8C]/30">

@@ -125,12 +125,12 @@ export default function HeroInteractiveMockup() {
         </div>
 
         {/* Grid Dividido: Grade de Horários (Esquerda) vs Balão WhatsApp & Trava PIN (Direita) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch min-w-0">
           
           {/* ============================================================== */}
           {/* COLUNA ESQUERDA: Grade da Agenda com Slot das 15:30            */}
           {/* ============================================================== */}
-          <div className="lg:col-span-7 rounded-2xl border border-white/[0.06] bg-[#242933]/90 p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-inner">
+          <div className="lg:col-span-7 min-w-0 rounded-2xl border border-white/[0.06] bg-[#242933]/90 p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-inner">
             <div className="flex items-center justify-between text-xs font-mono text-[#D8DEE9]/70">
               <span className="font-bold uppercase tracking-wider text-[#ECEFF4]">Grade de Horários • Hoje</span>
               <span className="text-[#88C0D0]">Tempo Real</span>
@@ -217,7 +217,7 @@ export default function HeroInteractiveMockup() {
           {/* ============================================================== */}
           {/* COLUNA DIREITA: Simulação WhatsApp + Revelação do PIN          */}
           {/* ============================================================== */}
-          <div className="lg:col-span-5 flex flex-col justify-between space-y-3">
+          <div className="lg:col-span-5 min-w-0 flex flex-col justify-between space-y-3">
             
             {/* Balão 1: Mensagem do Cliente (Step 0+) */}
             <motion.div

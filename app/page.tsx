@@ -61,14 +61,14 @@ export default async function AppPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#242933] text-[#ECEFF4] font-sans selection:bg-[#88C0D0] selection:text-[#242933] overflow-x-hidden">
+    <div className="min-h-screen bg-[#242933] text-[#ECEFF4] font-sans selection:bg-[#88C0D0] selection:text-[#242933] overflow-x-clip">
       
       {/* 1. Header / Navbar Moderna com Glassmorphism Nord */}
       <header className="sticky top-0 z-50 w-full border-b border-[#3B4252]/80 bg-[#242933]/90 backdrop-blur-xl">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-20 w-full max-w-7xl min-w-0 items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6 lg:px-8">
           
           {/* Logo FlowAgenda */}
-          <Link href="/" className="flex shrink-0 items-center gap-2.5 group whitespace-nowrap">
+          <Link href="/" className="flex shrink-0 items-center gap-2 group whitespace-nowrap">
             <BrandLogo variant="md" className="group-hover:scale-[1.02] transition-transform" />
             <span className="hidden xl:inline-block whitespace-nowrap text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#88C0D0]/10 text-[#88C0D0] border border-[#88C0D0]/30 font-bold">
               Secretária IA
@@ -76,7 +76,7 @@ export default async function AppPage() {
           </Link>
 
           {/* Navegação Principal (linha única garantida) */}
-          <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-xs xl:text-sm font-semibold text-[#D8DEE9] whitespace-nowrap">
+          <nav className="hidden lg:flex min-w-0 items-center gap-4 xl:gap-7 text-xs xl:text-sm font-semibold text-[#D8DEE9] whitespace-nowrap">
             <a href="#como-funciona" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Como Funciona</a>
             <a href="#motor" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Benefícios</a>
             <a href="#nichos" className="whitespace-nowrap hover:text-[#88C0D0] transition-colors">Nichos</a>
@@ -87,11 +87,11 @@ export default async function AppPage() {
           </nav>
 
           {/* CTAs do Header */}
-          <div className="flex shrink-0 items-center gap-3 sm:gap-4 whitespace-nowrap">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3 whitespace-nowrap">
             {painelHref ? (
               <Link
                 href={painelHref}
-                className="whitespace-nowrap rounded-full border border-[#88C0D0]/50 bg-[#2E3440] px-4 py-2 text-xs sm:text-sm font-bold text-[#88C0D0] hover:bg-[#3B4252] transition-colors"
+                className="whitespace-nowrap rounded-full border border-[#88C0D0]/50 bg-[#2E3440] px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-[#88C0D0] hover:bg-[#3B4252] transition-colors"
               >
                 Ir para o Painel
               </Link>
@@ -105,7 +105,7 @@ export default async function AppPage() {
             )}
             <a
               href="#planos"
-              className="whitespace-nowrap rounded-full bg-[#88C0D0] px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-colors"
+              className="whitespace-nowrap rounded-full bg-[#88C0D0] px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-black text-[#242933] shadow-md shadow-[#88C0D0]/20 hover:bg-[#88C0D0]/90 transition-colors"
             >
               Começar Agora
             </a>
