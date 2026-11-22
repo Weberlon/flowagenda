@@ -5,6 +5,8 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { fetchInstanceConnectionStatus } from '@/lib/evolution';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { getNicheDictionary } from '@/lib/niche-dictionary';
+import { sendGoogleReviewRequest } from '@/lib/google-review-request';
 
 const DURACOES_PERMITIDAS = [15, 30, 45, 60] as const;
 
@@ -704,4 +706,117 @@ export async function createDashboardAgendamentoAction(input: {
 
   revalidatePath('/dashboard');
   return { success: true };
+}
+
+export async function updateDashboardAgendamentoStatusAction(input: {
+  agendamentoId: string;
+  novoStatus: 'confirmado' | 'concluido' | 'cancelado';
+}): Promise<{ success: boolean; autoReviewSent?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { success: false, error: 'Não autorizado.' };
+
+  const lojista = await resolveDashboardLojista(supabase, user.id);
+  if (!lojista) return { success: false, error: 'Estabelecimento não encontrado.' };
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  const dbClient =
+    profile?.role === 'super_admin' && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createAdminClient()
+      : supabase;
+
+  // 1. Buscar estado atual do agendamento (garantindo lojista_id)
+  let agendamentoAtual: any = null;
+  const { data: agData, error: agErr } = await dbClient
+    .from('agendamentos')
+    .select('id, status, avaliacao_enviada, avaliacao_enviada_at')
+    .eq('id', input.agendamentoId)
+    .eq('lojista_id', lojista.id)
+    .maybeSingle();
+
+  if (agErr && agErr.message?.includes('avaliacao_enviada')) {
+    const { data: fallbackAg } = await dbClient
+      .from('agendamentos')
+      .select('id, status, avaliacao_enviada_at')
+      .eq('id', input.agendamentoId)
+      .eq('lojista_id', lojista.id)
+      .maybeSingle();
+    agendamentoAtual = fallbackAg;
+  } else {
+    agendamentoAtual = agData;
+  }
+
+  if (!agendamentoAtual) {
+    return { success: false, error: 'Agendamento não encontrado.' };
+  }
+
+  const statusAnterior = agendamentoAtual.status;
+
+  // 2. Atualizar status do agendamento
+  const { error: updateErr } = await dbClient
+    .from('agendamentos')
+    .update({ status: input.novoStatus })
+    .eq('id', input.agendamentoId)
+    .eq('lojista_id', lojista.id);
+
+  if (updateErr) {
+    return { success: false, error: updateErr.message };
+  }
+
+  // 3. Disparo automático idempotente de avaliação Google ao concluir (não-bloqueante)
+  let autoReviewSent = false;
+  if (input.novoStatus === 'concluido' && statusAnterior !== 'concluido') {
+    try {
+      const { data: lojistaCfg } = await dbClient
+        .from('lojistas')
+        .select('business_niche, google_review_url, modo_avaliacao, configuracoes, google_review_auto')
+        .eq('id', lojista.id)
+        .maybeSingle();
+
+      // Fallback caso coluna google_review_auto não exista no schema remoto ainda
+      let cfgData: any = lojistaCfg;
+      if (!cfgData) {
+        const { data: fallbackCfg } = await dbClient
+          .from('lojistas')
+          .select('business_niche, google_review_url, modo_avaliacao, configuracoes')
+          .eq('id', lojista.id)
+          .maybeSingle();
+        cfgData = fallbackCfg;
+      }
+
+      const isGoogleReviewAuto = Boolean(
+        cfgData?.google_review_auto ??
+          cfgData?.configuracoes?.google_review_auto ??
+          (cfgData?.modo_avaliacao === 'automatico')
+      );
+      const hasReviewUrl = Boolean(cfgData?.google_review_url?.trim());
+      const nicheDict = getNicheDictionary(cfgData?.business_niche || lojista.business_niche);
+      const isPsicologia = nicheDict.features.hasProntuarioPsico;
+      const jaAvaliado =
+        agendamentoAtual.avaliacao_enviada === true ||
+        Boolean(agendamentoAtual.avaliacao_enviada_at);
+
+      if (isGoogleReviewAuto && hasReviewUrl && !isPsicologia && !jaAvaliado) {
+        const reviewRes = await sendGoogleReviewRequest({
+          supabase: dbClient,
+          lojistaId: lojista.id,
+          agendamentoId: input.agendamentoId,
+        });
+        autoReviewSent = Boolean(reviewRes.success);
+      }
+    } catch (autoErr) {
+      console.warn('[Auto Review] Erro não-bloqueante ao disparar avaliação:', autoErr);
+    }
+  }
+
+  revalidatePath('/dashboard');
+  return { success: true, autoReviewSent };
 }

@@ -452,6 +452,74 @@ export async function updateGoogleReviewUrlAction(reviewUrl: string, explicitLoj
   if (error) return { success: false, error: error.message };
 
   revalidatePath('/dashboard/configuracoes');
+  revalidatePath('/dashboard');
+  return { success: true };
+}
+
+export async function updateGoogleReviewAutoAction(
+  enabled: boolean,
+  explicitLojistaId?: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: 'Não autorizado' };
+
+  let lojista: any = null;
+  if (explicitLojistaId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (profile?.role === 'super_admin') {
+      const { data: targetLojista } = await supabase
+        .from('lojistas')
+        .select('id, configuracoes')
+        .eq('id', explicitLojistaId)
+        .single();
+      lojista = targetLojista;
+    }
+  }
+
+  if (!lojista) {
+    lojista = await resolveCurrentLojista(supabase, user.id, 'id, configuracoes');
+  }
+
+  if (!lojista) return { success: false, error: 'Lojista não encontrado' };
+
+  const nextConfig = {
+    ...(lojista.configuracoes || {}),
+    google_review_auto: enabled,
+  };
+
+  // Tenta persistir na coluna booleana google_review_auto + configuracoes JSONB + modo_avaliacao
+  const { error } = await supabase
+    .from('lojistas')
+    .update({
+      google_review_auto: enabled,
+      modo_avaliacao: enabled ? 'automatico' : 'manual',
+      configuracoes: nextConfig,
+    })
+    .eq('id', lojista.id);
+
+  if (error && error.message?.includes('google_review_auto')) {
+    const { error: fallbackErr } = await supabase
+      .from('lojistas')
+      .update({
+        modo_avaliacao: enabled ? 'automatico' : 'manual',
+        configuracoes: nextConfig,
+      })
+      .eq('id', lojista.id);
+
+    if (fallbackErr) return { success: false, error: fallbackErr.message };
+  } else if (error) {
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath('/dashboard/configuracoes');
+  revalidatePath('/dashboard');
   return { success: true };
 }
 

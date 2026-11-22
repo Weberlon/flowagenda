@@ -1,13 +1,13 @@
 # FlowAgenda — Estado Ativo de Engenharia (ACTIVE_STATE)
 
-**Atualizado em:** 2026-11-22T17:33:00-03:00  
-**Fase do Projeto:** Produção / Pós-Etapa 8.1 Homologada (`https://www.flowagenda.online`)  
+**Atualizado em:** 2026-11-22T17:43:30-03:00  
+**Fase do Projeto:** Produção / Pós-Etapa 8.2 Homologada (`https://www.flowagenda.online`)  
 **Integridade do Código:** `npx tsc --noEmit` e `npm run build` exit code 0 (Zero erros TypeScript / todas as rotas compiladas com sucesso)  
 **Branch Atual:** `main`  
 
 ---
 
-## 1. Compilado das Etapas Concluídas (1 a 8.1)
+## 1. Compilado das Etapas Concluídas (1 a 8.2)
 
 - **Etapas 1 a 4:** Infraestrutura multi-tenant (`lojista_id` + RLS), trava atômica de agendamento (10 min PIN / 13 min Pix), Landing Page, Painel do Lojista, Super Admin (Recharts Nord Dark) e Vitrine Pública Mobile-First.
 - **Etapa 5:** Dicionário multi-nicho (`lib/niche-dictionary.ts`), módulo de Pets (`PetsManagerModal.tsx`) para `pet_shop`, e Prontuários Visuais (`OdontogramaModal.tsx` e `MapaEsteticoModal.tsx`).
@@ -20,6 +20,10 @@
   * Configurações do Lojista (`app/actions/configuracoes.ts` e `configuracoes-client.tsx`): Validação de URL `http://`/`https://` para `google_review_url` e aviso ético (CRP/LGPD) em Nord Dark para `psicologia`.
   * Serviço `sendGoogleReviewRequest` (`lib/google-review-request.ts`) e rota `POST /api/dashboard/agendamentos/avaliacao`: Isolamento por `lojista_id`, bloqueio ético em `psicologia`, idempotência real via `avaliacao_enviada` e `avaliacao_enviada_at`, e mensagens em PT-BR personalizadas por nicho.
   * Dashboard (`app/actions/dashboard.ts` e `merchant-analytics.tsx`): Botão **"Pedir Avaliação Google"** (estrela `#EBCB8B`) e selo **"Avaliação solicitada"** (`#A3BE8C`).
+
+- **Etapa 8.2 — Chave Manual vs. Automático da Avaliação Google:**
+  * Configurações (`app/actions/configuracoes.ts` e `configuracoes-client.tsx`): Switch em Nord Dark **"Envio automático ao concluir atendimento"** (`google_review_auto`, padrão `false`), desabilitado se `google_review_url` vazio e oculto em `psicologia`.
+  * Conclusão de Atendimento (`app/actions/dashboard.ts` e `merchant-analytics.tsx`): `updateDashboardAgendamentoStatusAction` e botão **"Concluir"** com disparo automático idempotente e não-bloqueante de `sendGoogleReviewRequest` quando habilitado.
 
 ---
 

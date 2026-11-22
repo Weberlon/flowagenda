@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
-import { createDashboardAgendamentoAction } from '@/app/actions/dashboard';
+import { createDashboardAgendamentoAction, updateDashboardAgendamentoStatusAction } from '@/app/actions/dashboard';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { Pet } from '@/types/niche';
 import { Plus, X, PawPrint, CalendarPlus, Loader2, AlertCircle, Sparkles, MessageCircle, CheckCircle2, Star } from 'lucide-react';
@@ -165,10 +165,49 @@ export function MerchantAnalytics({
   const [sentReminderIds, setSentReminderIds] = useState<Record<string, boolean>>({});
   const [sendingReviewId, setSendingReviewId] = useState<string | null>(null);
   const [sentReviewIds, setSentReviewIds] = useState<Record<string, boolean>>({});
+  const [completingId, setCompletingId] = useState<string | null>(null);
   const [reminderFeedback, setReminderFeedback] = useState<{
     tipo: 'sucesso' | 'erro';
     texto: string;
   } | null>(null);
+
+  const handleConcluirAgendamento = async (agendamentoId: string) => {
+    setCompletingId(agendamentoId);
+    setReminderFeedback(null);
+
+    try {
+      const res = await updateDashboardAgendamentoStatusAction({
+        agendamentoId,
+        novoStatus: 'concluido',
+      });
+
+      if (res.success) {
+        if (res.autoReviewSent) {
+          setSentReviewIds((prev) => ({ ...prev, [agendamentoId]: true }));
+        }
+        setReminderFeedback({
+          tipo: 'sucesso',
+          texto: res.autoReviewSent
+            ? 'Atendimento concluído e pedido de avaliação enviado automaticamente no WhatsApp!'
+            : 'Atendimento marcado como concluído!',
+        });
+        router.refresh();
+      } else {
+        setReminderFeedback({
+          tipo: 'erro',
+          texto: res.error || 'Não foi possível concluir o agendamento.',
+        });
+      }
+    } catch {
+      setReminderFeedback({
+        tipo: 'erro',
+        texto: 'Erro ao atualizar status do agendamento.',
+      });
+    } finally {
+      setCompletingId(null);
+      setTimeout(() => setReminderFeedback(null), 6000);
+    }
+  };
 
   const handlePedirAvaliacao = async (agendamentoId: string) => {
     if (!lojista.google_review_url?.trim()) {
@@ -1010,11 +1049,30 @@ export function MerchantAnalytics({
                         </td>
                         <td className="py-3 px-3 text-right whitespace-nowrap">
                           <div className="inline-flex flex-col items-end gap-1.5">
-                            <span
-                              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusBadgeClass}`}
-                            >
-                              {statusLabel}
-                            </span>
+                            <div className="inline-flex items-center gap-1.5">
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${statusBadgeClass}`}
+                              >
+                                {statusLabel}
+                              </span>
+
+                              {isConfirmado && (
+                                <button
+                                  type="button"
+                                  disabled={completingId === item.id}
+                                  onClick={() => handleConcluirAgendamento(item.id)}
+                                  className="inline-flex items-center gap-1 rounded-full border border-[#A3BE8C]/50 bg-[#A3BE8C]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#A3BE8C] hover:bg-[#A3BE8C] hover:text-[#242933] disabled:opacity-50 transition"
+                                  title="Marcar atendimento como concluído"
+                                >
+                                  {completingId === item.id ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3 h-3" />
+                                  )}
+                                  <span>Concluir</span>
+                                </button>
+                              )}
+                            </div>
 
                             {!isCancelado && !isConcluido && (
                               (() => {

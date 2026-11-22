@@ -5,6 +5,7 @@ import {
   updateMensagemBoasVindasAction, 
   updateWhatsAppNotificacaoAction,
   updateGoogleReviewUrlAction,
+  updateGoogleReviewAutoAction,
   refreshWhatsAppStatusAction,
   restartWhatsAppAction,
   disconnectWhatsAppAction 
@@ -23,6 +24,7 @@ interface ConfiguracoesClientProps {
     tier: string;
     cor_primaria: string | null;
     google_review_url?: string | null;
+    google_review_auto?: boolean | null;
     ticket_medio_padrao?: number;
     modo_avaliacao?: 'automatico' | 'manual' | 'desativado';
     is_founder?: boolean;
@@ -60,8 +62,16 @@ export function ConfiguracoesClient({
   const [googleReviewUrl, setGoogleReviewUrl] = useState(
     lojista.google_review_url || ''
   );
+  const [googleReviewAuto, setGoogleReviewAuto] = useState<boolean>(
+    Boolean(
+      lojista.google_review_auto ??
+        lojista.configuracoes?.google_review_auto ??
+        lojista.modo_avaliacao === 'automatico'
+    )
+  );
   const [googleFeedback, setGoogleFeedback] = useState<string | null>(null);
   const [isPendingGoogle, startTransitionGoogle] = useTransition();
+  const [isPendingGoogleAuto, startTransitionGoogleAuto] = useTransition();
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
@@ -141,6 +151,28 @@ export function ConfiguracoesClient({
         setGoogleFeedback('Link do Google Meu Negócio atualizado!');
       } else {
         setGoogleFeedback(res.error || 'Erro ao atualizar link.');
+      }
+      setTimeout(() => setGoogleFeedback(null), 4000);
+    });
+  };
+
+  const handleToggleGoogleReviewAuto = () => {
+    if (isPsicologia || !googleReviewUrl.trim()) return;
+    const nextVal = !googleReviewAuto;
+    setGoogleReviewAuto(nextVal);
+    setGoogleFeedback(null);
+
+    startTransitionGoogleAuto(async () => {
+      const res = await updateGoogleReviewAutoAction(nextVal, lojista.id);
+      if (res.success) {
+        setGoogleFeedback(
+          nextVal
+            ? 'Envio automático ao concluir atendimento ativado!'
+            : 'Modo manual ativado: você decide na Agenda quando pedir avaliação.'
+        );
+      } else {
+        setGoogleReviewAuto(!nextVal);
+        setGoogleFeedback(res.error || 'Erro ao atualizar modo de avaliação.');
       }
       setTimeout(() => setGoogleFeedback(null), 4000);
     });
@@ -556,6 +588,45 @@ export function ConfiguracoesClient({
                 className="w-full rounded-xl border border-[#4C566A] bg-[#242933] p-2.5 text-xs font-mono text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none focus:ring-1 focus:ring-[#88C0D0]"
               />
             </div>
+
+            {!isPsicologia && (
+              <div
+                className={`rounded-xl border border-[#4C566A]/60 bg-[#242933] p-3.5 flex items-start justify-between gap-3 ${
+                  !googleReviewUrl.trim() ? 'opacity-50' : ''
+                }`}
+              >
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-[#ECEFF4] block">
+                    Envio automático ao concluir atendimento
+                  </span>
+                  <p className="text-[11px] text-[#D8DEE9]/70 leading-relaxed">
+                    Desativado, você decide manualmente na Agenda para quais clientes pedir avaliação. Ativado, dispara automaticamente ao marcar o atendimento como concluído.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={googleReviewAuto}
+                  disabled={!googleReviewUrl.trim() || isPendingGoogleAuto}
+                  onClick={handleToggleGoogleReviewAuto}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed ${
+                    googleReviewAuto ? 'bg-[#88C0D0]' : 'bg-[#4C566A]'
+                  }`}
+                  title={
+                    !googleReviewUrl.trim()
+                      ? 'Preencha o Link de Avaliação acima para habilitar'
+                      : 'Alternar envio automático de avaliação'
+                  }
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-[#2E3440] shadow-sm transition duration-200 ease-in-out ${
+                      googleReviewAuto ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
             {googleReviewUrl && (
               <div className="rounded-xl bg-[#242933] border border-[#EBCB8B]/30 p-3 text-[11px] text-[#EBCB8B] space-y-1">
