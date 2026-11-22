@@ -125,8 +125,9 @@ export function getAsaasHeaders(asaasApiKey: string): Record<string, string> {
 }
 
 /**
- * Cria apenas o cliente no Asaas (POST https://api.asaas.com/v3/customers)
- * e atualiza asaas_customer_id na tabela lojistas.
+ * Consulta se o CPF/CNPJ já existe no Asaas (GET https://api.asaas.com/v3/customers?cpfCnpj=...)
+ * e, se não existir, cria o cliente (POST https://api.asaas.com/v3/customers),
+ * atualizando asaas_customer_id na tabela lojistas.
  */
 export async function registerAsaasCustomerForTenant(params: {
   lojistaId: string;
@@ -134,7 +135,7 @@ export async function registerAsaasCustomerForTenant(params: {
   email?: string | null;
   mobilePhone?: string | null;
   cpfCnpj: string;
-}): Promise<{ ok: boolean; customerId?: string; error?: string }> {
+}): Promise<{ ok: boolean; customerId?: string; reused?: boolean; error?: string }> {
   const asaasApiKey = process.env.ASAAS_API_KEY?.trim();
   if (!asaasApiKey) {
     return { ok: false, error: 'Variável de ambiente ASAAS_API_KEY não configurada no servidor.' };
@@ -145,27 +146,57 @@ export async function registerAsaasCustomerForTenant(params: {
     return { ok: false, error: 'CPF/CNPJ obrigatório para criar cliente no Asaas.' };
   }
 
-  const telefoneLimpo = (params.mobilePhone || '').replace(/^55/, '').replace(/\D/g, '');
+  const headers = getAsaasHeaders(asaasApiKey);
+  let customerId: string | undefined;
+  let reused = false;
 
-  const customerRes = await fetch(`${ASAAS_API_URL}/customers`, {
-    method: 'POST',
-    headers: getAsaasHeaders(asaasApiKey),
-    body: JSON.stringify({
-      name: params.name,
-      email: params.email || undefined,
-      mobilePhone: telefoneLimpo || undefined,
-      cpfCnpj: documentoLimpo,
-      externalReference: params.lojistaId,
-      notificationDisabled: false,
-    }),
-  });
+  // 1. Verificar idempotência no Asaas: consultar se já existe cliente com este CPF/CNPJ
+  try {
+    const searchRes = await fetch(
+      `${ASAAS_API_URL}/customers?cpfCnpj=${encodeURIComponent(documentoLimpo)}`,
+      {
+        method: 'GET',
+        headers,
+        cache: 'no-store',
+      }
+    );
 
-  const parsed = await parseAsaasResponse(customerRes, 'criar cliente');
-  if (!parsed.ok) {
-    return { ok: false, error: parsed.error || 'Erro ao criar cliente no Asaas.' };
+    const searchParsed = await parseAsaasResponse(searchRes, 'consultar cliente por CPF/CNPJ');
+    if (searchParsed.ok && Array.isArray(searchParsed.data?.data) && searchParsed.data.data.length > 0) {
+      const existingCustomer = searchParsed.data.data[0];
+      if (existingCustomer?.id) {
+        customerId = existingCustomer.id as string;
+        reused = true;
+      }
+    }
+  } catch (searchErr) {
+    console.warn('[Asaas] Aviso ao consultar cliente existente por CPF/CNPJ:', searchErr);
   }
 
-  const customerId = parsed.data?.id as string;
+  // 2. Se não encontrou cliente existente, cria um novo via POST /v3/customers
+  if (!customerId) {
+    const telefoneLimpo = (params.mobilePhone || '').replace(/^55/, '').replace(/\D/g, '');
+
+    const customerRes = await fetch(`${ASAAS_API_URL}/customers`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        name: params.name,
+        email: params.email || undefined,
+        mobilePhone: telefoneLimpo || undefined,
+        cpfCnpj: documentoLimpo,
+        externalReference: params.lojistaId,
+        notificationDisabled: false,
+      }),
+    });
+
+    const parsed = await parseAsaasResponse(customerRes, 'criar cliente');
+    if (!parsed.ok) {
+      return { ok: false, error: parsed.error || 'Erro ao criar cliente no Asaas.' };
+    }
+
+    customerId = parsed.data?.id as string;
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -177,7 +208,7 @@ export async function registerAsaasCustomerForTenant(params: {
       .eq('id', params.lojistaId);
   }
 
-  return { ok: true, customerId };
+  return { ok: true, customerId, reused };
 }
 
 /**

@@ -240,7 +240,7 @@ export default async function DashboardLayout({
                       rel="noopener noreferrer"
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3BE8C] px-5 py-3 text-sm font-black text-[#242933] hover:bg-[#A3BE8C]/90 transition-colors shadow-md"
                     >
-                      <span>💳 Abrir Fatura / Regularizar Pagamento</span>
+                      <span>💳 Regularizar Assinatura / Abrir Fatura</span>
                     </a>
                   )}
 

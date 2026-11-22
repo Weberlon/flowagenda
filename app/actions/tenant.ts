@@ -74,16 +74,8 @@ export async function createTenantAction(formData: FormData) {
       return { success: false, error: 'Preencha todos os campos obrigatórios.' };
     }
 
-    const isSubscriptionRequested = ['MONTHLY', 'SEMIANNUALLY', 'YEARLY'].includes(
-      asaas_initial_action
-    );
-    if (isSubscriptionRequested && cpf_cnpj_limpo.length < 11) {
-      return {
-        success: false,
-        error:
-          'Informe um CPF ou CNPJ válido para gerar a assinatura inicial no Asaas (ou selecione "Apenas cadastrar cliente").',
-      };
-    }
+    const isSubscriptionRequested =
+      !is_founder && ['MONTHLY', 'SEMIANNUALLY', 'YEARLY'].includes(asaas_initial_action);
 
     // 3. Provisionamento Evolution API (tolerante a falha)
     let evolutionToken = 'mock_evolution_token';
@@ -193,36 +185,41 @@ export async function createTenantAction(formData: FormData) {
       }
     }
 
-    // 6. Sincronização Automática com Asaas pós-criação no Supabase
+    // 6. Sincronização Automática com Asaas pós-criação no Supabase (apenas se não for fundador)
     let invoiceUrl: string | null = null;
     let setupInvoiceUrl: string | null = null;
     let asaasWarning: string | null = null;
 
-    if (isSubscriptionRequested && cpf_cnpj_limpo.length >= 11) {
-      const subResult = await processAsaasTenantSubscription({
-        lojistaId: lojista.id,
-        cycle: asaas_initial_action as AsaasCycle,
-        cpfCnpj: cpf_cnpj_limpo,
-        incluirSetup: asaas_initial_action !== 'YEARLY' ? incluir_setup : false,
-      });
+    if (!is_founder) {
+      if (isSubscriptionRequested && cpf_cnpj_limpo.length < 11) {
+        asaasWarning =
+          'Lojista salvo com status "pendente", mas a assinatura no Asaas não pôde ser gerada porque o CPF/CNPJ não foi informado. Gere a cobrança na tabela quando desejar.';
+      } else if (isSubscriptionRequested && cpf_cnpj_limpo.length >= 11) {
+        const subResult = await processAsaasTenantSubscription({
+          lojistaId: lojista.id,
+          cycle: asaas_initial_action as AsaasCycle,
+          cpfCnpj: cpf_cnpj_limpo,
+          incluirSetup: asaas_initial_action !== 'YEARLY' ? incluir_setup : false,
+        });
 
-      if (subResult.ok) {
-        invoiceUrl = subResult.invoiceUrl || null;
-        setupInvoiceUrl = subResult.setupInvoiceUrl || null;
-      } else {
-        asaasWarning = `Lojista criado no Supabase, mas houve um aviso no Asaas: ${subResult.error}`;
-      }
-    } else if (cpf_cnpj_limpo.length >= 11) {
-      // Apenas cadastrar cliente no Asaas (sem cobrança agora)
-      const custResult = await registerAsaasCustomerForTenant({
-        lojistaId: lojista.id,
-        name: nome_estabelecimento,
-        mobilePhone: whatsapp_notificacao,
-        cpfCnpj: cpf_cnpj_limpo,
-      });
+        if (subResult.ok) {
+          invoiceUrl = subResult.invoiceUrl || null;
+          setupInvoiceUrl = subResult.setupInvoiceUrl || null;
+        } else {
+          asaasWarning = `Lojista salvo com status "pendente" no Supabase, mas o Asaas retornou aviso: ${subResult.error}. Você pode tentar novamente pelo botão "Gerar Cobrança" na tabela.`;
+        }
+      } else if (cpf_cnpj_limpo.length >= 11) {
+        // Apenas cadastrar cliente no Asaas (sem cobrança agora)
+        const custResult = await registerAsaasCustomerForTenant({
+          lojistaId: lojista.id,
+          name: nome_estabelecimento,
+          mobilePhone: whatsapp_notificacao,
+          cpfCnpj: cpf_cnpj_limpo,
+        });
 
-      if (!custResult.ok) {
-        asaasWarning = `Lojista criado no Supabase, mas não foi possível vincular cliente no Asaas: ${custResult.error}`;
+        if (!custResult.ok) {
+          asaasWarning = `Lojista salvo com status "pendente" no Supabase, mas não foi possível vincular cliente no Asaas: ${custResult.error}. Você pode vincular depois pelo botão "Gerar Cobrança".`;
+        }
       }
     }
 

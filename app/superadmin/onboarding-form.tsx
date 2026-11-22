@@ -85,9 +85,20 @@ export function OnboardingForm() {
 
   const handleAsaasActionChange = (newAction: InitialAsaasAction) => {
     setAsaasAction(newAction);
+    if (newAction !== 'NONE') {
+      setIsFounder(false);
+    }
     if (newAction === 'MONTHLY' || newAction === 'SEMIANNUALLY') {
       setIncluirSetup(true);
     } else {
+      setIncluirSetup(false);
+    }
+  };
+
+  const handleToggleFounder = (checked: boolean) => {
+    setIsFounder(checked);
+    if (checked) {
+      setAsaasAction('NONE');
       setIncluirSetup(false);
     }
   };
@@ -97,7 +108,7 @@ export function OnboardingForm() {
     setFeedback(null);
 
     const docDigits = cpfCnpj.replace(/\D/g, '');
-    if (asaasAction !== 'NONE' && docDigits.length < 11) {
+    if (!isFounder && asaasAction !== 'NONE' && docDigits.length < 11) {
       setFeedback({
         text: 'Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido para gerar a assinatura inicial no Asaas.',
         isError: true,
@@ -107,10 +118,10 @@ export function OnboardingForm() {
     }
 
     // Garante envio explícito dos estados controlados no FormData
-    formData.set('cpf_cnpj', docDigits);
-    formData.set('asaas_initial_action', asaasAction);
-    formData.set('incluir_setup', showSetupCheckbox && incluirSetup ? 'true' : 'false');
-    formData.set('is_founder', isFounder && asaasAction === 'NONE' ? 'true' : 'false');
+    formData.set('cpf_cnpj', isFounder ? '' : docDigits);
+    formData.set('asaas_initial_action', isFounder ? 'NONE' : asaasAction);
+    formData.set('incluir_setup', !isFounder && showSetupCheckbox && incluirSetup ? 'true' : 'false');
+    formData.set('is_founder', isFounder ? 'true' : 'false');
 
     try {
       const result = await createTenantAction(formData);
@@ -211,22 +222,27 @@ export function OnboardingForm() {
           </div>
         </div>
 
-        {/* CPF ou CNPJ (Formatado / Opcional se sem cobrança imediata) */}
+        {/* CPF ou CNPJ (Formatado / Opcional se sem cobrança imediata, desabilitado se is_founder) */}
         <div className="space-y-1.5">
           <label htmlFor="cpf_cnpj" className="text-xs font-bold uppercase tracking-wider text-[#D8DEE9]">
             CPF ou CNPJ (Asaas){' '}
             <span className="text-[#D8DEE9]/50 font-normal normal-case">
-              {asaasAction === 'NONE' ? '(Opcional)' : '(Obrigatório p/ assinatura)'}
+              {isFounder
+                ? '(Isento p/ Fundador)'
+                : asaasAction === 'NONE'
+                ? '(Opcional)'
+                : '(Obrigatório p/ assinatura)'}
             </span>
           </label>
           <input
             id="cpf_cnpj"
             name="cpf_cnpj"
-            value={cpfCnpj}
+            value={isFounder ? '' : cpfCnpj}
+            disabled={isFounder}
             onChange={(e) => setCpfCnpj(formatarCpfCnpj(e.target.value))}
-            required={asaasAction !== 'NONE'}
-            placeholder="000.000.000-00 ou 00.000.000/0001-00"
-            className="flex h-10 w-full rounded-xl border border-[#3B4252] bg-[#2E3440] px-3.5 py-2 text-sm font-mono text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none"
+            required={!isFounder && asaasAction !== 'NONE'}
+            placeholder={isFounder ? 'Desabilitado (Membro Fundador)' : '000.000.000-00 ou 00.000.000/0001-00'}
+            className="flex h-10 w-full rounded-xl border border-[#3B4252] bg-[#2E3440] px-3.5 py-2 text-sm font-mono text-[#ECEFF4] placeholder:text-[#D8DEE9]/40 focus:border-[#88C0D0] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -342,7 +358,11 @@ export function OnboardingForm() {
         </div>
 
         {/* Seção: Ação de Cobrança Inicial (Asaas) */}
-        <div className="space-y-3 md:col-span-2 rounded-xl border border-[#3B4252] bg-[#2E3440] p-4">
+        <div
+          className={`space-y-3 md:col-span-2 rounded-xl border border-[#3B4252] bg-[#2E3440] p-4 transition-opacity ${
+            isFounder ? 'opacity-60' : ''
+          }`}
+        >
           <div className="space-y-1.5">
             <label htmlFor="asaas_initial_action" className="block text-xs font-bold uppercase tracking-wider text-[#88C0D0]">
               💳 Ação de Cobrança Inicial (Asaas)
@@ -350,9 +370,10 @@ export function OnboardingForm() {
             <select
               id="asaas_initial_action"
               name="asaas_initial_action"
-              value={asaasAction}
+              value={isFounder ? 'NONE' : asaasAction}
+              disabled={isFounder}
               onChange={(e) => handleAsaasActionChange(e.target.value as InitialAsaasAction)}
-              className="flex h-10 w-full rounded-xl border border-[#3B4252] bg-[#242933] px-3.5 py-2 text-sm font-medium text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none"
+              className="flex h-10 w-full rounded-xl border border-[#3B4252] bg-[#242933] px-3.5 py-2 text-sm font-medium text-[#ECEFF4] focus:border-[#88C0D0] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="NONE">
                 Apenas cadastrar cliente (sem cobrança agora)
@@ -369,7 +390,7 @@ export function OnboardingForm() {
             </select>
           </div>
 
-          {showSetupCheckbox && (
+          {!isFounder && showSetupCheckbox && (
             <label className="flex items-center justify-between gap-3 rounded-lg border border-[#3B4252] bg-[#242933] px-3.5 py-2.5 cursor-pointer">
               <div className="flex items-center gap-2.5">
                 <input
@@ -389,7 +410,7 @@ export function OnboardingForm() {
             </label>
           )}
 
-          {asaasAction === 'YEARLY' && (
+          {!isFounder && asaasAction === 'YEARLY' && (
             <div className="flex items-center justify-between rounded-lg border border-[#A3BE8C]/30 bg-[#A3BE8C]/10 px-3.5 py-2 text-xs text-[#A3BE8C]">
               <span>✓ Ciclo Anual selecionado: Taxa de Implantação (Setup) isenta automaticamente.</span>
               <span className="font-mono font-bold">R$ 0,00</span>
@@ -397,13 +418,15 @@ export function OnboardingForm() {
           )}
 
           <p className="text-[11px] text-[#D8DEE9]/60">
-            {asaasAction === 'NONE'
-              ? 'Se o CPF/CNPJ for preenchido, o cliente já será vinculado no Asaas sem cobrança imediata. Se deixado em branco, você poderá gerar a cobrança depois na tabela.'
-              : 'Ao concluir o cadastro, a assinatura será gerada no Asaas e o link de pagamento será copiado automaticamente.'}
+            {isFounder
+              ? 'Modo Membro Fundador ativo: cobrança inicial desabilitada e conta criada com status_pagamento = "ativo".'
+              : asaasAction === 'NONE'
+              ? 'A conta será criada com status_pagamento = "pendente". Se o CPF/CNPJ for preenchido, o cliente já será vinculado no Asaas sem cobrança imediata.'
+              : 'Ao concluir o cadastro, a assinatura será gerada no Asaas (status_pagamento = "pendente") e o link da fatura será copiado automaticamente.'}
           </p>
         </div>
 
-        {/* Configuração IA & Micro-Beta */}
+        {/* Configuração IA & Membro Fundador */}
         <div className="space-y-2 md:col-span-2 rounded-xl border border-[#3B4252] bg-[#2E3440] p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex flex-wrap items-center gap-6">
@@ -421,12 +444,11 @@ export function OnboardingForm() {
                 <input
                   type="checkbox"
                   name="is_founder"
-                  checked={asaasAction !== 'NONE' ? false : isFounder}
-                  disabled={asaasAction !== 'NONE'}
-                  onChange={(e) => setIsFounder(e.target.checked)}
-                  className="h-4 w-4 rounded border-[#4C566A] bg-[#242933] text-[#88C0D0] focus:ring-[#88C0D0] disabled:opacity-40"
+                  checked={isFounder}
+                  onChange={(e) => handleToggleFounder(e.target.checked)}
+                  className="h-4 w-4 rounded border-[#4C566A] bg-[#242933] text-[#88C0D0] focus:ring-[#88C0D0]"
                 />
-                <span>Membro Fundador (is_founder - acesso isento)</span>
+                <span>Membro Fundador (is_founder - acesso vitalício/isento)</span>
               </label>
             </div>
 

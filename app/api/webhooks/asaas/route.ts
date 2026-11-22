@@ -277,13 +277,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. Fluxo de Assinaturas de Lojistas SaaS (Mantido integralmente)
+    // 4. Fluxo de Assinaturas de Lojistas SaaS (com proteção estrita para Membros Fundadores)
     const customerId = payload.payment?.customer || payload.customer;
     const subscriptionId = payload.payment?.subscription || payload.subscription;
 
     let novoStatus: 'ativo' | 'inadimplente' | 'cancelado' | null = null;
 
-    if (['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'SUBSCRIPTION_CREATED'].includes(event)) {
+    if (['PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED'].includes(event)) {
       novoStatus = 'ativo';
     } else if (['PAYMENT_OVERDUE', 'PAYMENT_DUNNING_RECEIVED'].includes(event)) {
       novoStatus = 'inadimplente';
@@ -292,26 +292,53 @@ export async function POST(req: Request) {
     }
 
     if (novoStatus && (customerId || subscriptionId)) {
-      let updateQuery = adminSupabase.from('lojistas').update({
-        status_pagamento: novoStatus,
-      });
+      let lookupQuery = adminSupabase
+        .from('lojistas')
+        .select('id, nome_estabelecimento, status_pagamento, is_founder');
 
       if (customerId && subscriptionId) {
-        updateQuery = updateQuery.or(
+        lookupQuery = lookupQuery.or(
           `asaas_customer_id.eq.${customerId},asaas_subscription_id.eq.${subscriptionId}`
         );
       } else if (customerId) {
-        updateQuery = updateQuery.eq('asaas_customer_id', customerId);
+        lookupQuery = lookupQuery.eq('asaas_customer_id', customerId);
       } else if (subscriptionId) {
-        updateQuery = updateQuery.eq('asaas_subscription_id', subscriptionId);
+        lookupQuery = lookupQuery.eq('asaas_subscription_id', subscriptionId);
       }
 
-      const { data, error } = await updateQuery.select('id, nome_estabelecimento, status_pagamento');
+      const { data: matchedLojistas, error: lookupError } = await lookupQuery;
 
-      if (error) {
-        console.error('[ASAAS WEBHOOK] Erro no banco ao atualizar status de assinatura:', error);
-      } else {
-        console.log(`[ASAAS WEBHOOK] Status de assinatura atualizado para '${novoStatus}':`, data);
+      if (lookupError) {
+        console.error('[ASAAS WEBHOOK] Erro ao buscar lojista para atualizar assinatura:', lookupError);
+      } else if (matchedLojistas && matchedLojistas.length > 0) {
+        for (const tenant of matchedLojistas) {
+          // Proteção de Contas Fundadoras: is_founder === true nunca vai para inadimplente/cancelado
+          if (tenant.is_founder === true && novoStatus !== 'ativo') {
+            console.log(
+              `[ASAAS WEBHOOK] Lojista fundador "${tenant.nome_estabelecimento}" (${tenant.id}) protegido no evento ${event}. Mantendo status_pagamento = 'ativo'.`
+            );
+            if (tenant.status_pagamento !== 'ativo') {
+              await adminSupabase
+                .from('lojistas')
+                .update({ status_pagamento: 'ativo' })
+                .eq('id', tenant.id);
+            }
+            continue;
+          }
+
+          const { error: updateErr } = await adminSupabase
+            .from('lojistas')
+            .update({ status_pagamento: novoStatus })
+            .eq('id', tenant.id);
+
+          if (updateErr) {
+            console.error('[ASAAS WEBHOOK] Erro ao atualizar status_pagamento do lojista:', updateErr);
+          } else {
+            console.log(
+              `[ASAAS WEBHOOK] Status de assinatura de "${tenant.nome_estabelecimento}" (${tenant.id}) atualizado para '${novoStatus}'.`
+            );
+          }
+        }
       }
     }
 
