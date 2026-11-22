@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verifySuperAdminSession } from '@/lib/admin-auth';
 import {
   PLANOS_CONFIG,
   AsaasCycle,
@@ -10,6 +11,14 @@ export { PLANOS_CONFIG };
 export type { AsaasCycle };
 
 export async function GET(req: Request) {
+  const auth = await verifySuperAdminSession();
+  if (!auth.authorized) {
+    return NextResponse.json(
+      { error: 'Não autorizado. Acesso restrito a Super Admins.' },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const subscriptionId = searchParams.get('subscriptionId');
@@ -34,6 +43,14 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await verifySuperAdminSession();
+  if (!auth.authorized) {
+    return NextResponse.json(
+      { error: 'Não autorizado. Acesso restrito a Super Admins.' },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await req.json();
     const {
