@@ -38,6 +38,8 @@ const VALID_NICHES = [
   'salao_beleza',
   'clinica_estetica',
   'dentista',
+  'podologia',
+  'psicologia',
   'pet_shop',
   'tatuagem',
 ];
@@ -75,6 +77,12 @@ export async function POST(req: Request) {
 
     const dbTier = normalizeTierKey(body.tier);
     const selectedCycle = normalizeCycleKey(body.cycle);
+    const profissionaisExtras = Math.max(
+      0,
+      Math.min(20, Math.floor(Number(body.profissionaisExtras) || 0))
+    );
+    const incluirModuloGmn =
+      Boolean(body.incluirModuloGmn) && dbTier !== 'tier_3_institucional';
 
     if (!nomeEstabelecimento || nomeEstabelecimento.length < 2) {
       return NextResponse.json(
@@ -119,7 +127,38 @@ export async function POST(req: Request) {
       );
     }
 
-    const reservedSlugs = ['www', 'app', 'api', 'admin', 'superadmin', 'login', 'dashboard'];
+    const reservedSlugs = [
+      'app',
+      'admin',
+      'api',
+      'www',
+      'auth',
+      'login',
+      'register',
+      'suporte',
+      'support',
+      'ajuda',
+      'help',
+      'mail',
+      'webmail',
+      'blog',
+      'status',
+      'dashboard',
+      'superadmin',
+      'checkout',
+      'pagamento',
+      'webhook',
+      'webhooks',
+      'dev',
+      'staging',
+      'teste',
+      'flowagenda',
+      'demo',
+      'p',
+      'loja',
+      'tenant',
+      'home',
+    ];
     if (reservedSlugs.includes(slugSubdominio)) {
       return NextResponse.json(
         { error: `O subdomínio "${slugSubdominio}" é reservado pelo sistema. Escolha outro.` },
@@ -205,6 +244,12 @@ export async function POST(req: Request) {
         responsavel_email: emailLimpo,
         cpf_cnpj: cpfCnpjLimpo,
         ciclo_escolhido: selectedCycle,
+        upsells: {
+          profissionais_extras: profissionaisExtras,
+          valor_profissional_extra_mes: 20,
+          modulo_gmn_avulso: incluirModuloGmn,
+          valor_modulo_gmn: incluirModuloGmn ? 247 : 0,
+        },
       },
     };
 
@@ -265,6 +310,8 @@ export async function POST(req: Request) {
       cpfCnpj: cpfCnpjLimpo,
       email: emailLimpo,
       incluirSetup,
+      profissionaisExtras,
+      incluirModuloGmn,
     });
 
     if (!subResult.ok) {

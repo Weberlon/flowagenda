@@ -2,6 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 export const ASAAS_API_URL = 'https://api.asaas.com/v3';
 
+export const PRECO_PROFISSIONAL_EXTRA_MES = 20.00;
+export const PRECO_MODULO_GMN_AVULSO = 247.00;
+
 export type AsaasCycle = 'MONTHLY' | 'SEMIANNUALLY' | 'YEARLY';
 
 export interface PlanoConfigItem {
@@ -221,6 +224,8 @@ export async function processAsaasTenantSubscription(params: {
   cpfCnpj?: string;
   email?: string;
   incluirSetup?: boolean;
+  profissionaisExtras?: number;
+  incluirModuloGmn?: boolean;
 }): Promise<{
   ok: boolean;
   status: number;
@@ -277,9 +282,24 @@ export async function processAsaasTenantSubscription(params: {
     return { ok: false, status: 400, error: `Tier inválido: ${tierKey}` };
   }
 
-  const valorCobranca = plano[selectedCycle];
-  const valorSetup =
+  const mesesCiclo =
+    selectedCycle === 'MONTHLY' ? 1 : selectedCycle === 'SEMIANNUALLY' ? 6 : 12;
+  const qtdProfissionaisExtras = Math.max(
+    0,
+    Math.min(20, Math.floor(Number(params.profissionaisExtras) || 0))
+  );
+  const valorExtrasCiclo = Number(
+    (qtdProfissionaisExtras * PRECO_PROFISSIONAL_EXTRA_MES * mesesCiclo).toFixed(2)
+  );
+  const elegivelGmnAvulso =
+    tierKey !== 'tier_3' && tierKey !== 'tier_3_institucional';
+  const incluirModuloGmn = Boolean(params.incluirModuloGmn) && elegivelGmnAvulso;
+  const valorModuloGmn = incluirModuloGmn ? PRECO_MODULO_GMN_AVULSO : 0;
+
+  const valorCobranca = Number((plano[selectedCycle] + valorExtrasCiclo).toFixed(2));
+  const valorSetupBase =
     incluirSetup && selectedCycle !== 'YEARLY' ? plano.taxaSetup[selectedCycle] : 0;
+  const valorSetup = Number((valorSetupBase + valorModuloGmn).toFixed(2));
 
   let customerId =
     lojista.asaas_customer_id && !String(lojista.asaas_customer_id).startsWith('cus_mock_')
@@ -325,7 +345,11 @@ export async function processAsaasTenantSubscription(params: {
   let setupPaymentId: string | null = null;
   let setupInvoiceUrl: string | null = null;
 
-  if (incluirSetup && valorSetup > 0) {
+  if (valorSetup > 0) {
+    const partesDescricao: string[] = [];
+    if (valorSetupBase > 0) partesDescricao.push('Taxa de Implantação (Setup)');
+    if (valorModuloGmn > 0) partesDescricao.push('Módulo Avulso Google Meu Negócio');
+
     const setupRes = await fetch(`${ASAAS_API_URL}/payments`, {
       method: 'POST',
       headers: asaasHeaders,
@@ -334,7 +358,7 @@ export async function processAsaasTenantSubscription(params: {
         billingType: 'UNDEFINED',
         value: valorSetup,
         dueDate: hoje,
-        description: `Taxa de Implantação (Setup) - ${plano.nome} - ${lojista.nome_estabelecimento}`,
+        description: `${partesDescricao.join(' + ')} - ${plano.nome} - ${lojista.nome_estabelecimento}`,
         externalReference: `setup_${lojista.id}`,
       }),
     });
@@ -353,6 +377,10 @@ export async function processAsaasTenantSubscription(params: {
   }
 
   // 4. Criar assinatura recorrente no Asaas
+  const sufixoExtras =
+    qtdProfissionaisExtras > 0
+      ? ` + ${qtdProfissionaisExtras} profissional(is) extra(s)`
+      : '';
   const subRes = await fetch(`${ASAAS_API_URL}/subscriptions`, {
     method: 'POST',
     headers: asaasHeaders,
@@ -362,7 +390,7 @@ export async function processAsaasTenantSubscription(params: {
       value: valorCobranca,
       nextDueDate: hoje,
       cycle: selectedCycle,
-      description: `Assinatura ${plano.nome} (${selectedCycle}) - ${lojista.nome_estabelecimento}`,
+      description: `Assinatura ${plano.nome} (${selectedCycle})${sufixoExtras} - ${lojista.nome_estabelecimento}`,
       externalReference: lojista.id,
     }),
   });

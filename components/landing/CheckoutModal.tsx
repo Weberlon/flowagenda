@@ -110,6 +110,8 @@ export default function CheckoutModal({
   const [email, setEmail] = useState('');
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [businessNiche, setBusinessNiche] = useState('barbearia');
+  const [profissionaisExtras, setProfissionaisExtras] = useState(0);
+  const [incluirModuloGmn, setIncluirModuloGmn] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -117,6 +119,9 @@ export default function CheckoutModal({
   useEffect(() => {
     if (isOpen) {
       setErrorMsg(null);
+      if (initialTier === 'tier_3') {
+        setIncluirModuloGmn(false);
+      }
     }
   }, [isOpen, initialTier, initialCycle]);
 
@@ -138,8 +143,12 @@ export default function CheckoutModal({
   if (!isOpen) return null;
 
   const plano = PLANOS_CHECKOUT[initialTier] || PLANOS_CHECKOUT.tier_1;
-  const valorRecorrente = plano[initialCycle];
-  const valorSetup = plano.taxaSetup[initialCycle];
+  const mesesCiclo = initialCycle === 'MONTHLY' ? 1 : initialCycle === 'SEMIANNUALLY' ? 6 : 12;
+  const valorExtrasCiclo = profissionaisExtras * 20 * mesesCiclo;
+  const valorRecorrente = plano[initialCycle] + valorExtrasCiclo;
+  const elegivelGmnAvulso = initialTier === 'tier_1' || initialTier === 'tier_2';
+  const valorGmnAvulso = elegivelGmnAvulso && incluirModuloGmn ? 247 : 0;
+  const valorSetup = plano.taxaSetup[initialCycle] + valorGmnAvulso;
   const cycleLabel =
     initialCycle === 'MONTHLY'
       ? 'Mensal'
@@ -172,6 +181,8 @@ export default function CheckoutModal({
           businessNiche,
           tier: initialTier,
           cycle: initialCycle,
+          profissionaisExtras,
+          incluirModuloGmn: elegivelGmnAvulso ? incluirModuloGmn : false,
         }),
       });
 
@@ -245,13 +256,13 @@ export default function CheckoutModal({
               <span className="text-[#4C566A]">•</span>
               <span className="font-mono text-[#ECEFF4]">{formatBRL(valorRecorrente)}</span>
               <span className="text-[#4C566A]">•</span>
-              {initialCycle === 'YEARLY' ? (
+              {valorSetup === 0 ? (
                 <span className="rounded bg-[#A3BE8C]/20 px-2 py-0.5 text-[11px] font-mono font-black text-[#A3BE8C]">
                   Setup Grátis
                 </span>
               ) : (
                 <span className="font-mono text-xs text-[#EBCB8B]">
-                  + Setup {formatBRL(valorSetup)}
+                  + Avulso/Setup {formatBRL(valorSetup)}
                 </span>
               )}
             </div>
@@ -377,6 +388,75 @@ export default function CheckoutModal({
                   .flowagenda.online
                 </span>
               </div>
+            </div>
+
+            {/* Adicionais Opcionais (Upsells) */}
+            <div className="sm:col-span-2 space-y-3 rounded-2xl border border-[#4C566A]/60 bg-[#2E3440]/80 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#88C0D0]">
+                Adicionais Opcionais
+              </p>
+
+              {/* Profissional Extra: R$ 20,00/mês */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-[#3B4252] bg-[#242933] px-3.5 py-2.5">
+                <div>
+                  <p className="text-xs font-bold text-[#ECEFF4]">
+                    Profissional Extra (+ R$ 20,00/mês por colaborador)
+                  </p>
+                  <p className="text-[11px] text-[#D8DEE9]/70">
+                    Adicione agendas extras além do limite padrão do plano.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setProfissionaisExtras((prev) => Math.max(0, prev - 1))}
+                    className="h-8 w-8 rounded-lg border border-[#4C566A] bg-[#3B4252] text-sm font-bold text-[#ECEFF4] hover:bg-[#434C5E] cursor-pointer"
+                    aria-label="Remover profissional extra"
+                  >
+                    -
+                  </button>
+                  <span className="w-7 text-center font-mono text-sm font-bold text-[#ECEFF4]">
+                    {profissionaisExtras}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setProfissionaisExtras((prev) => Math.min(20, prev + 1))}
+                    className="h-8 w-8 rounded-lg border border-[#4C566A] bg-[#3B4252] text-sm font-bold text-[#ECEFF4] hover:bg-[#434C5E] cursor-pointer"
+                    aria-label="Adicionar profissional extra"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Módulo Avulso Google Meu Negócio: R$ 247,00 (apenas Tiers 1 e 2) */}
+              {elegivelGmnAvulso ? (
+                <label className="flex items-start gap-3 rounded-xl border border-[#EBCB8B]/35 bg-[#EBCB8B]/10 px-3.5 py-3 cursor-pointer hover:bg-[#EBCB8B]/15 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={incluirModuloGmn}
+                    onChange={(e) => setIncluirModuloGmn(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-[#EBCB8B]"
+                  />
+                  <div className="flex-1 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-bold text-[#ECEFF4]">
+                        Módulo Avulso Google Meu Negócio
+                      </span>
+                      <span className="font-mono font-bold text-[#EBCB8B]">
+                        + R$ 247,00 (taxa única)
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#D8DEE9]/80 mt-0.5">
+                      Auditoria manual do perfil, ajuste de categorias e parametrização do link de agendamento no Google.
+                    </p>
+                  </div>
+                </label>
+              ) : (
+                <div className="rounded-xl border border-[#A3BE8C]/35 bg-[#A3BE8C]/10 px-3.5 py-2.5 text-[11px] font-semibold text-[#A3BE8C]">
+                  ✓ Otimização completa do Google Meu Negócio já está inclusa no Plano Autoridade.
+                </div>
+              )}
             </div>
           </div>
 
