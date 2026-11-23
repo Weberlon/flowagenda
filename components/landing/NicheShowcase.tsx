@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Scissors, Sparkles, HeartPulse, Stethoscope, Dog, PenTool, CheckCircle2 } from 'lucide-react';
+import { Scissors, Sparkles, HeartPulse, Stethoscope, Dog, PenTool, CheckCircle2, Footprints } from 'lucide-react';
 
 interface NicheItem {
   id: string;
@@ -85,6 +85,19 @@ export default function NicheShowcase() {
       metrics: 'Fluxo contínuo de atendimento sem estresse para os pets',
     },
     {
+      id: 'podologia',
+      name: 'Clínicas de Podologia',
+      shortName: 'Podologia',
+      icon: Footprints,
+      headline: 'Triagem clínica segura, ficha podal completa e retorno mensal recorrente',
+      description:
+        'Atenda casos de unha encravada, podoprofilaxia, órteses e pé diabético com pré-triagem automática no WhatsApp, mapeamento dos dois pés no painel e lembretes para retorno a cada 30 dias.',
+      whatsappMessage: 'Boa tarde! Estou com uma unha encravada e queria agendar atendimento.',
+      botAnswer: 'Olá! Podemos ajudar hoje mesmo. Você possui diabetes ou alguma alergia importante? Escolha o melhor horário no link seguro da clínica:',
+      benefits: ['Ficha podológica completa (Pé Direito e Esquerdo)', 'Alerta automático para protocolo de Pé Diabético', 'Lembretes de retorno mensal (15, 30 ou 45 dias)'],
+      metrics: 'Recorrência mensal garantida e atendimento clínico sem falhas',
+    },
+    {
       id: 'tatuagem',
       name: 'Estúdios de Tatuagem & Piercing',
       shortName: 'Tatuagem',
@@ -119,7 +132,7 @@ export default function NicheShowcase() {
         <div
           role="tablist"
           aria-label="Segmentos atendidos pelo FlowAgenda"
-          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-8"
+          className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-8"
         >
           {niches.map((niche) => {
             const Icon = niche.icon;

@@ -351,6 +351,7 @@ export default function CheckoutModal({
                 <option value="salao_beleza">Salão de Beleza</option>
                 <option value="clinica_estetica">Clínica de Estética / Spa</option>
                 <option value="dentista">Dentista / Consultório Odontológico</option>
+                <option value="podologia">Podologia / Saúde dos Pés</option>
                 <option value="pet_shop">Pet Shop / Clínica Veterinária</option>
                 <option value="tatuagem">Estúdio de Tatuagem / Piercing</option>
               </select>

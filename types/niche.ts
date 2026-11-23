@@ -31,7 +31,35 @@ export type TipoFichaClinica =
   | 'mapa_estetico'
   | 'anamnese'
   | 'triagem_ia'
-  | 'evolucao_psicologica';
+  | 'evolucao_psicologica'
+  | 'ficha_podologica';
+
+export type StatusRegiaoPodal =
+  | 'saudavel'
+  | 'onicocriptose'
+  | 'onicomicose'
+  | 'ortese'
+  | 'calosidade'
+  | 'atencao';
+
+export interface RegiaoPodalEstado {
+  codigo: string;
+  pe: 'direito' | 'esquerdo';
+  nomeRegiao: string;
+  status: StatusRegiaoPodal;
+  observacao?: string;
+  atualizado_em?: string;
+}
+
+export interface AnamnesePodologica {
+  peDiabetico?: boolean;
+  alteracaoVascular?: boolean;
+  usoAnticoagulante?: boolean;
+  alergias?: string;
+  tipoPisada?: 'neutra' | 'pronada' | 'supinada' | '';
+  calcadoHabitual?: string;
+  alertaCritico?: boolean;
+}
 
 export type StatusDenteFDI =
   | 'higido'
@@ -129,6 +157,10 @@ export interface FichaClinica {
     exames?: ExameClinicoItem[];
     triagemIa?: TriagemIaDados;
     sessoes?: EvolucaoPsicologicaItem[];
+    regioesPodais?: Record<string, RegiaoPodalEstado>;
+    anamnesePodologica?: AnamnesePodologica;
+    retornoRecomendadoDias?: number;
+    cuidadosDomiciliares?: string;
     [key: string]: unknown;
   };
   observacoes_gerais?: string | null;

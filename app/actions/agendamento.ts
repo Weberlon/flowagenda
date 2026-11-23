@@ -317,7 +317,7 @@ export async function validarPinEConfirmarAction(
   const lojista = (Array.isArray(reserva.lojista) ? reserva.lojista[0] : reserva.lojista) as any;
   const servico = (Array.isArray(reserva.servico) ? reserva.servico[0] : reserva.servico) as any;
 
-  // 5. Atualizar estatísticas e fidelidade do cliente
+  // 5. Atualizar estatísticas, fidelidade e etapa no Kanban do cliente
   if (reserva.cliente_id && cliente) {
     const novoTotal = (cliente.total_agendamentos || 0) + 1;
     await dbClient
@@ -325,8 +325,10 @@ export async function validarPinEConfirmarAction(
       .update({
         total_agendamentos: novoTotal,
         ultimo_agendamento: new Date().toISOString(),
+        etapa_kanban: 'agendado',
       })
-      .eq('id', reserva.cliente_id);
+      .eq('id', reserva.cliente_id)
+      .eq('lojista_id', lojistaId);
   }
 
   const nomeCliente = cliente?.nome || 'Cliente';

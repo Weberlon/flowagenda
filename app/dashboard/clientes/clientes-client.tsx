@@ -22,7 +22,8 @@ import { PetsManagerModal } from '@/components/dashboard/PetsManagerModal';
 import { OdontogramaModal } from '@/components/dashboard/OdontogramaModal';
 import { MapaEsteticoModal } from '@/components/dashboard/MapaEsteticoModal';
 import { ProntuarioPsicoModal } from '@/components/crm/ProntuarioPsicoModal';
-import { PawPrint, Stethoscope, Sparkles, ShieldAlert, Calendar, Brain } from 'lucide-react';
+import { FichaPodologicaModal } from '@/components/dashboard/FichaPodologicaModal';
+import { PawPrint, Stethoscope, Sparkles, ShieldAlert, Calendar, Brain, Footprints } from 'lucide-react';
 
 const SYSTEM_METADATA_KEYS = new Set([
   'ai_paused_until',
@@ -98,6 +99,7 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
   const [odontogramaModalCliente, setOdontogramaModalCliente] = useState<ClienteCRM | null>(null);
   const [mapaEsteticoModalCliente, setMapaEsteticoModalCliente] = useState<ClienteCRM | null>(null);
   const [prontuarioPsicoModalCliente, setProntuarioPsicoModalCliente] = useState<ClienteCRM | null>(null);
+  const [fichaPodologicaModalCliente, setFichaPodologicaModalCliente] = useState<ClienteCRM | null>(null);
   const [odontoResumoDrawer, setOdontoResumoDrawer] = useState<{
     alertaCritico: boolean;
     alergias?: string;
@@ -867,6 +869,17 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                     <span>Prontuário</span>
                                   </button>
                                 )}
+
+                                {dict.features.hasFichaPodologica && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setFichaPodologicaModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-md bg-[#88C0D0]/15 border border-[#88C0D0]/40 px-2 py-0.5 text-[10px] font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                                  >
+                                    <Footprints className="w-3 h-3" />
+                                    <span>Podologia</span>
+                                  </button>
+                                )}
                               </div>
 
                               {/* Menu Rápido de 1 Clique */}
@@ -1028,6 +1041,16 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                                   >
                                     <Brain className="w-3.5 h-3.5" />
                                     <span>Prontuário</span>
+                                  </button>
+                                )}
+                                {dict.features.hasFichaPodologica && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setFichaPodologicaModalCliente(cliente)}
+                                    className="inline-flex items-center gap-1 rounded-lg bg-[#88C0D0]/15 border border-[#88C0D0]/40 px-2.5 py-1 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                                  >
+                                    <Footprints className="w-3.5 h-3.5" />
+                                    <span>Podologia</span>
                                   </button>
                                 )}
                                 <a
@@ -1287,6 +1310,17 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
                 >
                   <Brain className="w-4 h-4" />
                   <span>Abrir Prontuário de Sessões</span>
+                </button>
+              )}
+
+              {dict.features.hasFichaPodologica && (
+                <button
+                  type="button"
+                  onClick={() => setFichaPodologicaModalCliente(activeCliente)}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#88C0D0]/50 bg-[#88C0D0]/15 px-3 py-2.5 text-xs font-bold text-[#88C0D0] hover:bg-[#88C0D0] hover:text-[#2E3440] transition"
+                >
+                  <Footprints className="w-4 h-4" />
+                  <span>Abrir Ficha Podológica ({dict.clienteSingular})</span>
                 </button>
               )}
 
@@ -1756,6 +1790,16 @@ export function ClientesClient({ lojista, initialClientes, kpis }: ClientesClien
           lojistaId={lojista.id}
           clienteId={prontuarioPsicoModalCliente.id}
           clienteNome={prontuarioPsicoModalCliente.nome}
+        />
+      )}
+
+      {dict.features.hasFichaPodologica && fichaPodologicaModalCliente && (
+        <FichaPodologicaModal
+          isOpen={Boolean(fichaPodologicaModalCliente)}
+          onClose={() => setFichaPodologicaModalCliente(null)}
+          lojistaId={lojista.id}
+          clienteId={fichaPodologicaModalCliente.id}
+          clienteNome={fichaPodologicaModalCliente.nome}
         />
       )}
     </div>

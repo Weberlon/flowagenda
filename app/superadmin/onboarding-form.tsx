@@ -284,6 +284,7 @@ export function OnboardingForm() {
             <option value="dentista">Dentista / Odontologia (dentista)</option>
             <option value="pet_shop">Pet Shop / Veterinária (pet_shop)</option>
             <option value="psicologia">Psicologia / Terapia (psicologia)</option>
+            <option value="podologia">Podologia / Saúde dos Pés (podologia)</option>
             <option value="tatuagem">Estúdio de Tatuagem / Piercing (tatuagem)</option>
           </select>
         </div>

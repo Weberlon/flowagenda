@@ -118,8 +118,12 @@ export async function loadNicheClientContext(params: {
     }
   }
 
-  // 2. Nicho Odontologia / Clínica de Estética
-  if (nicheDict.features.hasOdontograma || nicheDict.features.hasMapaEstetico) {
+  // 2. Nicho Odontologia / Clínica de Estética / Podologia
+  if (
+    nicheDict.features.hasOdontograma ||
+    nicheDict.features.hasMapaEstetico ||
+    nicheDict.features.hasFichaPodologica
+  ) {
     if (clienteId) {
       const { data: fichas } = await supabase
         .from('fichas_clinicas')
@@ -133,11 +137,16 @@ export async function loadNicheClientContext(params: {
         const pontosApoio: string[] = [];
         for (const f of fichas) {
           const dj = (f.dados_json || {}) as any;
-          if (dj.anamnese?.alertaCritico) {
+          if (dj.anamnese?.alertaCritico || dj.anamnesePodologica?.alertaCritico) {
             pontosApoio.push('Alerta clínico crítico registrado na ficha.');
           }
-          if (dj.anamnese?.alergias) {
-            pontosApoio.push(`Alergias registradas: ${dj.anamnese.alergias}.`);
+          if (dj.anamnesePodologica?.peDiabetico) {
+            pontosApoio.push('Paciente marcado como Pé Diabético (atenção redobrada no protocolo).');
+          }
+          if (dj.anamnese?.alergias || dj.anamnesePodologica?.alergias) {
+            pontosApoio.push(
+              `Alergias registradas: ${dj.anamnese?.alergias || dj.anamnesePodologica?.alergias}.`
+            );
           }
           if (dj.triagemIa?.objetivoOuQueixa) {
             pontosApoio.push(`Último objetivo/queixa informado: ${dj.triagemIa.objetivoOuQueixa}.`);
@@ -157,8 +166,9 @@ export async function loadNicheClientContext(params: {
       }
     }
 
-    triagemInstructions =
-      'Antes de concluir o agendamento, pergunte brevemente qual é o objetivo ou queixa principal do atendimento e se possui alguma alergia ou restrição importante. Assim que o paciente responder, chame a ferramenta registrar_pre_triagem_nicho. Se o paciente responder de forma direta e não quiser detalhar agora, NÃO insista nem bloqueie o agendamento — prossiga normalmente.';
+    triagemInstructions = nicheDict.features.hasFichaPodologica
+      ? 'Antes de concluir o agendamento, pergunte brevemente qual é a queixa ou procedimento desejado (ex.: unha encravada, podoprofilaxia, calosidade, micose ou órtese) e se o(a) paciente é diabético(a) ou possui alguma alergia importante. Assim que responder, chame a ferramenta registrar_pre_triagem_nicho. Se o paciente for direto e não quiser detalhar agora, NÃO insista nem bloqueie o agendamento.'
+      : 'Antes de concluir o agendamento, pergunte brevemente qual é o objetivo ou queixa principal do atendimento e se possui alguma alergia ou restrição importante. Assim que o paciente responder, chame a ferramenta registrar_pre_triagem_nicho. Se o paciente responder de forma direta e não quiser detalhar agora, NÃO insista nem bloqueie o agendamento — prossiga normalmente.';
   }
 
   // 3. Nicho Psicologia / Terapia (Sigilo Estrito LGPD + Triagem Administrativa)

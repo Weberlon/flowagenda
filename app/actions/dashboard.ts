@@ -7,6 +7,7 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { getNicheDictionary } from '@/lib/niche-dictionary';
 import { sendGoogleReviewRequest } from '@/lib/google-review-request';
+import { sincronizarEtapaKanbanCliente } from '@/lib/kanban-sync';
 
 const DURACOES_PERMITIDAS = [15, 30, 45, 60] as const;
 
@@ -704,7 +705,15 @@ export async function createDashboardAgendamentoAction(input: {
     return { success: false, error: insertError.message };
   }
 
+  await sincronizarEtapaKanbanCliente({
+    supabase: dbClient,
+    lojistaId: lojista.id,
+    clienteId: input.clienteId,
+    evento: 'agendamento_confirmado',
+  });
+
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/clientes');
   return { success: true };
 }
 
@@ -737,7 +746,7 @@ export async function updateDashboardAgendamentoStatusAction(input: {
   let agendamentoAtual: any = null;
   const { data: agData, error: agErr } = await dbClient
     .from('agendamentos')
-    .select('id, status, avaliacao_enviada, avaliacao_enviada_at')
+    .select('id, cliente_id, status, avaliacao_enviada, avaliacao_enviada_at')
     .eq('id', input.agendamentoId)
     .eq('lojista_id', lojista.id)
     .maybeSingle();
@@ -745,7 +754,7 @@ export async function updateDashboardAgendamentoStatusAction(input: {
   if (agErr && agErr.message?.includes('avaliacao_enviada')) {
     const { data: fallbackAg } = await dbClient
       .from('agendamentos')
-      .select('id, status, avaliacao_enviada_at')
+      .select('id, cliente_id, status, avaliacao_enviada_at')
       .eq('id', input.agendamentoId)
       .eq('lojista_id', lojista.id)
       .maybeSingle();
@@ -769,6 +778,25 @@ export async function updateDashboardAgendamentoStatusAction(input: {
 
   if (updateErr) {
     return { success: false, error: updateErr.message };
+  }
+
+  // 2.1 Sincronização automática do Kanban do lojista
+  if (agendamentoAtual.cliente_id) {
+    if (input.novoStatus === 'concluido') {
+      await sincronizarEtapaKanbanCliente({
+        supabase: dbClient,
+        lojistaId: lojista.id,
+        clienteId: agendamentoAtual.cliente_id,
+        evento: 'atendimento_concluido',
+      });
+    } else if (input.novoStatus === 'confirmado') {
+      await sincronizarEtapaKanbanCliente({
+        supabase: dbClient,
+        lojistaId: lojista.id,
+        clienteId: agendamentoAtual.cliente_id,
+        evento: 'agendamento_confirmado',
+      });
+    }
   }
 
   // 3. Disparo automático idempotente de avaliação Google ao concluir (não-bloqueante)
@@ -818,5 +846,6 @@ export async function updateDashboardAgendamentoStatusAction(input: {
   }
 
   revalidatePath('/dashboard');
+  revalidatePath('/dashboard/clientes');
   return { success: true, autoReviewSent };
 }
