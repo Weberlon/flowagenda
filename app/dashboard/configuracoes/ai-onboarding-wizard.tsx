@@ -12,6 +12,7 @@ interface AiOnboardingWizardProps {
   initialAiCredits?: number | null;
   initialOnboardingConfig?: {
     business_niche?: string;
+    assistant_name?: string;
     tone_of_voice?: string;
     horario_funcionamento?: string;
     tolerancia_atraso?: string;
@@ -68,6 +69,9 @@ export function AiOnboardingWizard({
   const [businessNiche, setBusinessNiche] = useState<string>(
     initialBusinessNiche || initialOnboardingConfig?.business_niche || 'barbearia'
   );
+  const [assistantName, setAssistantName] = useState<string>(
+    initialOnboardingConfig?.assistant_name || ''
+  );
   const [toneOfVoice, setToneOfVoice] = useState<string>(
     initialOnboardingConfig?.tone_of_voice || TONS_DE_VOZ[0].id
   );
@@ -108,6 +112,7 @@ export function AiOnboardingWizard({
     ``,
     `## 1. Perfil e Posicionamento`,
     `- **Estabelecimento:** ${nomeEstabelecimento}`,
+    `- **Assistente Virtual:** ${assistantName.trim() || 'Secretária Virtual'}`,
     `- **Nicho de Atuação:** ${businessNiche}`,
     `- **Tom de Voz do Agente:** ${toneOfVoice}`,
     ``,
@@ -145,6 +150,7 @@ export function AiOnboardingWizard({
       const res = await saveAiOnboardingSetupAction({
         explicitLojistaId: lojistaId,
         businessNiche,
+        assistantName,
         toneOfVoice,
         horarioFuncionamento,
         toleranciaAtraso,
@@ -368,6 +374,26 @@ export function AiOnboardingWizard({
                   );
                 })}
               </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <label
+                htmlFor="wizard-assistant-name"
+                className="block text-xs font-bold uppercase tracking-wider text-slate-700"
+              >
+                c) Nome da Assistente Virtual (ex.: Lara)
+              </label>
+              <input
+                id="wizard-assistant-name"
+                type="text"
+                value={assistantName}
+                onChange={(e) => setAssistantName(e.target.value)}
+                placeholder="Ex.: Lara (se ficar em branco, usará Secretária Virtual)"
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-none"
+              />
+              <p className="text-[11px] text-slate-500">
+                A IA se apresentará com este nome ao iniciar conversas no WhatsApp.
+              </p>
             </div>
 
             <div className="flex items-center justify-end pt-3 border-t border-slate-100">

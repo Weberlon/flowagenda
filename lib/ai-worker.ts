@@ -82,6 +82,7 @@ export function buildDeskcommSystemPrompt(params: {
   knowledgeBase: string;
   linkAgendamento: string;
   senderName?: string | null;
+  assistantName?: string | null;
   aiPersonaInstructions?: string;
   nicheClientContext?: string;
   nicheTriagemInstruction?: string;
@@ -92,6 +93,7 @@ export function buildDeskcommSystemPrompt(params: {
     knowledgeBase,
     linkAgendamento,
     senderName,
+    assistantName,
     aiPersonaInstructions,
     nicheClientContext,
     nicheTriagemInstruction,
@@ -101,7 +103,11 @@ export function buildDeskcommSystemPrompt(params: {
     aiPersonaInstructions || getNicheDictionary(businessNiche).aiPersonaInstructions;
 
   return [
-    `Você é o assistente virtual inteligente do estabelecimento "${nomeEstabelecimento}", atuando no segmento de "${businessNiche}".`,
+    `Você é ${
+      assistantName?.trim()
+        ? `"${assistantName.trim()}", a assistente virtual inteligente`
+        : 'o assistente virtual inteligente'
+    } do estabelecimento "${nomeEstabelecimento}", atuando no segmento de "${businessNiche}".`,
     senderName ? `Você está conversando no WhatsApp com o(a) cliente "${senderName}".` : '',
     ``,
     `=== PERSONA E COMPORTAMENTO DO NICHO ===`,
@@ -393,6 +399,7 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         knowledgeBase: enrichedKnowledgeBase,
         linkAgendamento,
         senderName,
+        assistantName: (lojista as any)?.configuracoes?.ai_onboarding?.assistant_name || null,
         aiPersonaInstructions: nicheDict.aiPersonaInstructions,
         nicheClientContext: contextText,
         nicheTriagemInstruction: triagemInstructions,
@@ -435,7 +442,8 @@ export async function processPendingChatQueue(): Promise<ProcessChatQueueSummary
         nicheDict.features.hasPets ||
         nicheDict.features.hasOdontograma ||
         nicheDict.features.hasMapaEstetico ||
-        nicheDict.features.hasProntuarioPsico;
+        nicheDict.features.hasProntuarioPsico ||
+        nicheDict.features.hasFichaPodologica;
 
       const preTriagemTool: OpenAI.Chat.ChatCompletionTool = {
         type: 'function',

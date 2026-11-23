@@ -526,6 +526,7 @@ export async function updateGoogleReviewAutoAction(
 export interface SaveAiOnboardingSetupParams {
   explicitLojistaId?: string;
   businessNiche: string;
+  assistantName?: string;
   toneOfVoice: string;
   horarioFuncionamento: string;
   toleranciaAtraso: string;
@@ -603,6 +604,7 @@ export async function saveAiOnboardingSetupAction(params: SaveAiOnboardingSetupP
         : '- Consulte os serviços e valores atualizados diretamente no link oficial de agendamento.';
 
     const businessNiche = (params.businessNiche || 'Barbearia').trim();
+    const assistantName = (params.assistantName || '').trim();
     const toneOfVoice = (params.toneOfVoice || 'Amigável e descontraído').trim();
     const horario = (params.horarioFuncionamento || 'Segunda a Sábado, das 09h às 19h').trim();
     const tolerancia = (params.toleranciaAtraso || '15 minutos de tolerância').trim();
@@ -620,6 +622,7 @@ export async function saveAiOnboardingSetupAction(params: SaveAiOnboardingSetupP
           ``,
           `## 1. Perfil e Posicionamento`,
           `- **Estabelecimento:** ${lojista.nome_estabelecimento}`,
+          `- **Assistente Virtual:** ${assistantName || 'Secretária Virtual'}`,
           `- **Nicho de Atuação:** ${businessNiche}`,
           `- **Tom de Voz do Agente:** ${toneOfVoice}`,
           ``,
@@ -652,6 +655,7 @@ export async function saveAiOnboardingSetupAction(params: SaveAiOnboardingSetupP
       ...configAtual,
       ai_onboarding: {
         business_niche: businessNiche,
+        assistant_name: assistantName,
         tone_of_voice: toneOfVoice,
         horario_funcionamento: horario,
         tolerancia_atraso: tolerancia,
